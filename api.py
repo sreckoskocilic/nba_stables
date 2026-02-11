@@ -719,6 +719,7 @@ async def health_check():
 
 def fetch_espn_injuries():
     """Fetch injuries from ESPN API"""
+    import re
     url = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries"
     headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
 
@@ -736,14 +737,38 @@ def fetch_espn_injuries():
             athlete = injury.get("athlete", {})
             status = injury.get("status", "Unknown")
 
-            comment = injury.get("shortComment", "")
+            short_comment = injury.get("shortComment", "")
+            long_comment = injury.get("longComment", "")
+
+            # Extract injury type from shortComment
             injury_type = ""
-            if "due to" in comment.lower():
-                injury_type = comment.split("due to")[-1].strip().rstrip(".")
+            if "due to" in short_comment.lower():
+                injury_type = short_comment.split("due to")[-1].strip().rstrip(".")
                 if " " in injury_type:
                     parts = injury_type.split()
                     injury_type = " ".join(parts[:3]).rstrip(",.")
 
+            # Try to extract return date from longComment
+            return_date = ""
+            if status == "Out" and long_comment:
+                # Look for return-related patterns followed by dates
+                # e.g., "return...Feb 19", "debut...Feb 19", "until...Feb 19", "re-evaluated after...Feb 19"
+                return_patterns = [
+                    r'return[^.]*?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s*(\d{1,2})',
+                    r'debut[^.]*?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s*(\d{1,2})',
+                    r'until[^.]*?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s*(\d{1,2})',
+                    r'after[^.]*?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s*(\d{1,2})',
+                    r'earliest[^.]*?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s*(\d{1,2})',
+                ]
+                date_match = None
+                for pattern in return_patterns:
+                    date_match = re.search(pattern, long_comment, re.IGNORECASE)
+                    if date_match:
+                        break
+                if date_match:
+                    return_date = f"{date_match.group(1)} {date_match.group(2)}"
+
+            # Format update date
             date_str = injury.get("date", "")
             if date_str:
                 try:
@@ -753,11 +778,16 @@ def fetch_espn_injuries():
                 except:
                     date_str = ""
 
+            # If we found a return date, append to status
+            final_status = status
+            if return_date:
+                final_status = f"Expected to return {return_date}"
+
             players.append({
                 "name": athlete.get("displayName", "Unknown"),
                 "updated": date_str,
                 "injury": injury_type[:20] if injury_type else "",
-                "status": status
+                "status": final_status
             })
 
         if players:
