@@ -5,6 +5,7 @@ FastAPI backend for live NBA statistics
 
 import json
 import os
+import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
@@ -71,7 +72,7 @@ CACHE_TTL = {
     "leaders": 300,        # 5 minutes
     "standings": 3600,     # 1 hour - doesn't change often
     "player_stats": 30,    # 30 seconds
-    "injuries": 1800,      # 30 minutes - injury reports don't change often
+    "injuries": 7200,      # 2 hours - injury reports don't change often, avoid rate limits
 }
 
 
@@ -726,10 +727,26 @@ async def get_injuries():
     try:
         url = "https://www.cbssports.com/nba/injuries/"
         headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
         }
 
-        response = requests.get(url, headers=headers, timeout=10)
+        time.sleep(random.uniform(0.5, 1.5))  # Small random delay
+        response = requests.get(url, headers=headers, timeout=15)
+
+        if response.status_code == 429:
+            # Rate limited - return empty with message
+            return {
+                "injuries": [],
+                "source": "CBS Sports",
+                "lastUpdated": get_display_date(0),
+                "error": "Rate limited - try again later"
+            }
+
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, "lxml")
