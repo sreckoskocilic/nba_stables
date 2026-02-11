@@ -5,6 +5,7 @@ FastAPI backend for live NBA statistics
 
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 
 from fastapi import FastAPI, HTTPException, Query
@@ -13,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from isodate import parse_duration
 from nba_api.live.nba.endpoints import boxscore, scoreboard
-from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv2
+from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv2, leaguestandings, boxscoreadvancedv3
 
 app = FastAPI(
     title="NBA Stables API",
@@ -83,15 +84,17 @@ def get_games_leaders_list(days_offset: int = 1):
             game_id = g[2]
             g_dict[game_id] = []
 
-        # Get leaders for each game (leaders data structure: game_id, team_id, player_id, player_name, pts, reb, ast...)
+        # Leaders structure: GAME_ID, TEAM_ID, TEAM_CITY, TEAM_NICKNAME, TEAM_ABBREVIATION,
+        # PTS_PLAYER_ID, PTS_PLAYER_NAME, PTS, REB_PLAYER_ID, REB_PLAYER_NAME, REB,
+        # AST_PLAYER_ID, AST_PLAYER_NAME, AST
         for ld in leaders["data"]:
             game_id = ld[0]
             if game_id in g_dict:
-                player_name = ld[4] if len(ld) > 4 else ""
-                pts = ld[5] if len(ld) > 5 else 0
-                reb = ld[6] if len(ld) > 6 else 0
-                ast = ld[7] if len(ld) > 7 else 0
-                g_dict[game_id].append([player_name, pts, reb, ast])
+                pts_player = ld[6] if len(ld) > 6 else ""
+                pts = ld[7] if len(ld) > 7 else 0
+                reb = ld[10] if len(ld) > 10 else 0
+                ast = ld[13] if len(ld) > 13 else 0
+                g_dict[game_id].append([pts_player, pts, reb, ast])
     except Exception:
         pass
     return g_dict
@@ -142,56 +145,66 @@ async def get_scoreboard():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def fetch_single_boxscore(game_id, leaders_data):
+    """Fetch boxscore for a single game (for parallel execution)"""
+    try:
+        bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(game_id=game_id)
+        if bs_stats is None:
+            return None
+
+        team_stats = bs_stats.team_stats.get_dict()["data"]
+        game_box = {"gameId": game_id, "teams": []}
+
+        for i, team in enumerate(team_stats):
+            leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
+            if i < len(leaders_data):
+                ld = leaders_data[i]
+                leader = {"name": ld[0], "points": ld[1], "rebounds": ld[2], "assists": ld[3]}
+
+            game_box["teams"].append({
+                "name": "{} {}".format(team[2], team[3]),
+                "score": team[-2],
+                "stats": {
+                    "fg": "{}/{}".format(team[7], team[8]),
+                    "fgPct": team[9],
+                    "threePt": "{}/{}".format(team[10], team[11]),
+                    "threePtPct": team[12],
+                    "ft": "{}/{}".format(team[13], team[14]),
+                    "ftPct": team[15],
+                    "rebounds": team[18],
+                    "offRebounds": team[16],
+                    "assists": team[19],
+                    "steals": team[20],
+                    "blocks": team[21],
+                    "turnovers": team[22],
+                    "fouls": team[23]
+                },
+                "leader": leader
+            })
+
+        return game_box
+    except Exception:
+        return None
+
+
 @app.get("/api/boxscores")
 async def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
     """Get detailed box scores for games"""
     try:
-        boxscores_list = []
-
         # Use the helper function to get games with leaders
         leaders_by_game = get_games_leaders_list(days_offset)
 
-        for game_id, leaders_data in leaders_by_game.items():
-            try:
-                bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(game_id=game_id)
-            except Exception:
-                continue
-
-            if bs_stats is None:
-                continue
-
-            team_stats = bs_stats.team_stats.get_dict()["data"]
-            game_box = {"gameId": game_id, "teams": []}
-
-            for i, team in enumerate(team_stats):
-                # leaders_data is list of [name, points, rebounds, assists]
-                leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
-                if i < len(leaders_data):
-                    ld = leaders_data[i]
-                    leader = {"name": ld[0], "points": ld[1], "rebounds": ld[2], "assists": ld[3]}
-
-                game_box["teams"].append({
-                    "name": "{} {}".format(team[2], team[3]),
-                    "score": team[-2],
-                    "stats": {
-                        "fg": "{}/{}".format(team[7], team[8]),
-                        "fgPct": team[9],
-                        "threePt": "{}/{}".format(team[10], team[11]),
-                        "threePtPct": team[12],
-                        "ft": "{}/{}".format(team[13], team[14]),
-                        "ftPct": team[15],
-                        "rebounds": team[18],
-                        "offRebounds": team[16],
-                        "assists": team[19],
-                        "steals": team[20],
-                        "blocks": team[21],
-                        "turnovers": team[22],
-                        "fouls": team[23]
-                    },
-                    "leader": leader
-                })
-
-            boxscores_list.append(game_box)
+        # Fetch all boxscores in parallel
+        boxscores_list = []
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {
+                executor.submit(fetch_single_boxscore, game_id, leaders_data): game_id
+                for game_id, leaders_data in leaders_by_game.items()
+            }
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    boxscores_list.append(result)
 
         return {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
     except Exception as e:
@@ -329,6 +342,302 @@ async def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                 }
 
         return {"leaders": leaders, "date": get_display_date(days_offset)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/standings")
+async def get_standings():
+    """Get current NBA standings by conference"""
+    try:
+        standings = leaguestandings.LeagueStandings().get_dict()
+        teams = standings["resultSets"][0]["rowSet"]
+
+        east = []
+        west = []
+
+        for team in teams:
+            # Indices based on API headers:
+            # 4=TeamName, 5=Conference, 7=PlayoffRank, 12=WINS, 13=LOSSES,
+            # 14=WinPCT, 17=HOME, 18=ROAD, 19=L10, 36=strCurrentStreak, 37=ConferenceGamesBack
+            win_pct = team[14] if team[14] is not None else 0
+            team_data = {
+                "rank": team[7] or 0,
+                "name": team[4] or "",
+                "tricode": (team[3] or "")[:3].upper(),  # TeamCity -> tricode
+                "wins": team[12] or 0,
+                "losses": team[13] or 0,
+                "winPct": round(win_pct, 3) if win_pct else 0,
+                "gamesBack": team[37] if team[37] is not None else "-",
+                "streak": team[36] or "-",
+                "last10": team[19] or "0-0",
+                "homeRecord": team[17] or "0-0",
+                "awayRecord": team[18] or "0-0"
+            }
+
+            if team[5] == "East":
+                east.append(team_data)
+            else:
+                west.append(team_data)
+
+        # Sort by rank
+        east.sort(key=lambda x: x["rank"] or 99)
+        west.sort(key=lambda x: x["rank"] or 99)
+
+        return {"east": east, "west": west}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/players/advanced")
+async def get_player_advanced_stats(ids: str = Query(..., description="Comma-separated player IDs")):
+    """Get advanced stats for players including plus/minus, efficiency metrics"""
+    try:
+        player_ids = [int(pid.strip()) for pid in ids.split(",")]
+        players_data = load_players_file()
+
+        # Get team IDs for requested players
+        team_ids = []
+        for pid in player_ids:
+            player = next((p for p in players_data if p[0] == pid), None)
+            if player and player[2] and player[2] not in team_ids:
+                team_ids.append(player[2])
+
+        results = []
+
+        for game in scoreboard.ScoreBoard().games.data:
+            if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids:
+                game_id = game["gameId"]
+
+                # Get live boxscore for basic stats
+                try:
+                    bs = boxscore.BoxScore(game_id=game_id).get_dict()
+                except Exception:
+                    continue
+
+                # Get advanced stats
+                try:
+                    adv = boxscoreadvancedv3.BoxScoreAdvancedV3(game_id=game_id)
+                    adv_players = adv.player_stats.get_dict()["data"]
+                except Exception:
+                    adv_players = []
+
+                for team_key in ["homeTeam", "awayTeam"]:
+                    team = bs["game"][team_key]
+                    for player in team["players"]:
+                        if player["personId"] in player_ids and player["status"] == "ACTIVE":
+                            stats = player["statistics"]
+
+                            # Find advanced stats for this player
+                            adv_stat = next(
+                                (p for p in adv_players if p[6] == player["personId"]),
+                                None
+                            )
+
+                            try:
+                                minutes = reformat_player_minutes(
+                                    int(parse_duration(stats["minutes"]).total_seconds())
+                                )
+                            except Exception:
+                                minutes = "0:00"
+
+                            # Calculate efficiency metrics
+                            pts = stats["points"]
+                            fgm = stats["fieldGoalsMade"]
+                            fga = stats["fieldGoalsAttempted"]
+                            tpm = stats["threePointersMade"]
+                            fta = stats["freeThrowsAttempted"]
+                            ftm = stats["freeThrowsMade"]
+                            reb = stats["reboundsTotal"]
+                            ast = stats["assists"]
+                            stl = stats["steals"]
+                            blk = stats["blocks"]
+                            tov = stats["turnovers"]
+
+                            # True Shooting %: PTS / (2 * (FGA + 0.44 * FTA))
+                            ts_denom = 2 * (fga + 0.44 * fta)
+                            ts_pct = round(pts / ts_denom, 3) if ts_denom > 0 else 0
+
+                            # Effective FG%: (FGM + 0.5 * 3PM) / FGA
+                            efg_pct = round((fgm + 0.5 * tpm) / fga, 3) if fga > 0 else 0
+
+                            # Check for double-double / triple-double
+                            double_digits = sum(1 for x in [pts, reb, ast, stl, blk] if x >= 10)
+
+                            player_result = {
+                                "id": player["personId"],
+                                "name": player["name"],
+                                "team": team["teamTricode"],
+                                "minutes": minutes,
+                                "points": pts,
+                                "rebounds": reb,
+                                "assists": ast,
+                                "steals": stl,
+                                "blocks": blk,
+                                "turnovers": tov,
+                                "fg": f"{fgm}/{fga}",
+                                "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
+                                "threePt": f"{tpm}/{stats['threePointersAttempted']}",
+                                "ft": f"{ftm}/{fta}",
+                                "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
+                                "efgPct": efg_pct,
+                                "tsPct": ts_pct,
+                                "plusMinus": adv_stat[14] if adv_stat else stats.get("plusMinusPoints", 0),
+                                "isDoubleDouble": double_digits >= 2,
+                                "isTripleDouble": double_digits >= 3
+                            }
+
+                            results.append(player_result)
+
+        return {"players": results}
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid player IDs format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/doubledoubles")
+async def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
+    """Get players with double-doubles or triple-doubles for a given day"""
+    try:
+        if days_offset == 0:
+            # Use live scoreboard for today
+            game_ids = [g["gameId"] for g in scoreboard.ScoreBoard().games.data]
+        else:
+            game_ids = get_games_list(days_offset)
+
+        double_doubles = []
+        triple_doubles = []
+
+        for gid in game_ids:
+            try:
+                bs = boxscore.BoxScore(game_id=gid).get_dict()
+            except Exception:
+                continue
+
+            for team_key in ["homeTeam", "awayTeam"]:
+                team = bs["game"][team_key]
+                tricode = team["teamTricode"]
+
+                for player in team["players"]:
+                    if player["status"] == "ACTIVE":
+                        stats = player["statistics"]
+                        pts = stats["points"]
+                        reb = stats["reboundsTotal"]
+                        ast = stats["assists"]
+                        stl = stats["steals"]
+                        blk = stats["blocks"]
+
+                        categories = {"pts": pts, "reb": reb, "ast": ast, "stl": stl, "blk": blk}
+                        double_digit_cats = [k for k, v in categories.items() if v >= 10]
+
+                        if len(double_digit_cats) >= 2:
+                            player_data = {
+                                "name": player["name"],
+                                "team": tricode,
+                                "points": pts,
+                                "rebounds": reb,
+                                "assists": ast,
+                                "steals": stl,
+                                "blocks": blk,
+                                "categories": double_digit_cats
+                            }
+
+                            if len(double_digit_cats) >= 3:
+                                triple_doubles.append(player_data)
+                            else:
+                                double_doubles.append(player_data)
+
+        return {
+            "tripleDoubles": triple_doubles,
+            "doubleDoubles": double_doubles,
+            "date": get_display_date(days_offset)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/games/{game_id}/players")
+async def get_game_players(game_id: str):
+    """Get all player stats for a specific game with advanced metrics"""
+    try:
+        bs = boxscore.BoxScore(game_id=game_id).get_dict()
+
+        # Try to get advanced stats
+        try:
+            adv = boxscoreadvancedv3.BoxScoreAdvancedV3(game_id=game_id)
+            adv_players = adv.player_stats.get_dict()["data"]
+        except Exception:
+            adv_players = []
+
+        teams = []
+
+        for team_key in ["homeTeam", "awayTeam"]:
+            team = bs["game"][team_key]
+            team_data = {
+                "name": f"{team['teamCity']} {team['teamName']}",
+                "tricode": team["teamTricode"],
+                "score": team["score"],
+                "players": []
+            }
+
+            for player in team["players"]:
+                if player["status"] == "ACTIVE":
+                    stats = player["statistics"]
+
+                    try:
+                        minutes = reformat_player_minutes(
+                            int(parse_duration(stats["minutes"]).total_seconds())
+                        )
+                    except Exception:
+                        minutes = "0:00"
+
+                    # Find advanced stats
+                    adv_stat = next(
+                        (p for p in adv_players if p[6] == player["personId"]),
+                        None
+                    )
+
+                    fgm = stats["fieldGoalsMade"]
+                    fga = stats["fieldGoalsAttempted"]
+                    tpm = stats["threePointersMade"]
+                    fta = stats["freeThrowsAttempted"]
+                    ftm = stats["freeThrowsMade"]
+                    pts = stats["points"]
+
+                    ts_denom = 2 * (fga + 0.44 * fta)
+
+                    team_data["players"].append({
+                        "id": player["personId"],
+                        "name": player["name"],
+                        "minutes": minutes,
+                        "points": pts,
+                        "rebounds": stats["reboundsTotal"],
+                        "offRebounds": stats["reboundsOffensive"],
+                        "defRebounds": stats["reboundsDefensive"],
+                        "assists": stats["assists"],
+                        "steals": stats["steals"],
+                        "blocks": stats["blocks"],
+                        "turnovers": stats["turnovers"],
+                        "fouls": stats["foulsPersonal"],
+                        "fg": f"{fgm}/{fga}",
+                        "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
+                        "threePt": f"{tpm}/{stats['threePointersAttempted']}",
+                        "ft": f"{ftm}/{fta}",
+                        "plusMinus": adv_stat[14] if adv_stat else stats.get("plusMinusPoints", 0),
+                        "efgPct": round((fgm + 0.5 * tpm) / fga, 3) if fga > 0 else 0,
+                        "tsPct": round(pts / ts_denom, 3) if ts_denom > 0 else 0
+                    })
+
+            # Sort by minutes played (descending)
+            team_data["players"].sort(key=lambda x: x["minutes"], reverse=True)
+            teams.append(team_data)
+
+        return {
+            "gameId": game_id,
+            "status": bs["game"]["gameStatusText"],
+            "teams": teams
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
