@@ -13,7 +13,8 @@
         <!-- Scores Widget -->
         <receiver
             android:name=".ScoresWidgetProvider"
-            android:exported="true">
+            android:exported="true"
+            android:label="NBA Scores">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -22,7 +23,32 @@
                 android:resource="@xml/scores_widget_info" />
         </receiver>
 
-        
+        <!-- Injuries Widget -->
+        <receiver
+            android:name=".InjuriesWidgetProvider"
+            android:exported="true"
+            android:label="NBA Injuries">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/injuries_widget_info" />
+        </receiver>
+
+        <!-- Standings Widget -->
+        <receiver
+            android:name=".StandingsWidgetProvider"
+            android:exported="true"
+            android:label="NBA Standings">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/standings_widget_info" />
+        </receiver>
+
     </application>
 
 </manifest>
