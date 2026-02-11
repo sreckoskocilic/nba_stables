@@ -33,13 +33,16 @@ jobs:
         run: |
           gradle wrapper --gradle-version 8.4
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: mv android-widget/app/build/outputs/apk/debug/app-debug.apk android-widget/app/build/outputs/apk/debug/nba-stables-widget.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: nba-stables-widget
-          path: android-widget/app/build/outputs/apk/release/*.apk
+          path: android-widget/app/build/outputs/apk/debug/nba-stables-widget.apk
 
       - name: Create Release
         if: github.ref == 'refs/heads/main'
@@ -47,7 +50,7 @@ jobs:
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: NBA Stables Widget v1.0.${{ github.run_number }}
-          files: android-widget/app/build/outputs/apk/release/*.apk
+          files: android-widget/app/build/outputs/apk/debug/nba-stables-widget.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
