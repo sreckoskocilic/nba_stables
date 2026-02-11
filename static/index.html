@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Stables - Live Stats</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a24;
+            --bg-hover: #22222e;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --accent: #ff6b35;
+            --accent-light: #ff8c5a;
+            --success: #4ade80;
+            --border: #2a2a3a;
+            --gradient-1: linear-gradient(135deg, #ff6b35 0%, #ff8c5a 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--gradient-1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-date {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Navigation */
+        nav {
+            background: var(--bg-secondary);
+            padding: 15px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+
+        .nav-tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .nav-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        /* Main Content */
+        main {
+            padding: 30px 0;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title .badge {
+            background: var(--accent);
+            color: white;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        /* Cards */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Game Card */
+        .game-card {
+            padding: 20px;
+        }
+
+        .game-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        .game-status.live {
+            background: #ef4444;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        .game-status.final {
+            background: var(--bg-hover);
+            color: var(--text-secondary);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .teams-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .team-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .team-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .team-tricode {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            background: var(--bg-hover);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .team-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .team-score {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .leader-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+        }
+
+        .leader-title {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .leader-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .leader-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .leader-stats {
+            display: flex;
+            gap: 15px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        /* Box Score */
+        .boxscore-card {
+            overflow-x: auto;
+        }
+
+        .boxscore-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .boxscore-table th,
+        .boxscore-table td {
+            padding: 12px 10px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .boxscore-table th {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .boxscore-table td:first-child {
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .boxscore-table tr:hover td {
+            background: var(--bg-hover);
+        }
+
+        .highlight {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        /* Leaders Section */
+        .leaders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .leader-card {
+            padding: 20px;
+        }
+
+        .leader-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .leader-category {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .leader-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .leader-players {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .leader-player {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .leader-player-name {
+            font-weight: 500;
+        }
+
+        .leader-player-team {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        /* Player Tracker */
+        .player-search {
+            margin-bottom: 30px;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .search-input-wrapper {
+            flex: 1;
+            min-width: 300px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-top: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 50;
+            display: none;
+        }
+
+        .search-results.show {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-result-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .tracked-players {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .player-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: var(--bg-card);
+            border: 1px solid var(--accent);
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .player-chip-remove {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .player-chip-remove:hover {
+            color: #ef4444;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            background: var(--gradient-1);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .player-stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .player-stats-table th,
+        .player-stats-table td {
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .player-stats-table th {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .player-stats-table td:first-child {
+            text-align: left;
+        }
+
+        .player-stats-table tbody tr:hover {
+            background: var(--bg-hover);
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .empty-state-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        /* Refresh Button */
+        .refresh-btn {
+            background: var(--bg-hover);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .refresh-btn:hover {
+            background: var(--bg-card);
+        }
+
+        /* Date Selector */
+        .date-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .date-btn {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .date-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .date-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .nav-tabs {
+                justify-content: flex-start;
+            }
+
+            .search-container {
+                flex-direction: column;
+            }
+
+            .search-input-wrapper {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">&#127936;</div>
+                    <h1>NBA Stables</h1>
+                </div>
+                <div class="header-date" id="currentDate">Loading...</div>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <div class="container">
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-section="scoreboard">Live Scoreboard</button>
+                <button class="nav-tab" data-section="boxscores">Box Scores</button>
+                <button class="nav-tab" data-section="leaders">Daily Leaders</button>
+                <button class="nav-tab" data-section="tracker">Player Tracker</button>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container">
+            <!-- Scoreboard Section -->
+            <section id="scoreboard" class="section active">
+                <div class="section-title">
+                    Live Scoreboard
+                    <span class="badge" id="gamesCount">0 Games</span>
+                    <button class="refresh-btn" onclick="loadScoreboard()">&#8635; Refresh</button>
+                </div>
+                <div id="scoreboardContent" class="cards-grid">
+                    <div class="loading"><div class="spinner"></div> Loading games...</div>
+                </div>
+            </section>
+
+            <!-- Box Scores Section -->
+            <section id="boxscores" class="section">
+                <div class="section-title">
+                    Box Scores
+                    <button class="refresh-btn" onclick="loadBoxscores()">&#8635; Refresh</button>
+                </div>
+                <div class="date-selector">
+                    <button class="date-btn active" data-offset="0">Today</button>
+                    <button class="date-btn" data-offset="1">Yesterday</button>
+                    <button class="date-btn" data-offset="2">2 Days Ago</button>
+                </div>
+                <div id="boxscoresContent">
+                    <div class="loading"><div class="spinner"></div> Loading box scores...</div>
+                </div>
+            </section>
+
+            <!-- Leaders Section -->
+            <section id="leaders" class="section">
+                <div class="section-title">
+                    Daily Leaders
+                    <button class="refresh-btn" onclick="loadLeaders()">&#8635; Refresh</button>
+                </div>
+                <div class="date-selector" id="leadersDateSelector">
+                    <button class="date-btn" data-offset="0">Today</button>
+                    <button class="date-btn active" data-offset="1">Yesterday</button>
+                    <button class="date-btn" data-offset="2">2 Days Ago</button>
+                </div>
+                <div id="leadersContent" class="leaders-grid">
+                    <div class="loading"><div class="spinner"></div> Loading leaders...</div>
+                </div>
+            </section>
+
+            <!-- Player Tracker Section -->
+            <section id="tracker" class="section">
+                <div class="section-title">Player Tracker</div>
+                <div class="player-search">
+                    <div class="search-container">
+                        <div class="search-input-wrapper">
+                            <input type="text" class="search-input" id="playerSearch" placeholder="Search for a player..." autocomplete="off">
+                            <div class="search-results" id="searchResults"></div>
+                        </div>
+                        <button class="btn" id="trackBtn" onclick="loadTrackedStats()" disabled>Get Live Stats</button>
+                    </div>
+                    <div class="tracked-players" id="trackedPlayers"></div>
+                </div>
+                <div id="trackerContent">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#127942;</div>
+                        <div class="empty-state-title">Track Your Favorite Players</div>
+                        <p>Search and select players above to see their live game stats</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '';
+        let trackedPlayerIds = [];
+        let currentBoxscoreOffset = 0;
+        let currentLeadersOffset = 1;
+
+        // Navigation
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.section).classList.add('active');
+
+                // Load data when switching tabs
+                switch(tab.dataset.section) {
+                    case 'scoreboard': loadScoreboard(); break;
+                    case 'boxscores': loadBoxscores(); break;
+                    case 'leaders': loadLeaders(); break;
+                }
+            });
+        });
+
+        // Date selectors
+        document.querySelectorAll('#boxscores .date-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#boxscores .date-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentBoxscoreOffset = parseInt(btn.dataset.offset);
+                loadBoxscores();
+            });
+        });
+
+        document.querySelectorAll('#leadersDateSelector .date-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#leadersDateSelector .date-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentLeadersOffset = parseInt(btn.dataset.offset);
+                loadLeaders();
+            });
+        });
+
+        // Load Scoreboard
+        async function loadScoreboard() {
+            const container = document.getElementById('scoreboardContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading games...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/scoreboard`);
+                const data = await res.json();
+
+                document.getElementById('currentDate').textContent = data.date;
+                document.getElementById('gamesCount').textContent = `${data.games.length} Games`;
+
+                if (data.games.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#127944;</div>
+                            <div class="empty-state-title">No Games Today</div>
+                            <p>Check back later for live games</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = data.games.map(game => `
+                    <div class="card game-card">
+                        <span class="game-status ${game.status.toLowerCase().includes('final') ? 'final' : 'live'}">${game.status}</span>
+                        <div class="teams-container">
+                            <div class="team-row">
+                                <div class="team-info">
+                                    <span class="team-tricode">${game.homeTeam.tricode}</span>
+                                    <span class="team-name">${game.homeTeam.name}</span>
+                                </div>
+                                <span class="team-score">${game.homeTeam.score}</span>
+                            </div>
+                            <div class="team-row">
+                                <div class="team-info">
+                                    <span class="team-tricode">${game.awayTeam.tricode}</span>
+                                    <span class="team-name">${game.awayTeam.name}</span>
+                                </div>
+                                <span class="team-score">${game.awayTeam.score}</span>
+                            </div>
+                        </div>
+                        <div class="leader-section">
+                            <div class="leader-title">Top Performers</div>
+                            <div class="leader-row">
+                                <span class="leader-name">${game.homeTeam.leader.name}</span>
+                                <div class="leader-stats">
+                                    <div class="stat"><div class="stat-value">${game.homeTeam.leader.points}</div><div class="stat-label">PTS</div></div>
+                                    <div class="stat"><div class="stat-value">${game.homeTeam.leader.rebounds}</div><div class="stat-label">REB</div></div>
+                                    <div class="stat"><div class="stat-value">${game.homeTeam.leader.assists}</div><div class="stat-label">AST</div></div>
+                                </div>
+                            </div>
+                            <div class="leader-row">
+                                <span class="leader-name">${game.awayTeam.leader.name}</span>
+                                <div class="leader-stats">
+                                    <div class="stat"><div class="stat-value">${game.awayTeam.leader.points}</div><div class="stat-label">PTS</div></div>
+                                    <div class="stat"><div class="stat-value">${game.awayTeam.leader.rebounds}</div><div class="stat-label">REB</div></div>
+                                    <div class="stat"><div class="stat-value">${game.awayTeam.leader.assists}</div><div class="stat-label">AST</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#9888;</div>
+                        <div class="empty-state-title">Error Loading Games</div>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Load Box Scores
+        async function loadBoxscores() {
+            const container = document.getElementById('boxscoresContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading box scores...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/boxscores?days_offset=${currentBoxscoreOffset}`);
+                const data = await res.json();
+
+                if (data.boxscores.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#128202;</div>
+                            <div class="empty-state-title">No Box Scores Available</div>
+                            <p>No completed games for ${data.date}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = data.boxscores.map(game => `
+                    <div class="card boxscore-card" style="margin-bottom: 20px;">
+                        <table class="boxscore-table">
+                            <thead>
+                                <tr>
+                                    <th>Team</th>
+                                    <th>Score</th>
+                                    <th>FG</th>
+                                    <th>FG%</th>
+                                    <th>3PT</th>
+                                    <th>3P%</th>
+                                    <th>FT</th>
+                                    <th>FT%</th>
+                                    <th>REB</th>
+                                    <th>AST</th>
+                                    <th>STL</th>
+                                    <th>BLK</th>
+                                    <th>TO</th>
+                                    <th>Leader</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${game.teams.map(team => `
+                                    <tr>
+                                        <td>${team.name}</td>
+                                        <td class="highlight">${team.score}</td>
+                                        <td>${team.stats.fg}</td>
+                                        <td>${(team.stats.fgPct * 100).toFixed(1)}%</td>
+                                        <td>${team.stats.threePt}</td>
+                                        <td>${(team.stats.threePtPct * 100).toFixed(1)}%</td>
+                                        <td>${team.stats.ft}</td>
+                                        <td>${(team.stats.ftPct * 100).toFixed(1)}%</td>
+                                        <td>${team.stats.rebounds}</td>
+                                        <td>${team.stats.assists}</td>
+                                        <td>${team.stats.steals}</td>
+                                        <td>${team.stats.blocks}</td>
+                                        <td>${team.stats.turnovers}</td>
+                                        <td>${team.leader.name} (${team.leader.points}/${team.leader.rebounds}/${team.leader.assists})</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#9888;</div>
+                        <div class="empty-state-title">Error Loading Box Scores</div>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Load Leaders
+        async function loadLeaders() {
+            const container = document.getElementById('leadersContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading leaders...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/leaders?days_offset=${currentLeadersOffset}`);
+                const data = await res.json();
+
+                const categories = Object.values(data.leaders);
+
+                if (categories.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#127942;</div>
+                            <div class="empty-state-title">No Stats Available</div>
+                            <p>No completed games for ${data.date}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = categories.map(cat => `
+                    <div class="card leader-card">
+                        <div class="leader-card-header">
+                            <span class="leader-category">${cat.label}</span>
+                            <span class="leader-value">${cat.value}</span>
+                        </div>
+                        <div class="leader-players">
+                            ${cat.players.map(p => `
+                                <div class="leader-player">
+                                    <span class="leader-player-name">${p.name}</span>
+                                    <span class="leader-player-team">${p.team}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#9888;</div>
+                        <div class="empty-state-title">Error Loading Leaders</div>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Player Search
+        const searchInput = document.getElementById('playerSearch');
+        const searchResults = document.getElementById('searchResults');
+        let searchTimeout;
+
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            const query = searchInput.value.trim();
+
+            if (query.length < 2) {
+                searchResults.classList.remove('show');
+                return;
+            }
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/players/search?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+
+                    if (data.players.length === 0) {
+                        searchResults.innerHTML = '<div class="search-result-item">No players found</div>';
+                    } else {
+                        searchResults.innerHTML = data.players.map(p => `
+                            <div class="search-result-item" data-id="${p.id}" data-name="${p.name}">
+                                <span>${p.name}</span>
+                                <span style="color: var(--text-secondary); font-size: 0.85rem;">ID: ${p.id}</span>
+                            </div>
+                        `).join('');
+                    }
+                    searchResults.classList.add('show');
+                } catch (error) {
+                    searchResults.innerHTML = '<div class="search-result-item">Error searching</div>';
+                    searchResults.classList.add('show');
+                }
+            }, 300);
+        });
+
+        searchResults.addEventListener('click', (e) => {
+            const item = e.target.closest('.search-result-item');
+            if (item && item.dataset.id) {
+                addTrackedPlayer(parseInt(item.dataset.id), item.dataset.name);
+                searchInput.value = '';
+                searchResults.classList.remove('show');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.classList.remove('show');
+            }
+        });
+
+        function addTrackedPlayer(id, name) {
+            if (trackedPlayerIds.find(p => p.id === id)) return;
+
+            trackedPlayerIds.push({ id, name });
+            updateTrackedPlayersUI();
+        }
+
+        function removeTrackedPlayer(id) {
+            trackedPlayerIds = trackedPlayerIds.filter(p => p.id !== id);
+            updateTrackedPlayersUI();
+        }
+
+        function updateTrackedPlayersUI() {
+            const container = document.getElementById('trackedPlayers');
+            const trackBtn = document.getElementById('trackBtn');
+
+            container.innerHTML = trackedPlayerIds.map(p => `
+                <div class="player-chip">
+                    <span>${p.name}</span>
+                    <button class="player-chip-remove" onclick="removeTrackedPlayer(${p.id})">&times;</button>
+                </div>
+            `).join('');
+
+            trackBtn.disabled = trackedPlayerIds.length === 0;
+        }
+
+        async function loadTrackedStats() {
+            if (trackedPlayerIds.length === 0) return;
+
+            const container = document.getElementById('trackerContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading player stats...</div>';
+
+            try {
+                const ids = trackedPlayerIds.map(p => p.id).join(',');
+                const res = await fetch(`${API_BASE}/api/players/stats?ids=${ids}`);
+                const data = await res.json();
+
+                if (data.players.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#128564;</div>
+                            <div class="empty-state-title">No Active Games</div>
+                            <p>Selected players don't have games in progress today</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div class="card" style="overflow-x: auto;">
+                        <table class="player-stats-table">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Team</th>
+                                    <th>MIN</th>
+                                    <th>PTS</th>
+                                    <th>3PT</th>
+                                    <th>REB</th>
+                                    <th>AST</th>
+                                    <th>BLK</th>
+                                    <th>STL</th>
+                                    <th>TO</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.players.map(p => `
+                                    <tr>
+                                        <td><strong>${p.name}</strong></td>
+                                        <td>${p.team}</td>
+                                        <td>${p.minutes}</td>
+                                        <td class="${p.points > 0 ? 'highlight' : ''}">${p.points}</td>
+                                        <td>${p.threePointers}</td>
+                                        <td class="${p.rebounds > 0 ? 'highlight' : ''}">${p.rebounds}</td>
+                                        <td class="${p.assists > 0 ? 'highlight' : ''}">${p.assists}</td>
+                                        <td>${p.blocks}</td>
+                                        <td>${p.steals}</td>
+                                        <td>${p.turnovers}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#9888;</div>
+                        <div class="empty-state-title">Error Loading Stats</div>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Initial load
+        loadScoreboard();
+    </script>
+</body>
+</html>

@@ -9,8 +9,48 @@ drawing a table in terminal with most interesting stats for that evening.
 Install required packages with pip:
 
 ```
-pip install nba_api tabulate2
+pip install -r requirements.txt
 ```
+
+## Web Interface
+
+Run the web server:
+
+```
+python api.py
+```
+
+Then open http://localhost:8000 in your browser.
+
+**Features:**
+- Live Scoreboard - Real-time game scores and top performers
+- Box Scores - Detailed team statistics
+- Daily Leaders - Top performers in each stat category
+- Player Tracker - Search and track specific players
+
+## Docker Deployment
+
+```bash
+# Build and run with docker-compose
+docker-compose up -d
+
+# Or build manually
+docker build -t nba-stables .
+docker run -d -p 8000:8000 nba-stables
+```
+
+Then open http://localhost:8000
+
+### Deploy to a VPS
+
+```bash
+# On your server (DigitalOcean, Linode, etc.)
+git clone <your-repo>
+cd nba_stables
+docker-compose up -d
+```
+
+## Terminal Scripts
 
 There is an updated players static list with teamID added to each player that has played at least one game this season.
 
