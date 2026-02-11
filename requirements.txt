@@ -1,0 +1,6 @@
+nba_api
+tabulate2
+isodate
+termcolor
+fastapi
+uvicorn[standard]
