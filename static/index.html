@@ -1483,16 +1483,20 @@
 
                 const renderPlayer = (p) => {
                     const st = p.status.toLowerCase();
-                    const statusColor = (st.includes('out') || st === 'suspension') ? '#ef4444' :
-                                       (st.includes('expected') || st === 'day-to-day') ? '#f59e0b' : '#4ade80';
+                    // Determine short status first
                     let shortStatus = 'GTD';
-                    if (st.includes('out for') || st === 'out' || st === 'suspension') {
+                    if (st.includes('out for') || st === 'suspension') {
                         shortStatus = 'OUT';
-                    } else if (st.includes('expected')) {
-                        shortStatus = p.status.match(/Feb \d+|Mar \d+|Apr \d+/)?.[0] || 'TBD';
-                    } else if (st === 'day-to-day') {
-                        shortStatus = 'DTD';
+                    } else if (st.includes('expected') || st.includes('return')) {
+                        shortStatus = p.status.match(/Jan \d+|Feb \d+|Mar \d+|Apr \d+|May \d+/i)?.[0] || 'TBD';
+                    } else if (st === 'day-to-day' || st === 'game time decision') {
+                        shortStatus = 'GTD';  // Unified: both DTD and GTD show as GTD
+                    } else if (st === 'out') {
+                        shortStatus = 'OUT';
                     }
+                    // Colors: OUT=red, dates=yellow, GTD=green
+                    const statusColor = (shortStatus === 'OUT') ? '#ef4444' :
+                                       (shortStatus !== 'GTD') ? '#f59e0b' : '#4ade80';
                     // Map team names to 3-letter codes
                     const teamCodes = {
                         'hawks': 'ATL', 'celtics': 'BOS', 'nets': 'BKN', 'hornets': 'CHA', 'bulls': 'CHI',
