@@ -1493,7 +1493,23 @@
                     } else if (st === 'day-to-day') {
                         shortStatus = 'DTD';
                     }
-                    const shortTeam = p.team.split(' ').pop().substring(0, 3).toUpperCase();
+                    // Map team names to 3-letter codes
+                    const teamCodes = {
+                        'hawks': 'ATL', 'celtics': 'BOS', 'nets': 'BKN', 'hornets': 'CHA', 'bulls': 'CHI',
+                        'cavaliers': 'CLE', 'mavericks': 'DAL', 'nuggets': 'DEN', 'pistons': 'DET', 'warriors': 'GSW',
+                        'rockets': 'HOU', 'pacers': 'IND', 'clippers': 'LAC', 'lakers': 'LAL', 'grizzlies': 'MEM',
+                        'heat': 'MIA', 'bucks': 'MIL', 'timberwolves': 'MIN', 'pelicans': 'NOP', 'knicks': 'NYK',
+                        'thunder': 'OKC', 'magic': 'ORL', '76ers': 'PHI', 'suns': 'PHX', 'trail blazers': 'POR',
+                        'kings': 'SAC', 'spurs': 'SAS', 'raptors': 'TOR', 'jazz': 'UTA', 'wizards': 'WAS',
+                        'atlanta': 'ATL', 'boston': 'BOS', 'brooklyn': 'BKN', 'charlotte': 'CHA', 'chicago': 'CHI',
+                        'cleveland': 'CLE', 'dallas': 'DAL', 'denver': 'DEN', 'detroit': 'DET', 'golden st.': 'GSW',
+                        'houston': 'HOU', 'indiana': 'IND', 'l.a. clippers': 'LAC', 'l.a. lakers': 'LAL', 'memphis': 'MEM',
+                        'miami': 'MIA', 'milwaukee': 'MIL', 'minnesota': 'MIN', 'new orleans': 'NOP', 'new york': 'NYK',
+                        'oklahoma city': 'OKC', 'orlando': 'ORL', 'philadelphia': 'PHI', 'phoenix': 'PHX', 'portland': 'POR',
+                        'sacramento': 'SAC', 'san antonio': 'SAS', 'toronto': 'TOR', 'utah': 'UTA', 'washington': 'WAS'
+                    };
+                    const teamLower = p.team.toLowerCase();
+                    const shortTeam = teamCodes[teamLower] || Object.entries(teamCodes).find(([k]) => teamLower.includes(k))?.[1] || p.team.substring(0, 3).toUpperCase();
                     return `<div style="display: flex; justify-content: space-between; padding: 3px 6px; border-bottom: 1px solid var(--border); font-size: 10px;">
                         <span style="flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</span>
                         <span style="width: 28px; color: var(--text-secondary); text-align: center;">${shortTeam}</span>
