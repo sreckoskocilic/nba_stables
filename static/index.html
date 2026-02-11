@@ -775,6 +775,10 @@
                     <span class="badge" style="background: #ef4444;">CBS Sports</span>
                     <button class="refresh-btn" onclick="loadInjuries()">&#8635; Refresh</button>
                 </div>
+                <div style="margin-bottom: 20px;">
+                    <button class="date-btn active" id="injuriesListBtn" onclick="setInjuriesView('list')">All Players</button>
+                    <button class="date-btn" id="injuriesGroupBtn" onclick="setInjuriesView('grouped')">Group by Team</button>
+                </div>
                 <div id="injuriesContent">
                     <div class="loading"><div class="spinner"></div> Loading injury report...</div>
                 </div>
@@ -1426,25 +1430,62 @@
         }
 
         // Load Injuries
-        async function loadInjuries() {
+        let injuriesData = null;
+        let injuriesView = 'list';
+
+        function setInjuriesView(view) {
+            injuriesView = view;
+            document.getElementById('injuriesListBtn').classList.toggle('active', view === 'list');
+            document.getElementById('injuriesGroupBtn').classList.toggle('active', view === 'grouped');
+            if (injuriesData) {
+                renderInjuries();
+            }
+        }
+
+        function renderInjuries() {
             const container = document.getElementById('injuriesContent');
-            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading injury report...</div>';
+            const data = injuriesData;
 
-            try {
-                const res = await fetch(`${API_BASE}/api/injuries`);
-                const data = await res.json();
+            if (injuriesView === 'list') {
+                // Flat list of all players
+                const allPlayers = [];
+                data.injuries.forEach(team => {
+                    team.players.forEach(p => {
+                        allPlayers.push({ ...p, team: team.team });
+                    });
+                });
 
-                if (!data.injuries || data.injuries.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">&#128170;</div>
-                            <div class="empty-state-title">No Injuries Reported</div>
-                            <p>All players are healthy!</p>
-                        </div>
-                    `;
-                    return;
-                }
-
+                container.innerHTML = `
+                    <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
+                        ${allPlayers.length} injured players | Last updated: ${data.lastUpdated} | Source: ${data.source}
+                    </p>
+                    <div class="card" style="overflow-x: auto;">
+                        <table class="boxscore-table" style="font-size: 0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">Player</th>
+                                    <th>Team</th>
+                                    <th>Updated</th>
+                                    <th>Injury</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${allPlayers.map(p => `
+                                    <tr>
+                                        <td style="text-align: left; font-weight: 500;">${p.name}</td>
+                                        <td>${p.team}</td>
+                                        <td style="color: var(--text-secondary); font-size: 0.8rem;">${p.updated}</td>
+                                        <td>${p.injury}</td>
+                                        <td style="color: ${p.status.toLowerCase().includes('out') ? '#ef4444' : p.status.toLowerCase().includes('day-to-day') ? '#f59e0b' : 'var(--success)'}; font-weight: 500;">${p.status}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                // Grouped by team
                 container.innerHTML = `
                     <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
                         Last updated: ${data.lastUpdated} | Source: ${data.source}
@@ -1480,6 +1521,30 @@
                         `).join('')}
                     </div>
                 `;
+            }
+        }
+
+        async function loadInjuries() {
+            const container = document.getElementById('injuriesContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading injury report...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/injuries`);
+                const data = await res.json();
+
+                if (!data.injuries || data.injuries.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#128170;</div>
+                            <div class="empty-state-title">No Injuries Reported</div>
+                            <p>All players are healthy!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                injuriesData = data;
+                renderInjuries();
             } catch (error) {
                 container.innerHTML = `
                     <div class="empty-state">
