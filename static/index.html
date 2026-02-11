@@ -1482,10 +1482,17 @@
                 ];
 
                 const renderPlayer = (p) => {
-                    const statusColor = p.status.toLowerCase().includes('out for') ? '#ef4444' :
-                                       p.status.toLowerCase().includes('expected') ? '#f59e0b' : '#4ade80';
-                    const shortStatus = p.status.includes('Out for') ? 'OUT' :
-                                       p.status.includes('Expected') ? p.status.match(/Feb \d+|Mar \d+|Apr \d+/)?.[0] || 'DTD' : 'GTD';
+                    const st = p.status.toLowerCase();
+                    const statusColor = (st.includes('out') || st === 'suspension') ? '#ef4444' :
+                                       (st.includes('expected') || st === 'day-to-day') ? '#f59e0b' : '#4ade80';
+                    let shortStatus = 'GTD';
+                    if (st.includes('out for') || st === 'out' || st === 'suspension') {
+                        shortStatus = 'OUT';
+                    } else if (st.includes('expected')) {
+                        shortStatus = p.status.match(/Feb \d+|Mar \d+|Apr \d+/)?.[0] || 'TBD';
+                    } else if (st === 'day-to-day') {
+                        shortStatus = 'DTD';
+                    }
                     const shortTeam = p.team.split(' ').pop().substring(0, 3).toUpperCase();
                     return `<div style="display: flex; justify-content: space-between; padding: 3px 6px; border-bottom: 1px solid var(--border); font-size: 10px;">
                         <span style="flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</span>
@@ -1541,7 +1548,7 @@
                                                 <td style="text-align: left; font-weight: 500;">${p.name}</td>
                                                 <td style="color: var(--text-secondary); font-size: 0.8rem;">${p.updated}</td>
                                                 <td>${p.injury}</td>
-                                                <td style="color: ${p.status.toLowerCase().includes('out') ? '#ef4444' : p.status.toLowerCase().includes('day-to-day') ? '#f59e0b' : 'var(--success)'}; font-weight: 500;">${p.status}</td>
+                                                <td style="color: ${(p.status.toLowerCase().includes('out') || p.status.toLowerCase() === 'suspension') ? '#ef4444' : (p.status.toLowerCase().includes('day-to-day') || p.status.toLowerCase().includes('expected')) ? '#f59e0b' : 'var(--success)'}; font-weight: 500;">${p.status}</td>
                                             </tr>
                                         `).join('')}
                                     </tbody>
