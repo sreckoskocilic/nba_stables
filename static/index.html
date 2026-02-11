@@ -1455,47 +1455,45 @@
                     });
                 });
 
-                // Split into 2 columns
-                const half = Math.ceil(allPlayers.length / 2);
-                const col1 = allPlayers.slice(0, half);
-                const col2 = allPlayers.slice(half);
+                // Split into 4 columns (newspaper style)
+                const quarter = Math.ceil(allPlayers.length / 4);
+                const cols = [
+                    allPlayers.slice(0, quarter),
+                    allPlayers.slice(quarter, quarter * 2),
+                    allPlayers.slice(quarter * 2, quarter * 3),
+                    allPlayers.slice(quarter * 3)
+                ];
 
                 const renderPlayer = (p) => {
                     const statusColor = p.status.toLowerCase().includes('out for') ? '#ef4444' :
                                        p.status.toLowerCase().includes('expected') ? '#f59e0b' : '#4ade80';
                     const shortStatus = p.status.includes('Out for') ? 'OUT' :
                                        p.status.includes('Expected') ? p.status.match(/Feb \d+|Mar \d+|Apr \d+/)?.[0] || 'DTD' : 'GTD';
-                    return `<div style="display: flex; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid var(--border); font-size: 11px;">
+                    const shortTeam = p.team.split(' ').pop().substring(0, 3).toUpperCase();
+                    return `<div style="display: flex; justify-content: space-between; padding: 3px 6px; border-bottom: 1px solid var(--border); font-size: 10px;">
                         <span style="flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</span>
-                        <span style="width: 70px; color: var(--text-secondary); text-align: center;">${p.team.split(' ').pop()}</span>
-                        <span style="width: 50px; color: var(--text-secondary); text-align: center;">${p.injury}</span>
-                        <span style="width: 45px; text-align: right; color: ${statusColor}; font-weight: 600;">${shortStatus}</span>
+                        <span style="width: 28px; color: var(--text-secondary); text-align: center;">${shortTeam}</span>
+                        <span style="width: 38px; text-align: right; color: ${statusColor}; font-weight: 600;">${shortStatus}</span>
                     </div>`;
                 };
 
+                const renderColumn = (players) => `
+                    <div class="card" style="padding: 0; overflow: hidden;">
+                        <div style="padding: 4px 6px; background: var(--bg-secondary); font-size: 9px; color: var(--text-secondary); display: flex; justify-content: space-between;">
+                            <span style="flex: 1;">Player</span>
+                            <span style="width: 28px; text-align: center;">Team</span>
+                            <span style="width: 38px; text-align: right;">Status</span>
+                        </div>
+                        ${players.map(renderPlayer).join('')}
+                    </div>
+                `;
+
                 container.innerHTML = `
-                    <p style="color: var(--text-secondary); margin-bottom: 10px; font-size: 0.8rem;">
-                        ${allPlayers.length} injured | ${data.lastUpdated} | GTD=Game Time Decision, Date=Expected Return
+                    <p style="color: var(--text-secondary); margin-bottom: 10px; font-size: 0.75rem;">
+                        ${allPlayers.length} injured | GTD=Game Time Decision | OUT=Season | Date=Return
                     </p>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div class="card" style="padding: 0; overflow: hidden;">
-                            <div style="padding: 6px 8px; background: var(--bg-secondary); font-size: 10px; color: var(--text-secondary); display: flex; justify-content: space-between;">
-                                <span style="flex: 1;">Player</span>
-                                <span style="width: 70px; text-align: center;">Team</span>
-                                <span style="width: 50px; text-align: center;">Injury</span>
-                                <span style="width: 45px; text-align: right;">Status</span>
-                            </div>
-                            ${col1.map(renderPlayer).join('')}
-                        </div>
-                        <div class="card" style="padding: 0; overflow: hidden;">
-                            <div style="padding: 6px 8px; background: var(--bg-secondary); font-size: 10px; color: var(--text-secondary); display: flex; justify-content: space-between;">
-                                <span style="flex: 1;">Player</span>
-                                <span style="width: 70px; text-align: center;">Team</span>
-                                <span style="width: 50px; text-align: center;">Injury</span>
-                                <span style="width: 45px; text-align: right;">Status</span>
-                            </div>
-                            ${col2.map(renderPlayer).join('')}
-                        </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                        ${cols.map(renderColumn).join('')}
                     </div>
                 `;
             } else {
