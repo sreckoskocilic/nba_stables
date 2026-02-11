@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Standings</title>
+    <meta name="theme-color" content="#ff6b35">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/static/manifest-standings.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0f;
+            color: #fff;
+            min-height: 100vh;
+            padding: 15px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .title { font-size: 1.3rem; font-weight: 700; color: #ff6b35; }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .tab {
+            flex: 1;
+            padding: 10px;
+            background: #1a1a24;
+            border: 1px solid #2a2a3a;
+            border-radius: 8px;
+            color: #888;
+            text-align: center;
+            cursor: pointer;
+        }
+        .tab.active { background: #ff6b35; border-color: #ff6b35; color: #fff; }
+        .team-row {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: #1a1a24;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .team-row.playoff { background: rgba(74, 222, 128, 0.1); }
+        .team-row.playin { background: rgba(255, 107, 53, 0.1); }
+        .rank {
+            width: 30px;
+            font-weight: 700;
+            color: #888;
+        }
+        .team-name {
+            flex: 1;
+            font-weight: 500;
+        }
+        .record {
+            text-align: right;
+            margin-right: 15px;
+        }
+        .wins { color: #4ade80; }
+        .losses { color: #888; }
+        .gb {
+            width: 50px;
+            text-align: right;
+            color: #888;
+            font-size: 0.85rem;
+        }
+        .loading { text-align: center; padding: 40px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="title">NBA Standings</span>
+    </div>
+    <div class="tabs">
+        <div class="tab active" onclick="showConf('east')">East</div>
+        <div class="tab" onclick="showConf('west')">West</div>
+    </div>
+    <div id="content">
+        <div class="loading">Loading...</div>
+    </div>
+
+    <script>
+        let data = { east: [], west: [] };
+        let currentConf = 'east';
+
+        async function loadStandings() {
+            try {
+                const res = await fetch('/api/standings');
+                data = await res.json();
+                render();
+            } catch (e) {
+                document.getElementById('content').innerHTML = '<div class="loading">Error loading standings</div>';
+            }
+        }
+
+        function showConf(conf) {
+            currentConf = conf;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            render();
+        }
+
+        function render() {
+            const teams = data[currentConf] || [];
+            document.getElementById('content').innerHTML = teams.map((t, i) => `
+                <div class="team-row ${i < 6 ? 'playoff' : i < 10 ? 'playin' : ''}">
+                    <span class="rank">${t.rank}</span>
+                    <span class="team-name">${t.name}</span>
+                    <span class="record"><span class="wins">${t.wins}</span>-<span class="losses">${t.losses}</span></span>
+                    <span class="gb">${t.gamesBack === 0 ? '-' : t.gamesBack}</span>
+                </div>
+            `).join('');
+        }
+
+        loadStandings();
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js');
+        }
+    </script>
+</body>
+</html>

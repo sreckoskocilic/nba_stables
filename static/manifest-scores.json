@@ -1,0 +1,13 @@
+{
+  "name": "NBA Live Scores",
+  "short_name": "NBA Scores",
+  "description": "Live NBA game scores",
+  "start_url": "/scores",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#ff6b35",
+  "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
