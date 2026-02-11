@@ -717,77 +717,126 @@ async def health_check():
     return {"status": "healthy", "date": get_display_date(0)}
 
 
+def fetch_espn_injuries():
+    """Fetch injuries from ESPN API"""
+    url = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries"
+    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
+
+    response = requests.get(url, headers=headers, timeout=15)
+    response.raise_for_status()
+
+    data = response.json()
+    injuries_by_team = []
+
+    for team_data in data.get("injuries", []):
+        team_name = team_data.get("displayName", "Unknown")
+        players = []
+
+        for injury in team_data.get("injuries", []):
+            athlete = injury.get("athlete", {})
+            status = injury.get("status", "Unknown")
+
+            comment = injury.get("shortComment", "")
+            injury_type = ""
+            if "due to" in comment.lower():
+                injury_type = comment.split("due to")[-1].strip().rstrip(".")
+                if " " in injury_type:
+                    parts = injury_type.split()
+                    injury_type = " ".join(parts[:3]).rstrip(",.")
+
+            date_str = injury.get("date", "")
+            if date_str:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                    date_str = dt.strftime("%b %d")
+                except:
+                    date_str = ""
+
+            players.append({
+                "name": athlete.get("displayName", "Unknown"),
+                "updated": date_str,
+                "injury": injury_type[:20] if injury_type else "",
+                "status": status
+            })
+
+        if players:
+            injuries_by_team.append({"team": team_name, "players": players})
+
+    return injuries_by_team
+
+
+def fetch_cbs_injuries():
+    """Fetch injuries from CBS Sports (scraping)"""
+    url = "https://www.cbssports.com/nba/injuries/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
+
+    time.sleep(random.uniform(0.5, 1.5))
+    response = requests.get(url, headers=headers, timeout=15)
+
+    if response.status_code == 429:
+        raise Exception("Rate limited by CBS Sports")
+
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "lxml")
+    team_sections = soup.find_all("div", class_="TableBaseWrapper")
+    injuries_by_team = []
+
+    for team_section in team_sections:
+        team_name_el = team_section.find("div", class_="TeamLogoNameLockup-name")
+        if not team_name_el:
+            continue
+
+        team_name = team_name_el.get_text(strip=True)
+        players = []
+
+        rows = team_section.find_all("tr", class_="TableBase-bodyTr")
+        for row in rows:
+            cells = row.find_all("td", class_="TableBase-bodyTd")
+            name_el = row.find("span", class_="CellPlayerName--long")
+            date_el = row.find("span", class_="CellGameDate")
+
+            if name_el and len(cells) >= 5:
+                players.append({
+                    "name": name_el.get_text(strip=True),
+                    "updated": date_el.get_text(strip=True) if date_el else "",
+                    "injury": cells[3].get_text(strip=True) if len(cells) > 3 else "",
+                    "status": cells[4].get_text(strip=True) if len(cells) > 4 else ""
+                })
+
+        if players:
+            injuries_by_team.append({"team": team_name, "players": players})
+
+    return injuries_by_team
+
+
 @app.get("/api/injuries")
-async def get_injuries():
-    """Get NBA injury report from CBS Sports"""
-    cached = cache.get("injuries")
+async def get_injuries(source: str = Query(default="espn", regex="^(espn|cbs)$")):
+    """Get NBA injury report from ESPN (default) or CBS Sports"""
+    cache_key = f"injuries_{source}"
+    cached = cache.get(cache_key)
     if cached:
         return cached
 
     try:
-        url = "https://www.cbssports.com/nba/injuries/"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-        }
-
-        time.sleep(random.uniform(0.5, 1.5))  # Small random delay
-        response = requests.get(url, headers=headers, timeout=15)
-
-        if response.status_code == 429:
-            # Rate limited - return empty with message
-            return {
-                "injuries": [],
-                "source": "CBS Sports",
-                "lastUpdated": get_display_date(0),
-                "error": "Rate limited - try again later"
-            }
-
-        response.raise_for_status()
-
-        soup = BeautifulSoup(response.text, "lxml")
-        team_sections = soup.find_all("div", class_="TableBaseWrapper")
-
-        injuries_by_team = []
-
-        for team_section in team_sections:
-            team_name_el = team_section.find("div", class_="TeamLogoNameLockup-name")
-            if not team_name_el:
-                continue
-
-            team_name = team_name_el.get_text(strip=True)
-            players = []
-
-            rows = team_section.find_all("tr", class_="TableBase-bodyTr")
-            for row in rows:
-                cells = row.find_all("td", class_="TableBase-bodyTd")
-                name_el = row.find("span", class_="CellPlayerName--long")
-                date_el = row.find("span", class_="CellGameDate")
-
-                if name_el and len(cells) >= 5:
-                    players.append({
-                        "name": name_el.get_text(strip=True),
-                        "updated": date_el.get_text(strip=True) if date_el else "",
-                        "injury": cells[3].get_text(strip=True) if len(cells) > 3 else "",
-                        "status": cells[4].get_text(strip=True) if len(cells) > 4 else ""
-                    })
-
-            if players:
-                injuries_by_team.append({
-                    "team": team_name,
-                    "players": players
-                })
+        if source == "cbs":
+            injuries_by_team = fetch_cbs_injuries()
+            source_name = "CBS Sports"
+        else:
+            injuries_by_team = fetch_espn_injuries()
+            source_name = "ESPN"
 
         result = {
             "injuries": injuries_by_team,
-            "source": "CBS Sports",
+            "source": source_name,
             "lastUpdated": get_display_date(0)
         }
-        cache.set("injuries", result, CACHE_TTL["injuries"])
+        cache.set(cache_key, result, CACHE_TTL["injuries"])
         return result
 
     except requests.RequestException as e:
