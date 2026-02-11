@@ -5,8 +5,11 @@ FastAPI backend for live NBA statistics
 
 import json
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
+from functools import wraps
+from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +35,41 @@ app.add_middleware(
 )
 
 PLAYERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "players_with_teamid.json")
+
+
+# Simple in-memory cache
+class SimpleCache:
+    def __init__(self):
+        self._cache: Dict[str, Dict[str, Any]] = {}
+
+    def get(self, key: str) -> Optional[Any]:
+        if key in self._cache:
+            entry = self._cache[key]
+            if time.time() < entry["expires"]:
+                return entry["data"]
+            del self._cache[key]
+        return None
+
+    def set(self, key: str, data: Any, ttl_seconds: int):
+        self._cache[key] = {
+            "data": data,
+            "expires": time.time() + ttl_seconds
+        }
+
+    def clear(self):
+        self._cache.clear()
+
+
+cache = SimpleCache()
+
+# Cache TTLs (in seconds)
+CACHE_TTL = {
+    "scoreboard": 30,      # 30 seconds - live scores change frequently
+    "boxscores": 60,       # 1 minute
+    "leaders": 300,        # 5 minutes
+    "standings": 3600,     # 1 hour - doesn't change often
+    "player_stats": 30,    # 30 seconds
+}
 
 
 # Helper functions
@@ -105,6 +143,11 @@ def get_games_leaders_list(days_offset: int = 1):
 @app.get("/api/scoreboard")
 async def get_scoreboard():
     """Get live scoreboard with game results and leading scorers"""
+    # Check cache first
+    cached = cache.get("scoreboard")
+    if cached:
+        return cached
+
     try:
         games = []
         for game in scoreboard.ScoreBoard().games.data:
@@ -140,7 +183,9 @@ async def get_scoreboard():
                 }
             })
 
-        return {"games": games, "date": get_display_date(0)}
+        result = {"games": games, "date": get_display_date(0)}
+        cache.set("scoreboard", result, CACHE_TTL["scoreboard"])
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -190,6 +235,11 @@ def fetch_single_boxscore(game_id, leaders_data):
 @app.get("/api/boxscores")
 async def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
     """Get detailed box scores for games"""
+    cache_key = f"boxscores_{days_offset}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
     try:
         # Use the helper function to get games with leaders
         leaders_by_game = get_games_leaders_list(days_offset)
@@ -206,7 +256,9 @@ async def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
                 if result:
                     boxscores_list.append(result)
 
-        return {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
+        result = {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
+        cache.set(cache_key, result, CACHE_TTL["boxscores"])
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -291,6 +343,11 @@ async def get_player_stats(ids: str = Query(..., description="Comma-separated pl
 @app.get("/api/leaders")
 async def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
     """Get daily leaders across statistical categories"""
+    cache_key = f"leaders_{days_offset}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
     try:
         # Get game IDs using helper function
         game_ids = get_games_list(days_offset)
@@ -341,7 +398,9 @@ async def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                     "players": [{"name": p["name"], "team": p["team"]} for p in top_players]
                 }
 
-        return {"leaders": leaders, "date": get_display_date(days_offset)}
+        result = {"leaders": leaders, "date": get_display_date(days_offset)}
+        cache.set(cache_key, result, CACHE_TTL["leaders"])
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -349,6 +408,10 @@ async def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
 @app.get("/api/standings")
 async def get_standings():
     """Get current NBA standings by conference"""
+    cached = cache.get("standings")
+    if cached:
+        return cached
+
     try:
         standings = leaguestandings.LeagueStandings().get_dict()
         teams = standings["resultSets"][0]["rowSet"]
@@ -384,7 +447,9 @@ async def get_standings():
         east.sort(key=lambda x: x["rank"] or 99)
         west.sort(key=lambda x: x["rank"] or 99)
 
-        return {"east": east, "west": west}
+        result = {"east": east, "west": west}
+        cache.set("standings", result, CACHE_TTL["standings"])
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
