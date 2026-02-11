@@ -3,7 +3,6 @@ package com.nbastables.widget
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
-import android.content.Intent
 import android.widget.RemoteViews
 import androidx.work.*
 import java.util.concurrent.TimeUnit
@@ -40,9 +39,15 @@ class ScoresWidgetProvider : AppWidgetProvider() {
 
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             "widget_update",
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.REPLACE,
             updateRequest
         )
+
+        // Also run once immediately
+        val immediateRequest = OneTimeWorkRequestBuilder<WidgetUpdateWorker>()
+            .setConstraints(constraints)
+            .build()
+        WorkManager.getInstance(context).enqueue(immediateRequest)
     }
 
     companion object {
@@ -51,15 +56,9 @@ class ScoresWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
-            val intent = Intent(context, WidgetUpdateService::class.java)
-            intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-
             val views = RemoteViews(context.packageName, R.layout.widget_scores)
-            views.setRemoteAdapter(R.id.games_list, intent)
-            views.setEmptyView(R.id.games_list, R.id.empty_text)
-
+            views.setTextViewText(R.id.scores_text, "Loading scores...")
             appWidgetManager.updateAppWidget(appWidgetId, views)
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.games_list)
         }
     }
 }
