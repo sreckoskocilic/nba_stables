@@ -682,6 +682,7 @@
                 <button class="nav-tab" data-section="leaders">Daily Leaders</button>
                 <button class="nav-tab" data-section="tracker">Player Tracker</button>
                 <button class="nav-tab" data-section="standings">Standings</button>
+                <button class="nav-tab" data-section="injuries">Injuries</button>
                 <button class="nav-tab" data-section="widgets">Widgets</button>
                 <button class="nav-tab" data-section="download">Download App</button>
             </div>
@@ -764,6 +765,18 @@
                 </div>
                 <div id="standingsContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px;">
                     <div class="loading"><div class="spinner"></div> Loading standings...</div>
+                </div>
+            </section>
+
+            <!-- Injuries Section -->
+            <section id="injuries" class="section">
+                <div class="section-title">
+                    Injury Report
+                    <span class="badge" style="background: #ef4444;">CBS Sports</span>
+                    <button class="refresh-btn" onclick="loadInjuries()">&#8635; Refresh</button>
+                </div>
+                <div id="injuriesContent">
+                    <div class="loading"><div class="spinner"></div> Loading injury report...</div>
                 </div>
             </section>
 
@@ -922,6 +935,7 @@
                     case 'boxscores': loadBoxscores(); break;
                     case 'leaders': loadLeaders(); break;
                     case 'standings': loadStandings(); break;
+                    case 'injuries': loadInjuries(); break;
                 }
             });
         });
@@ -1405,6 +1419,72 @@
                     <div class="empty-state">
                         <div class="empty-state-icon">&#9888;</div>
                         <div class="empty-state-title">Error Loading Standings</div>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Load Injuries
+        async function loadInjuries() {
+            const container = document.getElementById('injuriesContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading injury report...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/injuries`);
+                const data = await res.json();
+
+                if (!data.injuries || data.injuries.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#128170;</div>
+                            <div class="empty-state-title">No Injuries Reported</div>
+                            <p>All players are healthy!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
+                        Last updated: ${data.lastUpdated} | Source: ${data.source}
+                    </p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); gap: 20px;">
+                        ${data.injuries.map(team => `
+                            <div class="card" style="overflow: hidden;">
+                                <div style="padding: 15px 20px; background: var(--bg-secondary); font-weight: 600; border-bottom: 1px solid var(--border);">
+                                    ${team.team}
+                                    <span style="color: var(--text-secondary); font-weight: normal; font-size: 0.85rem; margin-left: 10px;">${team.players.length} player${team.players.length !== 1 ? 's' : ''}</span>
+                                </div>
+                                <table class="boxscore-table" style="font-size: 0.85rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align: left;">Player</th>
+                                            <th>Updated</th>
+                                            <th>Injury</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${team.players.map(p => `
+                                            <tr>
+                                                <td style="text-align: left; font-weight: 500;">${p.name}</td>
+                                                <td style="color: var(--text-secondary); font-size: 0.8rem;">${p.updated}</td>
+                                                <td>${p.injury}</td>
+                                                <td style="color: ${p.status.toLowerCase().includes('out') ? '#ef4444' : p.status.toLowerCase().includes('day-to-day') ? '#f59e0b' : 'var(--success)'}; font-weight: 500;">${p.status}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#9888;</div>
+                        <div class="empty-state-title">Error Loading Injuries</div>
                         <p>${error.message}</p>
                     </div>
                 `;

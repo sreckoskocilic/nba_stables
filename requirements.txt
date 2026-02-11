@@ -4,3 +4,6 @@ isodate
 termcolor
 fastapi
 uvicorn[standard]
+beautifulsoup4
+requests
+lxml

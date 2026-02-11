@@ -16,6 +16,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from isodate import parse_duration
+import requests
+from bs4 import BeautifulSoup
 from nba_api.live.nba.endpoints import boxscore, scoreboard
 from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv2, leaguestandings, boxscoreadvancedv3
 
@@ -69,6 +71,7 @@ CACHE_TTL = {
     "leaders": 300,        # 5 minutes
     "standings": 3600,     # 1 hour - doesn't change often
     "player_stats": 30,    # 30 seconds
+    "injuries": 1800,      # 30 minutes - injury reports don't change often
 }
 
 
@@ -711,6 +714,69 @@ async def get_game_players(game_id: str):
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "date": get_display_date(0)}
+
+
+@app.get("/api/injuries")
+async def get_injuries():
+    """Get NBA injury report from CBS Sports"""
+    cached = cache.get("injuries")
+    if cached:
+        return cached
+
+    try:
+        url = "https://www.cbssports.com/nba/injuries/"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        }
+
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, "lxml")
+        team_sections = soup.find_all("div", class_="TableBaseWrapper")
+
+        injuries_by_team = []
+
+        for team_section in team_sections:
+            team_name_el = team_section.find("div", class_="TeamLogoNameLockup-name")
+            if not team_name_el:
+                continue
+
+            team_name = team_name_el.get_text(strip=True)
+            players = []
+
+            rows = team_section.find_all("tr", class_="TableBase-bodyTr")
+            for row in rows:
+                cells = row.find_all("td", class_="TableBase-bodyTd")
+                name_el = row.find("span", class_="CellPlayerName--long")
+                date_el = row.find("span", class_="CellGameDate")
+
+                if name_el and len(cells) >= 5:
+                    players.append({
+                        "name": name_el.get_text(strip=True),
+                        "updated": date_el.get_text(strip=True) if date_el else "",
+                        "injury": cells[3].get_text(strip=True) if len(cells) > 3 else "",
+                        "status": cells[4].get_text(strip=True) if len(cells) > 4 else ""
+                    })
+
+            if players:
+                injuries_by_team.append({
+                    "team": team_name,
+                    "players": players
+                })
+
+        result = {
+            "injuries": injuries_by_team,
+            "source": "CBS Sports",
+            "lastUpdated": get_display_date(0)
+        }
+        cache.set("injuries", result, CACHE_TTL["injuries"])
+        return result
+
+    except requests.RequestException as e:
+        raise HTTPException(status_code=503, detail=f"Could not fetch injury data: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Serve static files
