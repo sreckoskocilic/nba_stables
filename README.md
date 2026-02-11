@@ -6,6 +6,60 @@ lost in sudden burst of numbers and stats. So I decided to make custom NBA Live 
 with only one click (one script execution). This repository is a collection of such live stats scripts all resulting in
 drawing a table in terminal with most interesting stats for that evening.
 
+## Statistics Reference
+
+### Player Stats (Individual Performance)
+
+| Stat | Full Name | Description |
+|------|-----------|-------------|
+| **PT** | Points | Total points scored (2PT + 3PT + FT) |
+| **3P** | Three-Pointers | Made/Attempted three-point field goals |
+| **RB** | Rebounds | Total rebounds (offensive + defensive) |
+| **AS** | Assists | Passes leading directly to a made basket |
+| **BL** | Blocks | Shots blocked by the defender |
+| **ST** | Steals | Turnovers forced by taking the ball from opponent |
+| **TO** | Turnovers | Times the player lost possession |
+| **TIME** | Minutes Played | Total time on court (MM:SS format) |
+
+### Team Stats (Box Score)
+
+| Stat | Full Name | Description |
+|------|-----------|-------------|
+| **FG** | Field Goals | Made/Attempted shots (excludes free throws) |
+| **FG%** | Field Goal % | Percentage of made field goals |
+| **3P** | Three-Pointers | Made/Attempted shots from beyond the arc |
+| **3P%** | Three-Point % | Percentage of made three-pointers |
+| **FT** | Free Throws | Made/Attempted free throws |
+| **FT%** | Free Throw % | Percentage of made free throws |
+| **RB** | Rebounds | Total team rebounds |
+| **ORB** | Offensive Rebounds | Rebounds of own team's missed shots |
+| **AST** | Assists | Total team assists |
+| **ST** | Steals | Total team steals |
+| **BL** | Blocks | Total team blocks |
+| **TO** | Turnovers | Total team turnovers |
+| **PF** | Personal Fouls | Total team fouls committed |
+
+### Potential Future Statistics
+
+These stats are available from the NBA API and could be added:
+
+| Stat | Description |
+|------|-------------|
+| **+/-** | Plus/Minus - Point differential while player is on court |
+| **PER** | Player Efficiency Rating - Overall performance metric |
+| **TS%** | True Shooting % - Scoring efficiency including FT |
+| **eFG%** | Effective FG% - Adjusts for 3PT being worth more |
+| **USG%** | Usage Rate - % of team plays used by player |
+| **DD/TD** | Double-Double / Triple-Double tracking |
+| **PIE** | Player Impact Estimate |
+| **OREB/DREB** | Offensive/Defensive rebounds separately |
+| **FBP** | Fast Break Points |
+| **PITP** | Points in the Paint |
+| **2CP** | Second Chance Points |
+| **BP** | Bench Points |
+
+## Installation
+
 Install required packages with pip:
 
 ```
@@ -92,8 +146,9 @@ There is an updated players static list with teamID added to each player that ha
 ╘═══════════════════════════╧═══════╧═══════╧═══════╧═══════╧═══════╧═══════╧═══════╧════╧═════╧═════╧════╧════╧════╧════╧═══════════════╧════╧════╧════╛
 ```
 
-- player_live_stats requires argument containing a comma-separated list of playerIDs to keep track their performance for
-  actual gameday.
+### Player Tracking (Multiple Players Supported)
+
+Track multiple players simultaneously by providing comma-separated player IDs:
 
 ```
 >>> python player_live_stats.py -i "1627783, 1641705"

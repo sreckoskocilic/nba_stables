@@ -675,6 +675,8 @@
                 <button class="nav-tab" data-section="boxscores">Box Scores</button>
                 <button class="nav-tab" data-section="leaders">Daily Leaders</button>
                 <button class="nav-tab" data-section="tracker">Player Tracker</button>
+                <button class="nav-tab" data-section="standings">Standings</button>
+                <button class="nav-tab" data-section="widgets">Widgets</button>
             </div>
         </div>
     </nav>
@@ -746,6 +748,107 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Standings Section -->
+            <section id="standings" class="section">
+                <div class="section-title">
+                    NBA Standings
+                    <button class="refresh-btn" onclick="loadStandings()">&#8635; Refresh</button>
+                </div>
+                <div id="standingsContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px;">
+                    <div class="loading"><div class="spinner"></div> Loading standings...</div>
+                </div>
+            </section>
+
+            <!-- Widgets Section -->
+            <section id="widgets" class="section">
+                <div class="section-title">Desktop Widgets</div>
+                <p style="color: var(--text-secondary); margin-bottom: 30px;">Download widgets for your macOS desktop. Requires <a href="https://tracesof.net/uebersicht/" target="_blank" style="color: var(--accent);">Ubersicht</a> app.</p>
+
+                <div class="widgets-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 30px;">
+                    <!-- Scoreboard Widget -->
+                    <div class="card" style="padding: 20px;">
+                        <h3 style="margin-bottom: 15px; color: var(--accent);">NBA Scoreboard Widget</h3>
+                        <div class="widget-preview" style="background: #0a0a0f; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                            <div class="widget-mockup" style="background: rgba(10, 10, 15, 0.95); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); font-size: 13px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <span style="font-weight: 600;">&#127936; NBA Live</span>
+                                    <span style="color: #888; font-size: 11px;">February 11, 2026</span>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                        <span style="font-size: 12px;">LAL</span>
+                                        <span style="color: #ff6b35; font-weight: 700;">108</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span style="font-size: 12px;">BOS</span>
+                                        <span style="color: #ff6b35; font-weight: 700;">112</span>
+                                    </div>
+                                    <div style="font-size: 10px; color: #888; margin-top: 6px;">Q4 2:30</div>
+                                </div>
+                            </div>
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
+                            Shows live NBA scores on your desktop. Updates every 60 seconds. Displays team scores, game status, and top performers.
+                        </p>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn" onclick="downloadWidget('scoreboard')">Download Widget</button>
+                            <button class="btn" style="background: var(--bg-hover); border: 1px solid var(--border);" onclick="showWidgetCode('scoreboard')">View Code</button>
+                        </div>
+                    </div>
+
+                    <!-- Player Tracker Widget -->
+                    <div class="card" style="padding: 20px;">
+                        <h3 style="margin-bottom: 15px; color: var(--accent);">Player Tracker Widget</h3>
+                        <div class="widget-preview" style="background: #0a0a0f; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                            <div class="widget-mockup" style="background: rgba(10, 10, 15, 0.95); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); font-size: 13px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <span style="font-weight: 600;">&#127942; My Players</span>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                                    <div style="font-weight: 500; margin-bottom: 4px;">LeBron James</div>
+                                    <div style="font-size: 11px; color: #888;">LAL | 32:15</div>
+                                    <div style="display: flex; gap: 15px; margin-top: 6px; font-size: 12px;">
+                                        <span><span style="color: #ff6b35;">28</span> PTS</span>
+                                        <span><span style="color: #ff6b35;">8</span> REB</span>
+                                        <span><span style="color: #ff6b35;">11</span> AST</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
+                            Track specific players live stats. Edit the widget to add your favorite player IDs. Shows points, rebounds, assists, and more.
+                        </p>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn" onclick="downloadWidget('player')">Download Widget</button>
+                            <button class="btn" style="background: var(--bg-hover); border: 1px solid var(--border);" onclick="showWidgetCode('player')">View Code</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Installation Instructions -->
+                <div class="card" style="padding: 25px; margin-top: 30px;">
+                    <h3 style="margin-bottom: 20px; color: var(--accent);">Installation Instructions</h3>
+                    <ol style="color: var(--text-secondary); line-height: 2; padding-left: 20px;">
+                        <li>Download and install <a href="https://tracesof.net/uebersicht/" target="_blank" style="color: var(--accent);">Ubersicht</a> for macOS</li>
+                        <li>Download a widget file from above</li>
+                        <li>Move the <code style="background: var(--bg-secondary); padding: 2px 8px; border-radius: 4px;">.jsx</code> file to <code style="background: var(--bg-secondary); padding: 2px 8px; border-radius: 4px;">~/Library/Application Support/Ubersicht/widgets/</code></li>
+                        <li>The widget will automatically appear on your desktop</li>
+                        <li><strong>Important:</strong> Edit the <code style="background: var(--bg-secondary); padding: 2px 8px; border-radius: 4px;">API_URL</code> in the widget file to point to your deployed API (or use localhost for local testing)</li>
+                    </ol>
+                </div>
+
+                <!-- Widget Code Modal -->
+                <div id="widgetCodeModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; padding: 50px;">
+                    <div style="max-width: 800px; margin: 0 auto; background: var(--bg-card); border-radius: 12px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
+                        <div style="padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <h3>Widget Code</h3>
+                            <button onclick="closeWidgetModal()" style="background: none; border: none; color: var(--text-primary); font-size: 24px; cursor: pointer;">&times;</button>
+                        </div>
+                        <pre id="widgetCodeContent" style="padding: 20px; overflow: auto; flex: 1; background: var(--bg-secondary); margin: 0; font-size: 12px; line-height: 1.5;"></pre>
+                    </div>
+                </div>
+            </section>
         </div>
     </main>
 
@@ -769,6 +872,7 @@
                     case 'scoreboard': loadScoreboard(); break;
                     case 'boxscores': loadBoxscores(); break;
                     case 'leaders': loadLeaders(); break;
+                    case 'standings': loadStandings(); break;
                 }
             });
         });
@@ -887,7 +991,7 @@
                 }
 
                 container.innerHTML = data.boxscores.map(game => `
-                    <div class="card boxscore-card" style="margin-bottom: 20px;">
+                    <div class="card boxscore-card" style="margin-bottom: 20px; cursor: pointer;" onclick="toggleGameDetails('${game.gameId}', this)">
                         <table class="boxscore-table">
                             <thead>
                                 <tr>
@@ -928,6 +1032,10 @@
                                 `).join('')}
                             </tbody>
                         </table>
+                        <div style="text-align: center; padding: 8px; color: var(--text-secondary); font-size: 0.8rem;">
+                            Click to see player details ▼
+                        </div>
+                        <div class="game-details" id="details-${game.gameId}" style="display: none;"></div>
                     </div>
                 `).join('');
             } catch (error) {
@@ -1136,6 +1244,324 @@
                 `;
             }
         }
+
+        // Toggle Game Details (Player Stats)
+        async function toggleGameDetails(gameId, cardElement) {
+            const detailsDiv = document.getElementById(`details-${gameId}`);
+
+            if (detailsDiv.style.display === 'block') {
+                detailsDiv.style.display = 'none';
+                return;
+            }
+
+            detailsDiv.innerHTML = '<div class="loading" style="padding: 20px;"><div class="spinner"></div> Loading player stats...</div>';
+            detailsDiv.style.display = 'block';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/games/${gameId}/players`);
+                const data = await res.json();
+
+                detailsDiv.innerHTML = data.teams.map(team => `
+                    <div style="padding: 15px; border-top: 1px solid var(--border);">
+                        <h4 style="margin-bottom: 10px; color: var(--accent);">${team.name} - ${team.score}</h4>
+                        <table class="boxscore-table" style="font-size: 0.8rem;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">Player</th>
+                                    <th>MIN</th>
+                                    <th>PTS</th>
+                                    <th>REB</th>
+                                    <th>AST</th>
+                                    <th>FG</th>
+                                    <th>3PT</th>
+                                    <th>FT</th>
+                                    <th>STL</th>
+                                    <th>BLK</th>
+                                    <th>TO</th>
+                                    <th>+/-</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${team.players.map(p => `
+                                    <tr>
+                                        <td style="text-align: left;">${p.name}</td>
+                                        <td>${p.minutes}</td>
+                                        <td class="${p.points >= 20 ? 'highlight' : ''}">${p.points}</td>
+                                        <td class="${p.rebounds >= 10 ? 'highlight' : ''}">${p.rebounds}</td>
+                                        <td class="${p.assists >= 10 ? 'highlight' : ''}">${p.assists}</td>
+                                        <td>${p.fg}</td>
+                                        <td>${p.threePt}</td>
+                                        <td>${p.ft}</td>
+                                        <td>${p.steals}</td>
+                                        <td>${p.blocks}</td>
+                                        <td>${p.turnovers}</td>
+                                        <td style="color: ${p.plusMinus > 0 ? 'var(--success)' : p.plusMinus < 0 ? '#ef4444' : 'inherit'};">${p.plusMinus > 0 ? '+' : ''}${p.plusMinus}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `).join('');
+            } catch (error) {
+                detailsDiv.innerHTML = `<div style="padding: 20px; color: var(--text-secondary);">Error loading player stats: ${error.message}</div>`;
+            }
+        }
+
+        // Load Standings
+        async function loadStandings() {
+            const container = document.getElementById('standingsContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading standings...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/standings`);
+                const data = await res.json();
+
+                const renderConference = (teams, name) => `
+                    <div class="card" style="overflow-x: auto;">
+                        <h3 style="padding: 15px 20px; background: var(--bg-secondary); margin: 0;">${name} Conference</h3>
+                        <table class="boxscore-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th style="text-align: left;">Team</th>
+                                    <th>W</th>
+                                    <th>L</th>
+                                    <th>PCT</th>
+                                    <th>GB</th>
+                                    <th>Streak</th>
+                                    <th>L10</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${teams.map((team, i) => `
+                                    <tr style="${i < 6 ? 'background: rgba(74, 222, 128, 0.05);' : i < 10 ? 'background: rgba(255, 107, 53, 0.05);' : ''}">
+                                        <td style="text-align: center; font-weight: 600;">${team.rank}</td>
+                                        <td style="text-align: left; font-weight: 500;">${team.name}</td>
+                                        <td class="highlight">${team.wins}</td>
+                                        <td>${team.losses}</td>
+                                        <td>${(team.winPct * 100).toFixed(1)}%</td>
+                                        <td>${team.gamesBack}</td>
+                                        <td>${team.streak}</td>
+                                        <td>${team.last10}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                container.innerHTML = renderConference(data.east, 'Eastern') + renderConference(data.west, 'Western');
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#9888;</div>
+                        <div class="empty-state-title">Error Loading Standings</div>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Widget Code Templates
+        const widgetTemplates = {
+            scoreboard: `// NBA Scoreboard Widget for Ubersicht
+// Change the URL below to your deployed API URL
+const API_URL = "${window.location.origin}";
+
+export const refreshFrequency = 60000; // Refresh every 60 seconds
+
+export const command = \`curl -s \${API_URL}/api/scoreboard\`;
+
+export const className = \`
+  top: 20px;
+  right: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(10px);
+  padding: 16px;
+  border-radius: 12px;
+  width: 280px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.1);
+\`;
+
+const headerStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '12px',
+  paddingBottom: '10px',
+  borderBottom: '1px solid rgba(255,255,255,0.1)'
+};
+
+const titleStyle = { fontWeight: '600', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' };
+const dateStyle = { fontSize: '11px', color: '#888' };
+const gameStyle = { marginBottom: '10px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' };
+const teamRowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' };
+const teamNameStyle = { fontSize: '12px', fontWeight: '500' };
+const scoreStyle = { fontSize: '14px', fontWeight: '700', color: '#ff6b35' };
+const statusStyle = { fontSize: '10px', color: '#888', textTransform: 'uppercase', marginTop: '6px' };
+const leaderStyle = { fontSize: '10px', color: '#666', marginTop: '4px' };
+const emptyStyle = { textAlign: 'center', padding: '20px', color: '#666' };
+
+export const render = ({ output }) => {
+  try {
+    const data = JSON.parse(output);
+    if (!data.games || data.games.length === 0) {
+      return (
+        <div>
+          <div style={headerStyle}><span style={titleStyle}>🏀 NBA Stables</span></div>
+          <div style={emptyStyle}>No games today</div>
+        </div>
+      );
+    }
+    return (
+      <div>
+        <div style={headerStyle}>
+          <span style={titleStyle}>🏀 NBA Live</span>
+          <span style={dateStyle}>{data.date}</span>
+        </div>
+        {data.games.map((game, i) => (
+          <div key={i} style={gameStyle}>
+            <div style={teamRowStyle}>
+              <span style={teamNameStyle}>{game.awayTeam.tricode}</span>
+              <span style={scoreStyle}>{game.awayTeam.score}</span>
+            </div>
+            <div style={teamRowStyle}>
+              <span style={teamNameStyle}>{game.homeTeam.tricode}</span>
+              <span style={scoreStyle}>{game.homeTeam.score}</span>
+            </div>
+            <div style={statusStyle}>{game.status}</div>
+            <div style={leaderStyle}>⭐ {game.homeTeam.leader.name} {game.homeTeam.leader.points}pts</div>
+          </div>
+        ))}
+      </div>
+    );
+  } catch (e) {
+    return (
+      <div>
+        <div style={headerStyle}><span style={titleStyle}>🏀 NBA Stables</span></div>
+        <div style={emptyStyle}>Loading...</div>
+      </div>
+    );
+  }
+};`,
+
+            player: `// NBA Player Tracker Widget for Ubersicht
+// Change the URL and PLAYER_IDS below
+const API_URL = "${window.location.origin}";
+const PLAYER_IDS = "203507,201566,1629029"; // LeBron, Harden, Luka - change to your players
+
+export const refreshFrequency = 30000; // Refresh every 30 seconds
+
+export const command = \`curl -s "\${API_URL}/api/players/stats?ids=\${PLAYER_IDS}"\`;
+
+export const className = \`
+  top: 20px;
+  left: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(10px);
+  padding: 16px;
+  border-radius: 12px;
+  width: 300px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.1);
+\`;
+
+const headerStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '12px',
+  paddingBottom: '10px',
+  borderBottom: '1px solid rgba(255,255,255,0.1)'
+};
+
+const titleStyle = { fontWeight: '600', fontSize: '14px' };
+const playerStyle = { marginBottom: '10px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' };
+const nameStyle = { fontWeight: '500', marginBottom: '4px' };
+const teamStyle = { fontSize: '11px', color: '#888' };
+const statsRow = { display: 'flex', gap: '15px', marginTop: '6px', fontSize: '12px' };
+const statValue = { color: '#ff6b35', fontWeight: '600' };
+const emptyStyle = { textAlign: 'center', padding: '20px', color: '#666' };
+
+export const render = ({ output }) => {
+  try {
+    const data = JSON.parse(output);
+    if (!data.players || data.players.length === 0) {
+      return (
+        <div>
+          <div style={headerStyle}><span style={titleStyle}>🏆 My Players</span></div>
+          <div style={emptyStyle}>No active games</div>
+        </div>
+      );
+    }
+    return (
+      <div>
+        <div style={headerStyle}><span style={titleStyle}>🏆 My Players</span></div>
+        {data.players.map((p, i) => (
+          <div key={i} style={playerStyle}>
+            <div style={nameStyle}>{p.name}</div>
+            <div style={teamStyle}>{p.team} | {p.minutes}</div>
+            <div style={statsRow}>
+              <span><span style={statValue}>{p.points}</span> PTS</span>
+              <span><span style={statValue}>{p.rebounds}</span> REB</span>
+              <span><span style={statValue}>{p.assists}</span> AST</span>
+            </div>
+            <div style={{...statsRow, color: '#888'}}>
+              <span>{p.threePointers} 3PT</span>
+              <span>{p.steals} STL</span>
+              <span>{p.blocks} BLK</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  } catch (e) {
+    return (
+      <div>
+        <div style={headerStyle}><span style={titleStyle}>🏆 My Players</span></div>
+        <div style={emptyStyle}>Loading...</div>
+      </div>
+    );
+  }
+};`
+        };
+
+        function downloadWidget(type) {
+            const code = widgetTemplates[type];
+            const filename = type === 'scoreboard' ? 'nba-scoreboard.jsx' : 'nba-player-tracker.jsx';
+
+            const blob = new Blob([code], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function showWidgetCode(type) {
+            const code = widgetTemplates[type];
+            document.getElementById('widgetCodeContent').textContent = code;
+            document.getElementById('widgetCodeModal').style.display = 'block';
+        }
+
+        function closeWidgetModal() {
+            document.getElementById('widgetCodeModal').style.display = 'none';
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeWidgetModal();
+        });
 
         // Initial load
         loadScoreboard();
