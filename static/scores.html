@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Live Scores</title>
+    <meta name="theme-color" content="#ff6b35">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/static/manifest-scores.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0f;
+            color: #fff;
+            min-height: 100vh;
+            padding: 15px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #2a2a3a;
+        }
+        .title { font-size: 1.3rem; font-weight: 700; color: #ff6b35; }
+        .date { font-size: 0.85rem; color: #888; }
+        .game {
+            background: #1a1a24;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+        .status {
+            font-size: 0.7rem;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .status.live { color: #ef4444; }
+        .team-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+        .team-name { font-weight: 500; }
+        .team-code {
+            font-size: 0.75rem;
+            color: #888;
+            background: #22222e;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-right: 8px;
+        }
+        .score { font-size: 1.4rem; font-weight: 700; color: #ff6b35; }
+        .leader {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #2a2a3a;
+            font-size: 0.8rem;
+            color: #888;
+        }
+        .leader-name { color: #fff; }
+        .refresh-btn {
+            background: #22222e;
+            border: none;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .loading { text-align: center; padding: 40px; color: #888; }
+        .empty { text-align: center; padding: 60px 20px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="title">NBA Live Scores</span>
+        <button class="refresh-btn" onclick="loadScores()">Refresh</button>
+    </div>
+    <div id="content">
+        <div class="loading">Loading...</div>
+    </div>
+
+    <script>
+        async function loadScores() {
+            const container = document.getElementById('content');
+            try {
+                const res = await fetch('/api/scoreboard');
+                const data = await res.json();
+
+                if (data.games.length === 0) {
+                    container.innerHTML = '<div class="empty">No games today</div>';
+                    return;
+                }
+
+                container.innerHTML = data.games.map(game => `
+                    <div class="game">
+                        <div class="status ${game.status.toLowerCase().includes('final') ? '' : 'live'}">${game.status}</div>
+                        <div class="team-row">
+                            <div><span class="team-code">${game.awayTeam.tricode}</span><span class="team-name">${game.awayTeam.name}</span></div>
+                            <span class="score">${game.awayTeam.score}</span>
+                        </div>
+                        <div class="team-row">
+                            <div><span class="team-code">${game.homeTeam.tricode}</span><span class="team-name">${game.homeTeam.name}</span></div>
+                            <span class="score">${game.homeTeam.score}</span>
+                        </div>
+                        <div class="leader">
+                            <span class="leader-name">${game.homeTeam.leader.name}</span> ${game.homeTeam.leader.points}pts ${game.homeTeam.leader.rebounds}reb ${game.homeTeam.leader.assists}ast
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = '<div class="empty">Error loading scores</div>';
+            }
+        }
+
+        loadScores();
+        setInterval(loadScores, 60000);
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js');
+        }
+    </script>
+</body>
+</html>

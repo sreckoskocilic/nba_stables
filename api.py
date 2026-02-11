@@ -663,6 +663,24 @@ async def serve_frontend():
     return {"message": "NBA Stables API", "docs": "/docs"}
 
 
+@app.get("/scores")
+async def serve_scores():
+    """Serve standalone scores mini-app"""
+    return FileResponse(os.path.join(static_dir, "scores.html"))
+
+
+@app.get("/tracker")
+async def serve_tracker():
+    """Serve standalone player tracker mini-app"""
+    return FileResponse(os.path.join(static_dir, "tracker.html"))
+
+
+@app.get("/standings-app")
+async def serve_standings_app():
+    """Serve standalone standings mini-app"""
+    return FileResponse(os.path.join(static_dir, "standings-app.html"))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
