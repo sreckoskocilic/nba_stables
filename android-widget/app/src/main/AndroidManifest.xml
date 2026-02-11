@@ -22,12 +22,7 @@
                 android:resource="@xml/scores_widget_info" />
         </receiver>
 
-        <!-- Widget Update Service -->
-        <service
-            android:name=".WidgetUpdateService"
-            android:permission="android.permission.BIND_REMOTEVIEWS"
-            android:exported="false" />
-
+        
     </application>
 
 </manifest>

@@ -6,51 +6,22 @@
     android:padding="12dp"
     android:background="@drawable/widget_background">
 
-    <LinearLayout
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingBottom="8dp">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="NBA Live"
-            android:textColor="#FF6B35"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/last_updated"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="--:--"
-            android:textColor="#888888"
-            android:textSize="11sp" />
-    </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#2A2A3A" />
-
-    <ListView
-        android:id="@+id/games_list"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginTop="8dp"
-        android:divider="@null"
-        android:dividerHeight="8dp" />
+        android:text="NBA Scores"
+        android:textColor="#FF6B35"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:paddingBottom="8dp" />
 
     <TextView
-        android:id="@+id/empty_text"
+        android:id="@+id/scores_text"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center"
-        android:text="No games today"
-        android:textColor="#888888"
-        android:visibility="gone" />
+        android:text="Loading..."
+        android:textColor="#FFFFFF"
+        android:textSize="11sp"
+        android:lineSpacingExtra="2dp" />
 
 </LinearLayout>
