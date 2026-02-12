@@ -881,6 +881,15 @@ if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
+@app.get("/sitemap.xml")
+async def serve_sitemap():
+    """Serve sitemap.xml"""
+    sitemap_path = os.path.join(static_dir, "sitemap.xml")
+    if os.path.exists(sitemap_path):
+        return FileResponse(sitemap_path, media_type="application/xml")
+    raise HTTPException(status_code=404, detail="Sitemap not found")
+
+
 @app.get("/")
 async def serve_frontend():
     """Serve the frontend"""
