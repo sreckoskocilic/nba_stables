@@ -221,6 +221,13 @@
             gap: 20px;
         }
 
+        /* Compact grid for scoreboard */
+        .cards-grid-compact {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+        }
+
         .card {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -234,18 +241,18 @@
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
         }
 
-        /* Game Card */
+        /* Game Card - Compact */
         .game-card {
-            padding: 20px;
+            padding: 12px;
         }
 
         .game-status {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 3px 8px;
             border-radius: 20px;
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             font-weight: 600;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
             text-transform: uppercase;
         }
 
@@ -268,71 +275,76 @@
         .teams-container {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 6px;
         }
 
         .team-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px;
+            padding: 8px 10px;
             background: var(--bg-secondary);
-            border-radius: 8px;
+            border-radius: 6px;
         }
 
         .team-info {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
         }
 
         .team-tricode {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--text-secondary);
             background: var(--bg-hover);
-            padding: 4px 8px;
+            padding: 2px 6px;
             border-radius: 4px;
+            min-width: 32px;
+            text-align: center;
         }
 
         .team-name {
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 0.85rem;
         }
 
         .team-score {
-            font-size: 1.75rem;
+            font-size: 1.25rem;
             font-weight: 700;
             color: var(--accent);
+            min-width: 36px;
+            text-align: right;
         }
 
         .leader-section {
-            margin-top: 15px;
-            padding-top: 15px;
+            margin-top: 10px;
+            padding-top: 10px;
             border-top: 1px solid var(--border);
         }
 
         .leader-title {
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             color: var(--text-secondary);
             text-transform: uppercase;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
         }
 
         .leader-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
+            padding: 4px 0;
         }
 
         .leader-name {
             font-weight: 500;
+            font-size: 0.8rem;
             color: var(--text-primary);
         }
 
         .leader-stats {
             display: flex;
-            gap: 15px;
+            gap: 10px;
         }
 
         .stat {
@@ -341,11 +353,12 @@
 
         .stat-value {
             font-weight: 600;
+            font-size: 0.85rem;
             color: var(--accent);
         }
 
         .stat-label {
-            font-size: 0.7rem;
+            font-size: 0.6rem;
             color: var(--text-secondary);
             text-transform: uppercase;
         }
@@ -749,7 +762,7 @@
                     <span class="badge" id="gamesCount">0 Games</span>
                     <button class="refresh-btn" onclick="loadScoreboard()">&#8635; Refresh</button>
                 </div>
-                <div id="scoreboardContent" class="cards-grid">
+                <div id="scoreboardContent" class="cards-grid-compact">
                     <div class="loading"><div class="spinner"></div> Loading games...</div>
                 </div>
             </section>
@@ -1112,6 +1125,9 @@
                     return;
                 }
 
+                const score = (v) => (v == null || v === 'null') ? '-' : v;
+                const hasLeader = (leader) => leader && leader.name && leader.name !== 'null';
+
                 container.innerHTML = data.games.map(game => `
                     <div class="card game-card">
                         <span class="game-status ${game.status.toLowerCase().includes('final') ? 'final' : 'live'}">${game.status}</span>
@@ -1121,35 +1137,38 @@
                                     <span class="team-tricode">${game.homeTeam.tricode}</span>
                                     <span class="team-name">${game.homeTeam.name}</span>
                                 </div>
-                                <span class="team-score">${game.homeTeam.score}</span>
+                                <span class="team-score">${score(game.homeTeam.score)}</span>
                             </div>
                             <div class="team-row">
                                 <div class="team-info">
                                     <span class="team-tricode">${game.awayTeam.tricode}</span>
                                     <span class="team-name">${game.awayTeam.name}</span>
                                 </div>
-                                <span class="team-score">${game.awayTeam.score}</span>
+                                <span class="team-score">${score(game.awayTeam.score)}</span>
                             </div>
                         </div>
+                        ${hasLeader(game.homeTeam.leader) || hasLeader(game.awayTeam.leader) ? `
                         <div class="leader-section">
                             <div class="leader-title">Top Performers</div>
+                            ${hasLeader(game.homeTeam.leader) ? `
                             <div class="leader-row">
                                 <span class="leader-name">${game.homeTeam.leader.name}</span>
                                 <div class="leader-stats">
-                                    <div class="stat"><div class="stat-value">${game.homeTeam.leader.points}</div><div class="stat-label">PTS</div></div>
-                                    <div class="stat"><div class="stat-value">${game.homeTeam.leader.rebounds}</div><div class="stat-label">REB</div></div>
-                                    <div class="stat"><div class="stat-value">${game.homeTeam.leader.assists}</div><div class="stat-label">AST</div></div>
+                                    <div class="stat"><div class="stat-value">${score(game.homeTeam.leader.points)}</div><div class="stat-label">PTS</div></div>
+                                    <div class="stat"><div class="stat-value">${score(game.homeTeam.leader.rebounds)}</div><div class="stat-label">REB</div></div>
+                                    <div class="stat"><div class="stat-value">${score(game.homeTeam.leader.assists)}</div><div class="stat-label">AST</div></div>
                                 </div>
-                            </div>
+                            </div>` : ''}
+                            ${hasLeader(game.awayTeam.leader) ? `
                             <div class="leader-row">
                                 <span class="leader-name">${game.awayTeam.leader.name}</span>
                                 <div class="leader-stats">
-                                    <div class="stat"><div class="stat-value">${game.awayTeam.leader.points}</div><div class="stat-label">PTS</div></div>
-                                    <div class="stat"><div class="stat-value">${game.awayTeam.leader.rebounds}</div><div class="stat-label">REB</div></div>
-                                    <div class="stat"><div class="stat-value">${game.awayTeam.leader.assists}</div><div class="stat-label">AST</div></div>
+                                    <div class="stat"><div class="stat-value">${score(game.awayTeam.leader.points)}</div><div class="stat-label">PTS</div></div>
+                                    <div class="stat"><div class="stat-value">${score(game.awayTeam.leader.rebounds)}</div><div class="stat-label">REB</div></div>
+                                    <div class="stat"><div class="stat-value">${score(game.awayTeam.leader.assists)}</div><div class="stat-label">AST</div></div>
                                 </div>
-                            </div>
-                        </div>
+                            </div>` : ''}
+                        </div>` : ''}
                     </div>
                 `).join('');
             } catch (error) {
