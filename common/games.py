@@ -1,4 +1,5 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
+from zoneinfo import ZoneInfo
 
 from nba_api.stats.endpoints import scoreboardv3
 
@@ -35,7 +36,10 @@ def parse_scoreboard(game):
     home_team = f"{game['homeTeam']['teamCity']} {game['homeTeam']['teamName']}"
     away_team = f"{game["awayTeam"]["teamCity"]} {game["awayTeam"]["teamName"]}"
     score = f"{game["homeTeam"]['score']}\n{game['awayTeam']['score']}"
-    game_status = game["gameStatusText"]
+    if game["gameStatus"] != 1:
+        game_status = game["gameStatusText"]
+    else:
+        game_status = convert_time_to_cet(game["gameStatusText"])
     home_leaders = game["gameLeaders"]["homeLeaders"]
     away_leaders = game["gameLeaders"]["awayLeaders"]
     home_leader_player = bytes(home_leaders["name"], "iso-8859-1").decode("utf-8")
@@ -50,6 +54,19 @@ def parse_scoreboard(game):
     parsed.append(f"{home_leaders["assists"]}\n{away_leaders["assists"]}")
     return parsed
 
+def convert_time_to_cet(time: str) -> str:
+    source_tz = ZoneInfo("US/Eastern")
+    cet_tz = ZoneInfo("CET")
+
+    now = datetime.now()
+    naive_dt = datetime.strptime(f"{now.year}-{now.month}-{now.day} {time[:-3]}", "%Y-%m-%d %H:%M %p")
+
+    aware_et_dt = naive_dt.replace(tzinfo=source_tz) - timedelta(hours=12)
+    aware_cet_dt = aware_et_dt.astimezone(cet_tz)
+
+    output_time_str = aware_cet_dt.strftime("%H:%M")
+
+    return output_time_str
 
 def parse_boxscore_stats(bscore_stats, leader):
     stats = []
