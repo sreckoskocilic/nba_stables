@@ -3,13 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBA Stables - Live Stats</title>
-    <meta name="description" content="Live NBA statistics, scores, and player tracking">
+    <title>NBA Stables - Live NBA Scores, Stats & Player Tracker</title>
+    <meta name="description" content="Free live NBA scores, box scores, standings, injury reports and player tracking. Real-time stats with a clean, modern interface. No ads, no tracking.">
+    <meta name="keywords" content="NBA, basketball, live scores, NBA stats, player tracker, box scores, standings, injury report, NBA API">
+    <meta name="author" content="NBA Stables">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://nba-stables.onrender.com/">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://nba-stables.onrender.com/">
+    <meta property="og:title" content="NBA Stables - Live NBA Scores & Stats">
+    <meta property="og:description" content="Free live NBA scores, box scores, standings, injury reports and player tracking. Real-time stats with no ads.">
+    <meta property="og:image" content="https://nba-stables.onrender.com/static/og-image.png">
+    <meta property="og:site_name" content="NBA Stables">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://nba-stables.onrender.com/">
+    <meta name="twitter:title" content="NBA Stables - Live NBA Scores & Stats">
+    <meta name="twitter:description" content="Free live NBA scores, box scores, standings, injury reports and player tracking. Real-time stats with no ads.">
+    <meta name="twitter:image" content="https://nba-stables.onrender.com/static/og-image.png">
+
+    <!-- PWA -->
     <meta name="theme-color" content="#ff6b35">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="manifest" href="/static/manifest.json">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icon-192.png">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "NBA Stables",
+      "description": "Free live NBA scores, box scores, standings, injury reports and player tracking",
+      "url": "https://nba-stables.onrender.com/",
+      "applicationCategory": "SportsApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Live NBA Scores",
+        "Box Scores",
+        "Player Tracker",
+        "Standings",
+        "Injury Reports",
+        "Desktop Widgets",
+        "Android Widget"
+      ]
+    }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -685,6 +735,7 @@
                 <button class="nav-tab" data-section="injuries">Injuries</button>
                 <button class="nav-tab" data-section="widgets">Widgets</button>
                 <button class="nav-tab" data-section="download">Download App</button>
+                <button class="nav-tab" data-section="about">About</button>
             </div>
         </div>
     </nav>
@@ -920,6 +971,74 @@
                         <li>Install the app</li>
                         <li>Long-press home screen → Widgets → NBA Stables</li>
                     </ol>
+                </div>
+            </section>
+
+            <!-- About Section -->
+            <section id="about" class="section">
+                <div class="section-title">About NBA Stables</div>
+
+                <div class="cards-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="card" style="padding: 30px;">
+                        <h3 style="color: var(--accent); margin-bottom: 20px;">What is NBA Stables?</h3>
+                        <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 15px;">
+                            NBA Stables is a free, open-source NBA stats tracker that provides live scores, box scores, player statistics, standings, and injury reports - all in a clean, modern interface.
+                        </p>
+                        <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 15px;">
+                            Built for basketball fans who want quick access to stats without ads, tracking, or account requirements.
+                        </p>
+                        <p style="color: var(--text-secondary); line-height: 1.8;">
+                            Data is sourced from the official NBA API and updated in real-time during games.
+                        </p>
+                    </div>
+
+                    <div class="card" style="padding: 30px;">
+                        <h3 style="color: var(--accent); margin-bottom: 20px;">Features</h3>
+                        <ul style="color: var(--text-secondary); line-height: 2.2; padding-left: 20px;">
+                            <li><strong style="color: var(--text-primary);">Live Scoreboard</strong> - Real-time game scores and top performers</li>
+                            <li><strong style="color: var(--text-primary);">Box Scores</strong> - Full team and player statistics</li>
+                            <li><strong style="color: var(--text-primary);">Daily Leaders</strong> - Top performers across all categories</li>
+                            <li><strong style="color: var(--text-primary);">Player Tracker</strong> - Follow specific players' live stats</li>
+                            <li><strong style="color: var(--text-primary);">Standings</strong> - Full Eastern/Western conference standings</li>
+                            <li><strong style="color: var(--text-primary);">Injury Report</strong> - Latest injury updates from ESPN & CBS</li>
+                            <li><strong style="color: var(--text-primary);">Desktop Widgets</strong> - macOS widgets via Ubersicht</li>
+                            <li><strong style="color: var(--text-primary);">Android Widget</strong> - Home screen widget for Android</li>
+                        </ul>
+                    </div>
+
+                    <div class="card" style="padding: 30px;">
+                        <h3 style="color: var(--accent); margin-bottom: 20px;">Open Source</h3>
+                        <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 20px;">
+                            NBA Stables is completely open source under the MIT license. Feel free to contribute, fork, or use the code for your own projects.
+                        </p>
+                        <a href="https://github.com/sreckoskocilic/nba_stables" target="_blank" class="btn" style="display: inline-block; text-decoration: none;">
+                            View on GitHub
+                        </a>
+                    </div>
+
+                    <div class="card" style="padding: 30px;">
+                        <h3 style="color: var(--accent); margin-bottom: 20px;">API Access</h3>
+                        <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 15px;">
+                            Want to build your own NBA app? The NBA Stables API is freely available:
+                        </p>
+                        <ul style="color: var(--text-secondary); line-height: 2; padding-left: 20px; font-family: monospace; font-size: 0.9rem;">
+                            <li><code style="background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px;">/api/scoreboard</code> - Live scores</li>
+                            <li><code style="background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px;">/api/boxscores</code> - Box scores</li>
+                            <li><code style="background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px;">/api/standings</code> - Standings</li>
+                            <li><code style="background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px;">/api/injuries</code> - Injury report</li>
+                            <li><code style="background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px;">/api/leaders</code> - Daily leaders</li>
+                        </ul>
+                        <a href="/docs" target="_blank" style="color: var(--accent); display: inline-block; margin-top: 15px;">View Full API Docs</a>
+                    </div>
+                </div>
+
+                <div class="card" style="padding: 30px; margin-top: 20px; text-align: center;">
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                        Made with data from the NBA. Not affiliated with the National Basketball Association.
+                    </p>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 10px;">
+                        &copy; 2024-2026 NBA Stables. Open source under MIT License.
+                    </p>
                 </div>
             </section>
         </div>
