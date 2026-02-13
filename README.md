@@ -58,51 +58,50 @@ These stats are available from the NBA API and could be added:
 | **2CP** | Second Chance Points |
 | **BP** | Bench Points |
 
-## Installation
+## Running Locally
 
-Install required packages with pip:
+### Prerequisites
 
-```
+- Python 3.9+
+- pip
+
+### Setup
+
+```bash
+git clone https://github.com/sreckoskocilic/nba_stables.git
+cd nba_stables
 pip install -r requirements.txt
 ```
 
-## Web Interface
-
-Run the web server:
-
-```
-python api.py
-```
-
-Then open http://localhost:8000 in your browser.
-
-**Features:**
-- Live Scoreboard - Real-time game scores and top performers
-- Box Scores - Detailed team statistics
-- Daily Leaders - Top performers in each stat category
-- Player Tracker - Search and track specific players
-
-## Docker Deployment
+### Start the web app
 
 ```bash
-# Build and run with docker-compose
-docker-compose up -d
+uvicorn api:app --host 0.0.0.0 --port 8000
+```
 
-# Or build manually
+Open http://localhost:8000
+
+### Docker
+
+```bash
+docker-compose up -d
+```
+
+Or manually:
+
+```bash
 docker build -t nba-stables .
 docker run -d -p 8000:8000 nba-stables
 ```
 
-Then open http://localhost:8000
+### Features
 
-### Deploy to a VPS
-
-```bash
-# On your server (DigitalOcean, Linode, etc.)
-git clone <your-repo>
-cd nba_stables
-docker-compose up -d
-```
+- Live Scoreboard - Real-time scores with game times in CET
+- Box Scores - Detailed team stats with top performers
+- Daily Leaders - Top performers per stat category
+- Player Tracker - Search and track specific players live
+- Standings - Conference standings
+- Injury Report - From ESPN/CBS sources
 
 ## Terminal Scripts
 
