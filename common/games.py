@@ -1,15 +1,20 @@
 from datetime import date, timedelta, datetime
 from zoneinfo import ZoneInfo
 
-from nba_api.stats.endpoints import scoreboardv3
+from nba_api.stats.endpoints import scoreboardv2, scoreboardv3
 
 
-def get_games_list(days_offset=1):
+def get_games_list(days_offset: int = 1):
+    """Get list of game IDs for a given date offset"""
     g_dict = []
-    yesterday = date.today() - timedelta(days=days_offset)
-    games_list = scoreboardv3.ScoreboardV3(game_date=yesterday.strftime("%Y-%m-%d")).game_leaders.get_dict()
-    for g in games_list["data"]:
-        g_dict.append(g[0])
+    target_date = date.today() - timedelta(days=days_offset)
+    try:
+        sb = scoreboardv2.ScoreboardV2(game_date=target_date.strftime("%Y-%m-%d"))
+        games = sb.game_header.get_dict()
+        for g in games["data"]:
+            g_dict.append(g[2])  # game_id is at index 2
+    except Exception:
+        pass
     return list(set(g_dict))
 
 

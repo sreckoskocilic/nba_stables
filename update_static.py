@@ -27,7 +27,7 @@ def remove_active_field():
 
 
 def update_players():
-    date_offset = 3
+    date_offset = 2
     now = datetime.now()
 
     while date_offset > 0:
@@ -55,7 +55,9 @@ def update_players():
             json.dump(players_with_teamid, ffile, indent=4)
 
         if changes > 0:
-            print(f"Date: {off_date} Changes: {changes}\n{changed_players}")
+            print(f"Date: {off_date} Changes: {changes}")
+            for player in changed_players:
+                print(player)
         else:
             print(f"Date: {off_date}")
 
