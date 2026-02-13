@@ -8,7 +8,8 @@ import os
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from functools import wraps
 from typing import Any, Dict, Optional
 
@@ -87,6 +88,19 @@ def get_display_date(days_offset: int = 0) -> str:
     return target_date.strftime("%B %d, %Y")
 
 
+def convert_et_to_cet(time_str: str) -> str:
+    """Convert NBA game time from US/Eastern to CET (e.g. '7:00 PM ET' -> '01:00')"""
+    try:
+        cleaned = time_str.replace("ET", "").strip()
+        now = datetime.now()
+        naive_dt = datetime.strptime(f"{now.year}-{now.month}-{now.day} {cleaned}", "%Y-%m-%d %I:%M %p")
+        et_dt = naive_dt.replace(tzinfo=ZoneInfo("US/Eastern"))
+        cet_dt = et_dt.astimezone(ZoneInfo("Europe/Berlin"))
+        return cet_dt.strftime("%H:%M CET")
+    except Exception:
+        return time_str
+
+
 def reformat_player_minutes(total_seconds: int) -> str:
     minutes = total_seconds // 60
     seconds = total_seconds % 60
@@ -161,9 +175,13 @@ async def get_scoreboard():
             home_leaders = game["gameLeaders"]["homeLeaders"]
             away_leaders = game["gameLeaders"]["awayLeaders"]
 
+            status_text = game["gameStatusText"]
+            if "ET" in status_text:
+                status_text = convert_et_to_cet(status_text)
+
             games.append({
                 "gameId": game["gameId"],
-                "status": game["gameStatusText"],
+                "status": status_text,
                 "homeTeam": {
                     "name": "{} {}".format(home_team["teamCity"], home_team["teamName"]),
                     "tricode": home_team["teamTricode"],
