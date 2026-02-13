@@ -17,6 +17,7 @@ jobs:
           script: |
             cd /opt/nba_stables
             git pull origin main
+            docker builder prune -af
             docker-compose down --remove-orphans
             docker-compose up -d --build --force-recreate
             docker image prune -f
