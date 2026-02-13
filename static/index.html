@@ -790,8 +790,8 @@
                     <button class="refresh-btn" onclick="loadLeaders()">&#8635; Refresh</button>
                 </div>
                 <div class="date-selector" id="leadersDateSelector">
-                    <button class="date-btn" data-offset="0">Today</button>
-                    <button class="date-btn active" data-offset="1">Yesterday</button>
+                    <button class="date-btn active" data-offset="0">Today</button>
+                    <button class="date-btn" data-offset="1">Yesterday</button>
                     <button class="date-btn" data-offset="2">2 Days Ago</button>
                 </div>
                 <div id="leadersContent" class="leaders-grid">
@@ -1061,7 +1061,7 @@
         const API_BASE = '';
         let trackedPlayerIds = [];
         let currentBoxscoreOffset = 0;
-        let currentLeadersOffset = 1;
+        let currentLeadersOffset = 0;
 
         // Navigation
         document.querySelectorAll('.nav-tab').forEach(tab => {

@@ -132,11 +132,12 @@ def get_games_leaders_list(days_offset: int = 1):
         for ld in leaders["data"]:
             game_id = ld[0]
             if game_id in g_dict:
+                team_id = ld[1] if len(ld) > 1 else 0
                 pts_player = ld[6] if len(ld) > 6 else ""
                 pts = ld[7] if len(ld) > 7 else 0
                 reb = ld[10] if len(ld) > 10 else 0
                 ast = ld[13] if len(ld) > 13 else 0
-                g_dict[game_id].append([pts_player, pts, reb, ast])
+                g_dict[game_id].append([pts_player, pts, reb, ast, team_id])
     except Exception:
         pass
     return g_dict
@@ -206,8 +207,9 @@ def fetch_single_boxscore(game_id, leaders_data):
 
         for i, team in enumerate(team_stats):
             leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
-            if i < len(leaders_data):
-                ld = leaders_data[i]
+            team_id = team[1]  # TEAM_ID from boxscore
+            ld = next((l for l in leaders_data if len(l) > 4 and l[4] == team_id), None)
+            if ld:
                 leader = {"name": ld[0], "points": ld[1], "rebounds": ld[2], "assists": ld[3]}
 
             game_box["teams"].append({
