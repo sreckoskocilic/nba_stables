@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About NBA Stables - Free Live NBA Scores & Stats</title>
+    <meta name="description" content="NBA Stables is a free, ad-free web app for live NBA scores, box scores, standings, injury reports and player tracking. Built for basketball fans who want fast, clean stats.">
+    <meta name="keywords" content="NBA, basketball, live scores, NBA stats, player tracker, box scores, standings, injury report, free NBA app">
+    <meta name="author" content="NBA Stables">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://nbastables.com/about">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://nbastables.com/about">
+    <meta property="og:title" content="About NBA Stables - Free Live NBA Scores & Stats">
+    <meta property="og:description" content="NBA Stables is a free, ad-free web app for live NBA scores, box scores, standings, injury reports and player tracking.">
+    <meta property="og:image" content="https://nbastables.com/static/og-image.png">
+    <meta property="og:site_name" content="NBA Stables">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="About NBA Stables - Free Live NBA Scores & Stats">
+    <meta name="twitter:description" content="NBA Stables is a free, ad-free web app for live NBA scores, box scores, standings, injury reports and player tracking.">
+    <meta name="twitter:image" content="https://nbastables.com/static/og-image.png">
+
+    <!-- PWA -->
+    <meta name="theme-color" content="#ff6b35">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icon-192.png">
+
+    <!-- JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "AboutPage",
+      "name": "About NBA Stables",
+      "description": "NBA Stables is a free, ad-free web app for live NBA scores, box scores, standings, injury reports and player tracking.",
+      "url": "https://nbastables.com/about",
+      "mainEntity": {
+        "@type": "WebApplication",
+        "name": "NBA Stables",
+        "url": "https://nbastables.com/",
+        "applicationCategory": "SportsApplication",
+        "operatingSystem": "Any",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a24;
+            --bg-hover: #22222e;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --accent: #ff6b35;
+            --accent-light: #ff8c5a;
+            --border: #2a2a3a;
+            --gradient-1: linear-gradient(135deg, #ff6b35 0%, #ff8c5a 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.7;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 0;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--gradient-1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .back-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .back-link:hover { text-decoration: underline; }
+
+        main { padding: 50px 0; }
+
+        h2 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 30px 0 12px;
+            color: var(--text-primary);
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            font-size: 1rem;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin: 24px 0 32px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .feature-card .icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .feature-card h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .feature-card p {
+            font-size: 0.85rem;
+            margin-bottom: 0;
+        }
+
+        .cta {
+            display: inline-block;
+            background: var(--gradient-1);
+            color: white;
+            text-decoration: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-top: 10px;
+            transition: opacity 0.2s;
+        }
+
+        .cta:hover { opacity: 0.9; }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 30px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <a href="/" class="logo">
+                <div class="logo-icon">&#127936;</div>
+                <h1>NBA Stables</h1>
+            </a>
+            <a href="/" class="back-link">&#8592; Back to App</a>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <h2>About NBA Stables</h2>
+            <p>NBA Stables is a free web app built for basketball fans who want fast, real-time NBA stats without the clutter. No ads, no paywalls, no tracking — just clean data updated live during every game.</p>
+
+            <h3>What You Get</h3>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="icon">&#127936;</div>
+                    <h4>Live Scoreboard</h4>
+                    <p>Real-time scores for every NBA game with quarter-by-quarter breakdowns and game status.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">&#128202;</div>
+                    <h4>Box Scores</h4>
+                    <p>Full team and player stats for today's games and the past week.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">&#128269;</div>
+                    <h4>Player Tracker</h4>
+                    <p>Search any NBA player and track their live stats across multiple games at once.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">&#127942;</div>
+                    <h4>Daily Leaders</h4>
+                    <p>See who's leading the league in points, rebounds, assists, steals and blocks each day.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">&#128200;</div>
+                    <h4>Standings</h4>
+                    <p>Up-to-date Eastern and Western Conference standings with win-loss records.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">&#129657;</div>
+                    <h4>Injury Reports</h4>
+                    <p>Latest NBA injury updates so you always know who's in and who's out.</p>
+                </div>
+            </div>
+
+            <h3>Why NBA Stables?</h3>
+            <p>Most sports sites are bloated with ads, pop-ups and slow-loading pages. NBA Stables strips all of that away. It's a lightweight progressive web app (PWA) that works on any device — desktop, tablet or phone. You can even install it to your home screen for an app-like experience.</p>
+
+            <h3>Always Free</h3>
+            <p>NBA Stables is and will always be completely free. No account needed, no data collected. Just open the site and get your stats.</p>
+
+            <a href="/" class="cta">Open NBA Stables</a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 NBA Stables. Not affiliated with the NBA.</p>
+        </div>
+    </footer>
+</body>
+</html>
