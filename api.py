@@ -42,6 +42,7 @@ app.add_middleware(
 )
 
 PLAYERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "players_with_teamid.json")
+CBS_INJURIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cbs_injuries.json")
 
 
 # Simple in-memory cache
@@ -879,6 +880,14 @@ def fetch_cbs_injuries():
     return injuries_by_team
 
 
+def load_cbs_injuries_file():
+    """Load CBS injuries from cached JSON file (updated by GH Actions)"""
+    if os.path.exists(CBS_INJURIES_FILE):
+        with open(CBS_INJURIES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
+
+
 @app.get("/api/injuries")
 async def get_injuries(source: str = Query(default="espn", pattern="^(espn|cbs)$")):
     """Get NBA injury report from ESPN (default) or CBS Sports"""
@@ -889,7 +898,15 @@ async def get_injuries(source: str = Query(default="espn", pattern="^(espn|cbs)$
 
     try:
         if source == "cbs":
-            injuries_by_team = fetch_cbs_injuries()
+            try:
+                injuries_by_team = fetch_cbs_injuries()
+            except Exception:
+                # Fallback to cached JSON (updated by GH Actions cron)
+                cached_data = load_cbs_injuries_file()
+                if cached_data:
+                    cache.set(cache_key, cached_data, CACHE_TTL["injuries"])
+                    return cached_data
+                raise
             source_name = "CBS Sports"
         else:
             injuries_by_team = fetch_espn_injuries()
