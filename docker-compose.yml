@@ -1,8 +1,21 @@
 services:
   nba-stables:
+    profiles: ["prod"]
     build: .
     ports:
       - "8000:8000"
     restart: unless-stopped
     environment:
       - TZ=America/New_York
+    volumes:
+      - /opt/nba_stables:/app
+  nba-stables-dev:
+    profiles: ["dev"]
+    build: .
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    environment:
+      - TZ=America/New_York
+    volumes:
+      - ./:/app
