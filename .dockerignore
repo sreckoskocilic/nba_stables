@@ -4,10 +4,13 @@
 **/.git
 **/.gitignore
 README.md
+LICENSE
 *.md
 **/.env
 **/.venv
 **/venv
+**/.idea
+**/.github
 common/
 results.py
 boxscore.py
