@@ -17,10 +17,6 @@ jobs:
           script: |
             cd /opt/nba_stables
             git pull origin main
-            docker-compose down --remove-orphans --volumes
-            docker rm -f nba_stables_nba-stables_1 2>/dev/null || true
-            docker system prune -af
-            echo "######### Deleting .pyc files from the project #########"
-            find . -type f -name '*.pyc' -delete
-            echo "######### Building latest app image #########"
+            docker-compose down --remove-orphans
             docker-compose up -d --build --force-recreate
+            docker image prune -f
