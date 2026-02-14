@@ -26,7 +26,10 @@ from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv2, leagues
 app = FastAPI(
     title="NBA Stables API",
     description="Live NBA statistics API",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
 )
 
 # Enable CORS for frontend
@@ -107,6 +110,14 @@ def reformat_player_minutes(total_seconds: int) -> str:
     return f"{minutes}:{seconds:02d}"
 
 
+def fix_encoding(s: str) -> str:
+    """Fix nba_api mojibake: UTF-8 bytes decoded as Latin-1"""
+    try:
+        return s.encode("iso-8859-1").decode("utf-8")
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        return s
+
+
 def load_players_file():
     with open(PLAYERS_FILE, "r") as f:
         return json.load(f)
@@ -147,7 +158,7 @@ def get_games_leaders_list(days_offset: int = 1):
             game_id = ld[0]
             if game_id in g_dict:
                 team_id = ld[1] if len(ld) > 1 else 0
-                pts_player = ld[6] if len(ld) > 6 else ""
+                pts_player = fix_encoding(ld[6]) if len(ld) > 6 else ""
                 pts = ld[7] if len(ld) > 7 else 0
                 reb = ld[10] if len(ld) > 10 else 0
                 ast = ld[13] if len(ld) > 13 else 0
@@ -187,7 +198,7 @@ async def get_scoreboard():
                     "tricode": home_team["teamTricode"],
                     "score": home_team["score"],
                     "leader": {
-                        "name": home_leaders["name"],
+                        "name": fix_encoding(home_leaders["name"]),
                         "points": home_leaders["points"],
                         "rebounds": home_leaders["rebounds"],
                         "assists": home_leaders["assists"]
@@ -198,7 +209,7 @@ async def get_scoreboard():
                     "tricode": away_team["teamTricode"],
                     "score": away_team["score"],
                     "leader": {
-                        "name": away_leaders["name"],
+                        "name": fix_encoding(away_leaders["name"]),
                         "points": away_leaders["points"],
                         "rebounds": away_leaders["rebounds"],
                         "assists": away_leaders["assists"]
@@ -345,7 +356,7 @@ async def get_player_stats(ids: str = Query(..., description="Comma-separated pl
 
                             results.append({
                                 "id": player["personId"],
-                                "name": player["name"],
+                                "name": fix_encoding(player["name"]),
                                 "team": team["teamTricode"],
                                 "minutes": minutes,
                                 "points": stats["points"],
@@ -392,7 +403,7 @@ async def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                     if player["status"] == "ACTIVE":
                         stats = player["statistics"]
                         all_players.append({
-                            "name": player["name"],
+                            "name": fix_encoding(player["name"]),
                             "team": tricode,
                             "points": stats["points"],
                             "rebounds": stats["reboundsTotal"],
@@ -555,7 +566,7 @@ async def get_player_advanced_stats(ids: str = Query(..., description="Comma-sep
 
                             player_result = {
                                 "id": player["personId"],
-                                "name": player["name"],
+                                "name": fix_encoding(player["name"]),
                                 "team": team["teamTricode"],
                                 "minutes": minutes,
                                 "points": pts,
@@ -622,7 +633,7 @@ async def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
 
                         if len(double_digit_cats) >= 2:
                             player_data = {
-                                "name": player["name"],
+                                "name": fix_encoding(player["name"]),
                                 "team": tricode,
                                 "points": pts,
                                 "rebounds": reb,
@@ -698,7 +709,7 @@ async def get_game_players(game_id: str):
 
                     team_data["players"].append({
                         "id": player["personId"],
-                        "name": player["name"],
+                        "name": fix_encoding(player["name"]),
                         "minutes": minutes,
                         "points": pts,
                         "rebounds": stats["reboundsTotal"],

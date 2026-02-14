@@ -1,27 +1,20 @@
 import pandas as pd
+import requests
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-
-
-# pd.set_option("display.max_rows", 500)
 
 
 def scrape_daily_injuries():
-    opts = Options()
-    opts.add_argument("--headless")
-
     url = "https://www.cbssports.com/nba/injuries/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
 
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(options=opts, service=service)
-    driver.get(url)
+    response = requests.get(url, headers=headers, timeout=15)
+    response.raise_for_status()
 
-    html = driver.page_source
-
-    soup = BeautifulSoup(html, "html.parser")
+    soup = BeautifulSoup(response.text, "lxml")
 
     team_injuries = soup.find_all("div", class_="TableBaseWrapper")
     team_data = []
@@ -38,11 +31,9 @@ def scrape_daily_injuries():
                 "Status": player_td[4].get_text(strip=True),
             }
             team_data.append(player_data)
-    driver.quit()
 
     return pd.DataFrame(team_data).sort_values("Team")
 
 
 df = scrape_daily_injuries()
 print(df.to_string(index=False))
-# print(df.head(10))
