@@ -1,0 +1,23 @@
+name: Test CBS Scraping
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test CBS response
+        run: |
+          echo "=== HTTP Status ==="
+          curl -s -o /tmp/cbs.html -w "%{http_code}" \
+            -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36" \
+            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" \
+            https://www.cbssports.com/nba/injuries/
+          echo ""
+          echo "=== First 100 lines ==="
+          head -100 /tmp/cbs.html
+          echo ""
+          echo "=== Check for injury tables ==="
+          grep -c "TableBaseWrapper" /tmp/cbs.html || echo "No injury tables found"
+          grep -c "CellPlayerName" /tmp/cbs.html || echo "No player names found"
