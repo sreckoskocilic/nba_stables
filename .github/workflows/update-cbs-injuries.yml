@@ -81,3 +81,14 @@ jobs:
           git diff --cached --quiet && echo "No changes" && exit 0
           git commit -m "update CBS injuries data"
           git push
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/nba_stables
+            git pull origin main
+            docker cp cbs_injuries.json $(docker ps -q -f name=nba):/app/cbs_injuries.json
