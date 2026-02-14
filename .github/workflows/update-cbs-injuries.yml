@@ -80,6 +80,7 @@ jobs:
           git add cbs_injuries.json
           git diff --cached --quiet && echo "No changes" && exit 0
           git commit -m "update CBS injuries data"
+          git pull --rebase origin main
           git push
 
       - name: Deploy to server
