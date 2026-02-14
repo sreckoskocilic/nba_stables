@@ -848,11 +848,6 @@
                         <button class="date-btn active" id="injuriesListBtn" onclick="setInjuriesView('list')">All Players</button>
                         <button class="date-btn" id="injuriesGroupBtn" onclick="setInjuriesView('grouped')">Group by Team</button>
                     </div>
-                    <div>
-                        <span style="color: var(--text-secondary); font-size: 0.8rem; margin-right: 8px;">Source:</span>
-                        <button class="date-btn" id="injuriesEspnBtn" onclick="setInjuriesSource('espn')">ESPN</button>
-                        <button class="date-btn active" id="injuriesCbsBtn" onclick="setInjuriesSource('cbs')">CBS</button>
-                    </div>
                 </div>
                 <div id="injuriesContent">
                     <div class="loading"><div class="spinner"></div> Loading injury report...</div>
@@ -1514,7 +1509,6 @@
         // Load Injuries
         let injuriesData = null;
         let injuriesView = 'list';
-        let injuriesSource = 'cbs';
 
         function setInjuriesView(view) {
             injuriesView = view;
@@ -1523,15 +1517,6 @@
             if (injuriesData) {
                 renderInjuries();
             }
-        }
-
-        function setInjuriesSource(source) {
-            injuriesSource = source;
-            document.getElementById('injuriesEspnBtn').classList.toggle('active', source === 'espn');
-            document.getElementById('injuriesCbsBtn').classList.toggle('active', source === 'cbs');
-            document.getElementById('injuriesSourceBadge').textContent = source.toUpperCase();
-            injuriesData = null; // Clear cache to fetch new source
-            loadInjuries();
         }
 
         function renderInjuries() {
@@ -1660,19 +1645,8 @@
             container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading injury report...</div>';
 
             try {
-                let res = await fetch(`${API_BASE}/api/injuries?source=${injuriesSource}`);
-                let data = await res.json();
-
-                // If CBS failed (rate limited), auto-switch to ESPN
-                if (!res.ok && injuriesSource === 'cbs') {
-                    console.log('CBS rate limited, switching to ESPN...');
-                    injuriesSource = 'espn';
-                    document.getElementById('injuriesEspnBtn').classList.add('active');
-                    document.getElementById('injuriesCbsBtn').classList.remove('active');
-                    document.getElementById('injuriesSourceBadge').textContent = 'ESPN';
-                    res = await fetch(`${API_BASE}/api/injuries?source=espn`);
-                    data = await res.json();
-                }
+                const res = await fetch(`${API_BASE}/api/injuries`);
+                const data = await res.json();
 
                 if (!res.ok) {
                     throw new Error(data.detail || 'Failed to load injuries');
