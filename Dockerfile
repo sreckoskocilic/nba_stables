@@ -1,15 +1,10 @@
-FROM python:3.11-slim
-
-WORKDIR /app
+FROM python:3.11-alpine
 
 # Install dependencies
-COPY requirements.txt .
+WORKDIR /app
+COPY . .
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application
-COPY api.py .
-COPY players_with_teamid.json .
-COPY static/ static/
 
 # Expose port
 EXPOSE 8000
