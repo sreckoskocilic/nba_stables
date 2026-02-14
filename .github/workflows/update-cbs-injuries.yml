@@ -2,7 +2,7 @@ name: Update CBS Injuries
 
 on:
   schedule:
-    - cron: '0 */3 * * *'  # Every 3 hours
+    - cron: '0 10,22 * * *'  # Twice daily: 10:00 and 22:00 UTC
   workflow_dispatch:
 
 jobs:
