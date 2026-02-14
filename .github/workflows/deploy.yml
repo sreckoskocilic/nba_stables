@@ -20,4 +20,5 @@ jobs:
             docker-compose down --remove-orphans --volumes
             docker rm -f nba_stables_nba-stables_1 2>/dev/null || true
             docker system prune -af
+            find . -type f -name '*.pyc' -delete
             docker-compose up -d --build --force-recreate
