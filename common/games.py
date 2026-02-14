@@ -41,10 +41,9 @@ def parse_scoreboard(game):
     home_team = f"{game['homeTeam']['teamCity']} {game['homeTeam']['teamName']}"
     away_team = f"{game["awayTeam"]["teamCity"]} {game["awayTeam"]["teamName"]}"
     score = f"{game["homeTeam"]['score']}\n{game['awayTeam']['score']}"
-    if game["gameStatus"] != 1:
-        game_status = game["gameStatusText"]
-    else:
-        game_status = convert_time_to_cet(game["gameStatusText"])
+    game_status = game["gameStatusText"]
+    if "ET" in game["gameStatus"]:
+        game_status = convert_time_to_cet(game_status)
     home_leaders = game["gameLeaders"]["homeLeaders"]
     away_leaders = game["gameLeaders"]["awayLeaders"]
     home_leader_player = bytes(home_leaders["name"], "iso-8859-1").decode("utf-8")
@@ -59,19 +58,17 @@ def parse_scoreboard(game):
     parsed.append(f"{home_leaders["assists"]}\n{away_leaders["assists"]}")
     return parsed
 
-def convert_time_to_cet(time: str) -> str:
-    source_tz = ZoneInfo("US/Eastern")
-    cet_tz = ZoneInfo("CET")
-
-    now = datetime.now()
-    naive_dt = datetime.strptime(f"{now.year}-{now.month}-{now.day} {time[:-3]}", "%Y-%m-%d %H:%M %p")
-
-    aware_et_dt = naive_dt.replace(tzinfo=source_tz) - timedelta(hours=12)
-    aware_cet_dt = aware_et_dt.astimezone(cet_tz)
-
-    output_time_str = aware_cet_dt.strftime("%H:%M")
-
-    return output_time_str
+def convert_time_to_cet(time_str: str) -> str:
+    """Convert NBA game time from US/Eastern to CET (e.g. '7:00 PM ET' -> '01:00')"""
+    try:
+        cleaned = time_str.replace("ET", "").strip()
+        now = datetime.now()
+        naive_dt = datetime.strptime(f"{now.year}-{now.month}-{now.day} {cleaned}", "%Y-%m-%d %I:%M %p")
+        et_dt = naive_dt.replace(tzinfo=ZoneInfo("US/Eastern"))
+        cet_dt = et_dt.astimezone(ZoneInfo("Europe/Berlin"))
+        return cet_dt.strftime("%H:%M CET")
+    except Exception:
+        return time_str
 
 def parse_boxscore_stats(bscore_stats, leader):
     stats = []
