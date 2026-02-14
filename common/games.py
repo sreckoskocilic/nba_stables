@@ -60,8 +60,10 @@ def parse_scoreboard(game):
 
 def convert_time_to_cet(time_str: str) -> str:
     """Convert NBA game time from US/Eastern to CET (e.g. '7:00 PM ET' -> '01:00')"""
+    import re
     try:
         cleaned = time_str.replace("ET", "").strip()
+        cleaned = re.sub(r'(\d)(AM|PM)', r'\1 \2', cleaned, flags=re.IGNORECASE)
         now = datetime.now()
         naive_dt = datetime.strptime(f"{now.year}-{now.month}-{now.day} {cleaned}", "%Y-%m-%d %I:%M %p")
         et_dt = naive_dt.replace(tzinfo=ZoneInfo("US/Eastern"))
