@@ -5,7 +5,6 @@ FastAPI backend for live NBA statistics
 
 import json
 import os
-import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
@@ -831,8 +830,8 @@ def fetch_espn_injuries():
     return injuries_by_team
 
 
-def fetch_cbs_injuries():
-    """Fetch injuries from CBS Sports (scraping)"""
+def scrape_cbs_injuries():
+    """Scrape CBS Sports and save to JSON file"""
     url = "https://www.cbssports.com/nba/injuries/"
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
@@ -840,12 +839,7 @@ def fetch_cbs_injuries():
         "Accept-Language": "en-US,en;q=0.5",
     }
 
-    time.sleep(random.uniform(0.5, 1.5))
     response = requests.get(url, headers=headers, timeout=15)
-
-    if response.status_code == 429:
-        raise Exception("Rate limited by CBS Sports")
-
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "lxml")
@@ -877,15 +871,22 @@ def fetch_cbs_injuries():
         if players:
             injuries_by_team.append({"team": team_name, "players": players})
 
-    return injuries_by_team
+    result = {
+        "injuries": injuries_by_team,
+        "source": "CBS Sports",
+        "lastUpdated": get_display_date(0)
+    }
+    with open(CBS_INJURIES_FILE, "w", encoding="utf-8") as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
 
 
-def load_cbs_injuries_file():
-    """Load CBS injuries from cached JSON file (updated by GH Actions)"""
-    if os.path.exists(CBS_INJURIES_FILE):
-        with open(CBS_INJURIES_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return None
+@app.on_event("startup")
+async def startup_scrape_cbs():
+    """On startup, try to scrape CBS injuries (works locally, fails silently on prod)"""
+    try:
+        scrape_cbs_injuries()
+    except Exception:
+        pass
 
 
 @app.get("/api/injuries")
@@ -898,16 +899,12 @@ async def get_injuries(source: str = Query(default="espn", pattern="^(espn|cbs)$
 
     try:
         if source == "cbs":
-            try:
-                injuries_by_team = fetch_cbs_injuries()
-            except Exception:
-                # Fallback to cached JSON (updated by GH Actions cron)
-                cached_data = load_cbs_injuries_file()
-                if cached_data:
-                    cache.set(cache_key, cached_data, CACHE_TTL["injuries"])
-                    return cached_data
-                raise
-            source_name = "CBS Sports"
+            if not os.path.exists(CBS_INJURIES_FILE):
+                raise HTTPException(status_code=503, detail="CBS injuries data not available")
+            with open(CBS_INJURIES_FILE, "r", encoding="utf-8") as f:
+                result = json.load(f)
+            cache.set(cache_key, result, CACHE_TTL["injuries"])
+            return result
         else:
             injuries_by_team = fetch_espn_injuries()
             source_name = "ESPN"
