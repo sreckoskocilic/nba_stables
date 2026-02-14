@@ -84,14 +84,7 @@ Open http://localhost:8000
 ### Docker
 
 ```bash
-docker-compose up -d
-```
-
-Or manually:
-
-```bash
-docker build -t nba-stables .
-docker run -d -p 8000:8000 nba-stables
+docker-compose --profile dev up -d
 ```
 
 ### Features
