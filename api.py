@@ -866,7 +866,7 @@ def fetch_cbs_injuries():
 
 
 @app.get("/api/injuries")
-async def get_injuries(source: str = Query(default="espn", regex="^(espn|cbs)$")):
+async def get_injuries(source: str = Query(default="espn", pattern="^(espn|cbs)$")):
     """Get NBA injury report from ESPN (default) or CBS Sports"""
     cache_key = f"injuries_{source}"
     cached = cache.get(cache_key)
