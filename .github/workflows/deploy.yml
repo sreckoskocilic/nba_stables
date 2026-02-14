@@ -17,6 +17,7 @@ jobs:
           script: |
             cd /opt/nba_stables
             git pull origin main
-            docker-compose down --remove-orphans
+            docker-compose down --remove-orphans --volumes
+            docker rm -f nba_stables_nba-stables_1 2>/dev/null || true
             docker system prune -af
             docker-compose up -d --build --force-recreate
