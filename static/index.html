@@ -154,9 +154,15 @@
 
         .nav-tabs {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             overflow-x: auto;
             padding-bottom: 5px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .nav-tabs::-webkit-scrollbar {
+            display: none;
         }
 
         .nav-tab {
@@ -673,9 +679,17 @@
         /* Date Selector */
         .date-selector {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
             margin-bottom: 20px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 5px;
+        }
+
+        .date-selector::-webkit-scrollbar {
+            display: none;
         }
 
         .date-btn {
@@ -686,6 +700,8 @@
             color: var(--text-secondary);
             cursor: pointer;
             font-size: 0.85rem;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .date-btn:hover {
@@ -701,17 +717,47 @@
 
         /* Responsive */
         @media (max-width: 768px) {
+            .container {
+                padding: 0 12px;
+            }
+
             .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .leaders-grid {
                 grid-template-columns: 1fr;
             }
 
             .header-content {
                 flex-direction: column;
-                gap: 10px;
+                gap: 8px;
             }
 
-            .nav-tabs {
-                justify-content: flex-start;
+            header {
+                padding: 12px 0;
+            }
+
+            nav {
+                padding: 10px 0;
+                position: sticky;
+                top: 58px;
+                z-index: 99;
+            }
+
+            .nav-tab {
+                padding: 8px 14px;
+                font-size: 0.8rem;
+                flex-shrink: 0;
+            }
+
+            .section-title {
+                font-size: 1.2rem;
+                flex-wrap: wrap;
+            }
+
+            main {
+                padding: 16px 0;
             }
 
             .search-container {
@@ -720,6 +766,36 @@
 
             .search-input-wrapper {
                 min-width: 100%;
+            }
+
+            .search-input {
+                padding: 12px 16px;
+            }
+
+            .btn {
+                padding: 12px 20px;
+                width: 100%;
+            }
+
+            .boxscore-table th,
+            .boxscore-table td {
+                padding: 8px 6px;
+                font-size: 0.75rem;
+            }
+
+            .player-stats-table th,
+            .player-stats-table td {
+                padding: 10px 6px;
+                font-size: 0.75rem;
+            }
+
+            .date-btn {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+
+            .loading {
+                padding: 30px;
             }
         }
     </style>
