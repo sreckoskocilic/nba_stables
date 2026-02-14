@@ -154,13 +154,13 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Cooper Flagg",
+          "name": "Naji Marshall",
           "updated": "Fri, Feb 13",
           "injury": "Foot",
           "status": "Game Time Decision"
         },
         {
-          "name": "Naji Marshall",
+          "name": "Cooper Flagg",
           "updated": "Fri, Feb 13",
           "injury": "Foot",
           "status": "Game Time Decision"
@@ -311,12 +311,6 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Aaron Nesmith",
-          "updated": "Thu, Feb 12",
-          "injury": "Back",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Ivica Zubac",
           "updated": "Thu, Feb 12",
           "injury": "Ankle",
@@ -332,6 +326,12 @@
           "name": "Pascal Siakam",
           "updated": "Thu, Feb 12",
           "injury": "Hamstring",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Aaron Nesmith",
+          "updated": "Thu, Feb 12",
+          "injury": "Back",
           "status": "Game Time Decision"
         },
         {
@@ -384,12 +384,6 @@
           "name": "Deandre Ayton",
           "updated": "Fri, Feb 13",
           "injury": "Knee",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Luka Doncic",
-          "updated": "Fri, Feb 13",
-          "injury": "Hamstring",
           "status": "Game Time Decision"
         }
       ]
@@ -670,13 +664,13 @@
       "team": "Portland",
       "players": [
         {
-          "name": "Robert Williams III",
+          "name": "Matisse Thybulle",
           "updated": "Fri, Feb 13",
           "injury": "Knee",
           "status": "Game Time Decision"
         },
         {
-          "name": "Matisse Thybulle",
+          "name": "Robert Williams III",
           "updated": "Fri, Feb 13",
           "injury": "Knee",
           "status": "Game Time Decision"
@@ -866,5 +860,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "February 14, 2026 10:30 UTC"
+  "lastUpdated": "February 14, 2026 22:27 UTC"
 }
