@@ -377,12 +377,12 @@
         .boxscore-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
         }
 
         .boxscore-table th,
         .boxscore-table td {
-            padding: 12px 10px;
+            padding: 4px 6px;
             text-align: center;
             border-bottom: 1px solid var(--border);
         }
@@ -391,7 +391,7 @@
             background: var(--bg-secondary);
             color: var(--text-secondary);
             font-weight: 500;
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             text-transform: uppercase;
         }
 
@@ -779,8 +779,8 @@
 
             .boxscore-table th,
             .boxscore-table td {
-                padding: 8px 6px;
-                font-size: 0.75rem;
+                padding: 3px 4px;
+                font-size: 0.65rem;
             }
 
             .player-stats-table th,
@@ -873,6 +873,11 @@
                     <button class="date-btn active" data-offset="0">Today</button>
                     <button class="date-btn" data-offset="1">-1d</button>
                     <button class="date-btn" data-offset="2">-2d</button>
+                    <button class="date-btn" data-offset="3">-3d</button>
+                    <button class="date-btn" data-offset="4">-4d</button>
+                    <button class="date-btn" data-offset="5">-5d</button>
+                    <button class="date-btn" data-offset="6">-6d</button>
+                    <button class="date-btn" data-offset="7">-7d</button>
                 </div>
                 <div id="leadersContent" class="leaders-grid">
                     <div class="loading"><div class="spinner"></div> Loading leaders...</div>
@@ -1416,7 +1421,6 @@
                                     <th>STL</th>
                                     <th>BLK</th>
                                     <th>TO</th>
-                                    <th>+/-</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1433,7 +1437,6 @@
                                         <td>${p.steals}</td>
                                         <td>${p.blocks}</td>
                                         <td>${p.turnovers}</td>
-                                        <td style="color: ${p.plusMinus > 0 ? 'var(--success)' : p.plusMinus < 0 ? '#ef4444' : 'inherit'};">${p.plusMinus > 0 ? '+' : ''}${p.plusMinus}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
