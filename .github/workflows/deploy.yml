@@ -18,5 +18,5 @@ jobs:
             cd /opt/nba_stables
             git pull origin main
             docker-compose down --remove-orphans
-            docker system prune -a
-            docker-compose --profile prod up -d
+            yes | docker system prune -a
+            docker-compose --profile prod up -d --build

@@ -6,7 +6,7 @@ services:
       - "8000:8000"
     restart: unless-stopped
     environment:
-      - TZ=America/New_York
+      - TZ=Europe/Berlin
     volumes:
       - /opt/nba_stables:/app
   nba-stables-dev:
@@ -16,6 +16,6 @@ services:
       - "8000:8000"
     restart: unless-stopped
     environment:
-      - TZ=America/New_York
+      - TZ=Europe/Berlin
     volumes:
       - ./:/app
