@@ -94,14 +94,14 @@ def convert_et_to_cet(time_str: str) -> str:
     """Convert NBA game time from US/Eastern to CET (e.g. '7:00 PM ET' -> '01:00')"""
     import re
     try:
-        cleaned = time_str.replace("ET", "").strip()
+        cleaned = time_str.replace("ET", "").strip().upper()
         # Normalize: insert space before AM/PM if missing (e.g. "7:00PM" -> "7:00 PM")
-        cleaned = re.sub(r'(\d)(AM|PM)', r'\1 \2', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r'(\d)(AM|PM)', r'\1 \2', cleaned)
         now = datetime.now()
         naive_dt = datetime.strptime(f"{now.year}-{now.month}-{now.day} {cleaned}", "%Y-%m-%d %I:%M %p")
         et_dt = naive_dt.replace(tzinfo=ZoneInfo("US/Eastern"))
         cet_dt = et_dt.astimezone(ZoneInfo("Europe/Berlin"))
-        return cet_dt.strftime("%H:%M CET")
+        return cet_dt.strftime("%H:%M")
     except Exception:
         return time_str
 
