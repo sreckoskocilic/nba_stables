@@ -91,17 +91,22 @@ def get_display_date(days_offset: int = 0) -> str:
 
 
 def convert_et_to_cet(time_str: str) -> str:
-    """Convert NBA game time from US/Eastern to CET (e.g. '7:00 PM ET' -> '01:00')"""
+    """Convert NBA game time from US/Eastern to CET (e.g. '7:00 pm ET' -> '23:00 CET')"""
     import re
     try:
-        cleaned = time_str.replace("ET", "").strip().upper()
-        # Normalize: insert space before AM/PM if missing (e.g. "7:00PM" -> "7:00 PM")
-        cleaned = re.sub(r'(\d)(AM|PM)', r'\1 \2', cleaned)
+        m = re.match(r'(\d{1,2}):(\d{2})\s*(am|pm)', time_str.strip(), re.IGNORECASE)
+        if not m:
+            return time_str
+        hour, minute, ampm = int(m.group(1)), int(m.group(2)), m.group(3).lower()
+        if ampm == "pm" and hour != 12:
+            hour += 12
+        elif ampm == "am" and hour == 12:
+            hour = 0
         now = datetime.now()
-        naive_dt = datetime.strptime(f"{now.year}-{now.month}-{now.day} {cleaned}", "%Y-%m-%d %I:%M %p")
+        naive_dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
         et_dt = naive_dt.replace(tzinfo=ZoneInfo("US/Eastern"))
         cet_dt = et_dt.astimezone(ZoneInfo("Europe/Berlin"))
-        return cet_dt.strftime("%H:%M")
+        return cet_dt.strftime("%H:%M CET")
     except Exception:
         return time_str
 
