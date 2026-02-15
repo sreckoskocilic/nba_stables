@@ -1404,10 +1404,12 @@
                 const res = await fetch(`${API_BASE}/api/games/${gameId}/players`);
                 const data = await res.json();
 
-                detailsDiv.innerHTML = data.teams.map(team => `
-                    <div style="padding: 15px; border-top: 1px solid var(--border);">
-                        <h4 style="margin-bottom: 10px; color: var(--accent);">${team.name} - ${team.score}</h4>
-                        <table class="boxscore-table" style="font-size: 0.8rem;">
+                detailsDiv.innerHTML = data.teams.map(team => {
+                    const activePlayers = team.players.filter(p => p.minutes !== '0:00' && p.minutes !== '0' && p.minutes !== 0);
+                    return `
+                    <div style="padding: 8px; border-top: 1px solid var(--border);">
+                        <h4 style="margin-bottom: 6px; color: var(--accent); font-size: 0.75rem;">${team.name} - ${team.score}</h4>
+                        <table class="boxscore-table" style="font-size: 0.65rem;">
                             <thead>
                                 <tr>
                                     <th style="text-align: left;">Player</th>
@@ -1424,9 +1426,9 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${team.players.map(p => `
+                                ${activePlayers.map(p => `
                                     <tr>
-                                        <td style="text-align: left;">${p.name}</td>
+                                        <td style="text-align: left; white-space: nowrap;">${p.name}</td>
                                         <td>${p.minutes}</td>
                                         <td class="${p.points >= 20 ? 'highlight' : ''}">${p.points}</td>
                                         <td class="${p.rebounds >= 10 ? 'highlight' : ''}">${p.rebounds}</td>
@@ -1441,8 +1443,8 @@
                                 `).join('')}
                             </tbody>
                         </table>
-                    </div>
-                `).join('');
+                    </div>`;
+                }).join('');
             } catch (error) {
                 detailsDiv.innerHTML = `<div style="padding: 20px; color: var(--text-secondary);">Error loading player stats: ${error.message}</div>`;
             }
