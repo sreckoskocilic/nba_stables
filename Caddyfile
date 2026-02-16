@@ -1,0 +1,14 @@
+nbastables.com {
+    handle /t/a.js {
+        rewrite * /script.js
+        reverse_proxy localhost:3000
+    }
+    handle /api/send {
+        reverse_proxy localhost:3000
+    }
+    reverse_proxy localhost:8000
+}
+
+www.nbastables.com {
+    redir https://nbastables.com{uri}
+}
