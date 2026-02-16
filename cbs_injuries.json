@@ -72,15 +72,15 @@
       "team": "Chicago",
       "players": [
         {
-          "name": "Josh Giddey",
-          "updated": "Thu, Feb 12",
-          "injury": "Hamstring",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Isaac Okoro",
           "updated": "Thu, Feb 12",
           "injury": "Knee",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Josh Giddey",
+          "updated": "Thu, Feb 12",
+          "injury": "Hamstring",
           "status": "Game Time Decision"
         },
         {
@@ -142,6 +142,12 @@
       "team": "Dallas",
       "players": [
         {
+          "name": "Caleb Martin",
+          "updated": "Fri, Feb 13",
+          "injury": "Ankle",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Daniel Gafford",
           "updated": "Fri, Feb 13",
           "injury": "Ankle",
@@ -151,12 +157,6 @@
           "name": "Naji Marshall",
           "updated": "Fri, Feb 13",
           "injury": "Foot",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Caleb Martin",
-          "updated": "Fri, Feb 13",
-          "injury": "Ankle",
           "status": "Game Time Decision"
         },
         {
@@ -242,9 +242,9 @@
       "players": [
         {
           "name": "Stephen Curry",
-          "updated": "Fri, Feb 13",
+          "updated": "Mon, Feb 16",
           "injury": "Knee",
-          "status": "Expected to be out until at least Feb 19"
+          "status": "Game Time Decision"
         },
         {
           "name": "Will Richard",
@@ -456,8 +456,8 @@
       "team": "Milwaukee",
       "players": [
         {
-          "name": "Myles Turner",
-          "updated": "Fri, Feb 13",
+          "name": "Giannis Antetokounmpo",
+          "updated": "Mon, Feb 16",
           "injury": "Calf",
           "status": "Game Time Decision"
         },
@@ -474,10 +474,10 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Giannis Antetokounmpo",
+          "name": "Myles Turner",
           "updated": "Fri, Feb 13",
           "injury": "Calf",
-          "status": "Expected to be out until at least Feb 20"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -542,6 +542,12 @@
       "team": "Oklahoma City",
       "players": [
         {
+          "name": "Shai Gilgeous-Alexander",
+          "updated": "Mon, Feb 16",
+          "injury": "Abdomen",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Isaiah Hartenstein",
           "updated": "Fri, Feb 13",
           "injury": "Calf",
@@ -554,22 +560,16 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Ajay Mitchell",
-          "updated": "Fri, Feb 13",
-          "injury": "Abdomen",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Branden Carlson",
           "updated": "Fri, Feb 13",
           "injury": "Back",
           "status": "Game Time Decision"
         },
         {
-          "name": "Shai Gilgeous-Alexander",
+          "name": "Ajay Mitchell",
           "updated": "Fri, Feb 13",
           "injury": "Abdomen",
-          "status": "Expected to be out until at least Feb 20"
+          "status": "Game Time Decision"
         },
         {
           "name": "Thomas Sorber",
@@ -583,15 +583,15 @@
       "team": "Orlando",
       "players": [
         {
-          "name": "Colin Castleton",
-          "updated": "Thu, Feb 12",
-          "injury": "Thumb",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Jett Howard",
           "updated": "Thu, Feb 12",
           "injury": "Ankle",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Colin Castleton",
+          "updated": "Thu, Feb 12",
+          "injury": "Thumb",
           "status": "Game Time Decision"
         }
       ]
@@ -836,5 +836,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "February 15, 2026"
+  "lastUpdated": "February 16, 2026 22:32 UTC"
 }
