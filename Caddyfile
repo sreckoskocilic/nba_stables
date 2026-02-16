@@ -6,6 +6,10 @@ nbastables.com {
     handle /api/send {
         reverse_proxy localhost:3000
     }
+    handle /t/api/send {
+        rewrite * /api/send
+        reverse_proxy localhost:3000
+    }
     reverse_proxy localhost:8000
 }
 
