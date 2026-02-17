@@ -92,4 +92,3 @@ jobs:
           script: |
             cd /opt/nba_stables
             git pull origin main
-            docker cp cbs_injuries.json $(docker ps -q -f name=nba):/app/cbs_injuries.json
