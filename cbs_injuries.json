@@ -55,15 +55,15 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Tosan Evbuomwan",
-          "updated": "Thu, Feb 12",
-          "injury": "Illness",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Coby White",
           "updated": "Thu, Feb 12",
           "injury": "Calf",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Tosan Evbuomwan",
+          "updated": "Thu, Feb 12",
+          "injury": "Illness",
           "status": "Game Time Decision"
         },
         {
@@ -96,15 +96,15 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Jalen Smith",
-          "updated": "Thu, Feb 12",
-          "injury": "Calf",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Tre Jones",
           "updated": "Thu, Feb 12",
           "injury": "Hamstring",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Jalen Smith",
+          "updated": "Thu, Feb 12",
+          "injury": "Calf",
           "status": "Game Time Decision"
         },
         {
@@ -243,7 +243,7 @@
       "players": [
         {
           "name": "Isaiah Stewart",
-          "updated": "Tue, Feb 17",
+          "updated": "Wed, Feb 18",
           "injury": "Suspension",
           "status": "Expected to be out until at least Mar 3"
         },
@@ -283,15 +283,15 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Kristaps Porzingis",
-          "updated": "Thu, Feb 12",
-          "injury": "Achilles",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Seth Curry",
           "updated": "Thu, Feb 12",
           "injury": "Back",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Kristaps Porzingis",
+          "updated": "Thu, Feb 12",
+          "injury": "Achilles",
           "status": "Game Time Decision"
         },
         {
@@ -329,21 +329,21 @@
       "team": "Indiana",
       "players": [
         {
+          "name": "Ivica Zubac",
+          "updated": "Tue, Feb 17",
+          "injury": "Ankle",
+          "status": "Expected to be out until at least Mar 1"
+        },
+        {
+          "name": "Obi Toppin",
+          "updated": "Tue, Feb 17",
+          "injury": "Foot",
+          "status": "Expected to be out until at least Mar 1"
+        },
+        {
           "name": "Andrew Nembhard",
           "updated": "Thu, Feb 12",
           "injury": "Back",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Aaron Nesmith",
-          "updated": "Thu, Feb 12",
-          "injury": "Back",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Ivica Zubac",
-          "updated": "Thu, Feb 12",
-          "injury": "Ankle",
           "status": "Game Time Decision"
         },
         {
@@ -353,9 +353,9 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Obi Toppin",
+          "name": "Aaron Nesmith",
           "updated": "Thu, Feb 12",
-          "injury": "Foot",
+          "injury": "Back",
           "status": "Game Time Decision"
         },
         {
@@ -463,16 +463,16 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Andrew Wiggins",
-          "updated": "Thu, Feb 12",
-          "injury": "Toe",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Terry Rozier",
           "updated": "Thu, Feb 12",
           "injury": "Not Injury Related",
           "status": "Expected to be out until at least Apr 1"
+        },
+        {
+          "name": "Andrew Wiggins",
+          "updated": "Thu, Feb 12",
+          "injury": "Toe",
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -729,21 +729,15 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Russell Westbrook",
-          "updated": "Thu, Feb 12",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Domantas Sabonis",
           "updated": "Thu, Feb 12",
           "injury": "Knee",
           "status": "Game Time Decision"
         },
         {
-          "name": "De'Andre Hunter",
+          "name": "Russell Westbrook",
           "updated": "Thu, Feb 12",
-          "injury": "Eye",
+          "injury": "Ankle",
           "status": "Game Time Decision"
         },
         {
@@ -751,12 +745,24 @@
           "updated": "Thu, Feb 12",
           "injury": "Illness",
           "status": "Game Time Decision"
+        },
+        {
+          "name": "De'Andre Hunter",
+          "updated": "Thu, Feb 12",
+          "injury": "Eye",
+          "status": "Game Time Decision"
         }
       ]
     },
     {
       "team": "San Antonio",
       "players": [
+        {
+          "name": "Mason Plumlee",
+          "updated": "Tue, Feb 17",
+          "injury": "Groin",
+          "status": "Game Time Decision"
+        },
         {
           "name": "Lindy Waters III",
           "updated": "Thu, Feb 12",
@@ -786,9 +792,9 @@
       "team": "Utah",
       "players": [
         {
-          "name": "Oscar Tshiebwe",
+          "name": "Keyonte George",
           "updated": "Fri, Feb 13",
-          "injury": "Concussion",
+          "injury": "Ankle",
           "status": "Game Time Decision"
         },
         {
@@ -798,9 +804,9 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Keyonte George",
+          "name": "Oscar Tshiebwe",
           "updated": "Fri, Feb 13",
-          "injury": "Ankle",
+          "injury": "Concussion",
           "status": "Game Time Decision"
         },
         {
@@ -872,5 +878,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "February 17, 2026 22:35 UTC"
+  "lastUpdated": "February 18, 2026 10:50 UTC"
 }
