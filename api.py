@@ -93,6 +93,7 @@ CACHE_TTL = {
     "leaders": 300,  # 5 minutes
     "standings": 3600,  # 1 hour - doesn't change often
     "player_stats": 30,  # 30 seconds
+    "historical": 86400,  # 24 hours - days_offset >= 2 never changes
     "injuries": 7200,  # 2 hours - injury reports don't change often, avoid rate limits
 }
 
@@ -347,7 +348,8 @@ def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
                     boxscores_list.append(result)
 
         result = {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
-        cache.set(cache_key, result, CACHE_TTL["boxscores"])
+        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
+        cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -510,7 +512,8 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                 }
 
         result = {"leaders": leaders, "date": get_display_date(days_offset)}
-        cache.set(cache_key, result, CACHE_TTL["leaders"])
+        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["leaders"]
+        cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -698,6 +701,11 @@ def get_player_advanced_stats(
 @app.get("/api/doubledoubles")
 def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
     """Get players with double-doubles or triple-doubles for a given day"""
+    cache_key = f"doubledoubles_{days_offset}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
     try:
         if days_offset == 0:
             # Use live scoreboard for today
@@ -761,11 +769,14 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
                             else:
                                 double_doubles.append(player_data)
 
-        return {
+        result = {
             "tripleDoubles": triple_doubles,
             "doubleDoubles": double_doubles,
             "date": get_display_date(days_offset),
         }
+        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
+        cache.set(cache_key, result, ttl)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
