@@ -152,15 +152,14 @@ def load_players_file():
 
 def get_games_list(days_offset: int = 1):
     """Get list of game IDs for a given date offset"""
-    logger.info("######### EASY TO SEE THIS ##########")
     g_dict = []
     target_date = date.today() - timedelta(days=days_offset)
     try:
         sb = scoreboardv2.ScoreboardV2(
-            game_date=target_date.strftime("%Y-%m-%d"), headers=NBA_STATS_HEADERS,
+            game_date=target_date.strftime("%Y-%m-%d"),
+            headers=NBA_STATS_HEADERS,
             proxy=STATS_PROXY,
         )
-        logger.info(sb.headers)
         games = sb.game_header.get_dict()
         for g in games["data"]:
             g_dict.append(g[2])  # game_id is at index 2
@@ -171,15 +170,14 @@ def get_games_list(days_offset: int = 1):
 
 def get_games_leaders_list(days_offset: int = 1):
     """Get games with their leaders"""
-    logger.info("######### EASY TO SEE THIS ##########")
     g_dict = {}
     target_date = date.today() - timedelta(days=days_offset)
     try:
         sb = scoreboardv2.ScoreboardV2(
-            game_date=target_date.strftime("%Y-%m-%d"), headers=NBA_STATS_HEADERS,
+            game_date=target_date.strftime("%Y-%m-%d"),
+            headers=NBA_STATS_HEADERS,
             proxy=STATS_PROXY,
         )
-        logger.info(sb.headers)
         games = sb.game_header.get_dict()
         leaders = sb.team_leaders.get_dict()
 
@@ -212,7 +210,6 @@ def get_games_leaders_list(days_offset: int = 1):
 def get_scoreboard():
     """Get live scoreboard with game results and leading scorers"""
     # Check cache first
-    logger.info("######### EASY TO SEE THIS ##########")
     cached = cache.get("scoreboard")
     if cached:
         return cached
@@ -271,12 +268,12 @@ def get_scoreboard():
 
 def fetch_single_boxscore(game_id, leaders_data):
     """Fetch boxscore for a single game (for parallel execution)"""
-    logger.info("######### EASY TO SEE THIS ##########")
     try:
         bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(
-            game_id=game_id, headers=NBA_STATS_HEADERS, proxy=STATS_PROXY,
+            game_id=game_id,
+            headers=NBA_STATS_HEADERS,
+            proxy=STATS_PROXY,
         )
-        logger.info(bs_stats.headers)
         if bs_stats is None:
             return None
 
@@ -528,7 +525,8 @@ def get_standings():
 
     try:
         standings = leaguestandings.LeagueStandings(
-            headers=NBA_STATS_HEADERS, proxy=STATS_PROXY,
+            headers=NBA_STATS_HEADERS,
+            proxy=STATS_PROXY,
         ).get_dict()
         teams = standings["resultSets"][0]["rowSet"]
 
@@ -604,7 +602,8 @@ def get_player_advanced_stats(
                 # Get advanced stats
                 try:
                     adv = boxscoreadvancedv3.BoxScoreAdvancedV3(
-                        game_id=game_id, headers=NBA_STATS_HEADERS,
+                        game_id=game_id,
+                        headers=NBA_STATS_HEADERS,
                         proxy=STATS_PROXY,
                     )
                     adv_players = adv.player_stats.get_dict()["data"]
@@ -790,7 +789,9 @@ def get_game_players(game_id: str):
         # Try to get advanced stats
         try:
             adv = boxscoreadvancedv3.BoxScoreAdvancedV3(
-                game_id=game_id, headers=NBA_STATS_HEADERS, proxy=STATS_PROXY,
+                game_id=game_id,
+                headers=NBA_STATS_HEADERS,
+                proxy=STATS_PROXY,
             )
             adv_players = adv.player_stats.get_dict()["data"]
         except Exception:
