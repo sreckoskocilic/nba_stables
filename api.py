@@ -20,15 +20,15 @@ import requests
 from bs4 import BeautifulSoup
 from nba_api.live.nba.endpoints import boxscore, scoreboard
 from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv2, leaguestandings, boxscoreadvancedv3
-from common import Header
+from common import http as common_http
 
 
 try:
     from nba_api.stats.library import http as stats_http
     from nba_api.library import http as base_http
 
-    stats_http.STATS_HEADERS = Header.NBA_STATS_HEADERS  # global constant
-    stats_http.NBAStatsHTTP.headers = Header.NBA_STATS_HEADERS  # class default
+    stats_http.STATS_HEADERS = common_http.Header.NBA_STATS_HEADERS  # global constant
+    stats_http.NBAStatsHTTP.headers = common_http.Header.NBA_STATS_HEADERS  # class default
     # Reset any existing session so stale connections are dropped
     stats_http.NBAStatsHTTP._session = None
     base_http.NBAHTTP._session = None
