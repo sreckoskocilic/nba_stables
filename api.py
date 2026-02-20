@@ -201,7 +201,7 @@ def get_games_leaders_list(days_offset: int = 1):
 
 
 @app.get("/api/scoreboard")
-async def get_scoreboard():
+def get_scoreboard():
     """Get live scoreboard with game results and leading scorers"""
     # Check cache first
     cached = cache.get("scoreboard")
@@ -314,7 +314,7 @@ def fetch_single_boxscore(game_id, leaders_data):
 
 
 @app.get("/api/boxscores")
-async def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
+def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
     """Get detailed box scores for games"""
     cache_key = f"boxscores_{days_offset}"
     cached = cache.get(cache_key)
@@ -345,7 +345,7 @@ async def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
 
 
 @app.get("/api/players/search")
-async def search_players(q: str = Query(..., min_length=2)):
+def search_players(q: str = Query(..., min_length=2)):
     """Search for players by name"""
     try:
         players = load_players_file()
@@ -364,7 +364,7 @@ async def search_players(q: str = Query(..., min_length=2)):
 
 
 @app.get("/api/players/stats")
-async def get_player_stats(
+def get_player_stats(
     ids: str = Query(..., description="Comma-separated player IDs")
 ):
     """Get live stats for specific players"""
@@ -435,7 +435,7 @@ async def get_player_stats(
 
 
 @app.get("/api/leaders")
-async def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
+def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
     """Get daily leaders across statistical categories"""
     cache_key = f"leaders_{days_offset}"
     cached = cache.get(cache_key)
@@ -448,12 +448,18 @@ async def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
 
         all_players = []
 
-        for gid in game_ids:
+        def fetch_leaders_boxscore(gid):
             try:
-                bs = boxscore.BoxScore(game_id=gid).get_dict()
+                return boxscore.BoxScore(game_id=gid).get_dict()
             except Exception:
-                continue
+                return None
 
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            results = executor.map(fetch_leaders_boxscore, game_ids)
+
+        for bs in results:
+            if bs is None:
+                continue
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
                 tricode = team["teamTricode"]
@@ -504,7 +510,7 @@ async def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
 
 
 @app.get("/api/standings")
-async def get_standings():
+def get_standings():
     """Get current NBA standings by conference"""
     cached = cache.get("standings")
     if cached:
@@ -555,7 +561,7 @@ async def get_standings():
 
 
 @app.get("/api/players/advanced")
-async def get_player_advanced_stats(
+def get_player_advanced_stats(
     ids: str = Query(..., description="Comma-separated player IDs")
 ):
     """Get advanced stats for players including plus/minus, efficiency metrics"""
@@ -682,7 +688,7 @@ async def get_player_advanced_stats(
 
 
 @app.get("/api/doubledoubles")
-async def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
+def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
     """Get players with double-doubles or triple-doubles for a given day"""
     try:
         if days_offset == 0:
@@ -694,12 +700,18 @@ async def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
         double_doubles = []
         triple_doubles = []
 
-        for gid in game_ids:
+        def fetch_dd_boxscore(gid):
             try:
-                bs = boxscore.BoxScore(game_id=gid).get_dict()
+                return boxscore.BoxScore(game_id=gid).get_dict()
             except Exception:
-                continue
+                return None
 
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            boxscore_results = list(executor.map(fetch_dd_boxscore, game_ids))
+
+        for bs in boxscore_results:
+            if bs is None:
+                continue
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
                 tricode = team["teamTricode"]
@@ -751,7 +763,7 @@ async def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
 
 
 @app.get("/api/games/{game_id}/players")
-async def get_game_players(game_id: str):
+def get_game_players(game_id: str):
     """Get all player stats for a specific game with advanced metrics"""
     try:
         bs = boxscore.BoxScore(game_id=game_id).get_dict()
@@ -916,7 +928,7 @@ async def startup_scrape_cbs():
 
 
 @app.get("/api/injuries")
-async def get_injuries():
+def get_injuries():
     """Get NBA injury report from CBS Sports"""
     cached = cache.get("injuries")
     if cached:
