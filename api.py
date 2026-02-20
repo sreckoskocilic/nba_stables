@@ -8,33 +8,38 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
 from typing import Any, Dict, Optional
+from zoneinfo import ZoneInfo
 
+import requests
+import uvicorn
+from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from isodate import parse_duration
-import requests
-from bs4 import BeautifulSoup
+from nba_api.library import http as base_http
 from nba_api.live.nba.endpoints import boxscore, scoreboard
-from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv2, leaguestandings, boxscoreadvancedv3
-from common import http as common_http
+from nba_api.stats.endpoints import (
+    boxscoretraditionalv3,
+    scoreboardv2,
+    leaguestandings,
+    boxscoreadvancedv3,
+)
+from nba_api.stats.library import http as stats_http
 
+from common.http import NBA_STATS_HEADERS
 
 try:
-    from nba_api.stats.library import http as stats_http
-    from nba_api.library import http as base_http
-
-    stats_http.STATS_HEADERS = common_http.Header.NBA_STATS_HEADERS  # global constant
-    stats_http.NBAStatsHTTP.headers = common_http.Header.NBA_STATS_HEADERS  # class default
+    stats_http.STATS_HEADERS = NBA_STATS_HEADERS  # global constant
+    stats_http.NBAStatsHTTP.headers = NBA_STATS_HEADERS  # class default
+    print("Stats headers: ", stats_http.STATS_HEADERS)
     # Reset any existing session so stale connections are dropped
     stats_http.NBAStatsHTTP._session = None
     base_http.NBAHTTP._session = None
 except Exception:
     pass  # nba_api not installed — nothing to patch
-
 
 app = FastAPI(
     title="NBA Stables API",
@@ -42,7 +47,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url=None,
     redoc_url=None,
-    openapi_url=None
+    openapi_url=None,
 )
 
 # Enable CORS for frontend
@@ -54,8 +59,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-PLAYERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "players_with_teamid.json")
-CBS_INJURIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cbs_injuries.json")
+PLAYERS_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "players_with_teamid.json"
+)
+CBS_INJURIES_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "cbs_injuries.json"
+)
 
 
 # Simple in-memory cache
@@ -72,10 +81,7 @@ class SimpleCache:
         return None
 
     def set(self, key: str, data: Any, ttl_seconds: int):
-        self._cache[key] = {
-            "data": data,
-            "expires": time.time() + ttl_seconds
-        }
+        self._cache[key] = {"data": data, "expires": time.time() + ttl_seconds}
 
     def clear(self):
         self._cache.clear()
@@ -85,12 +91,12 @@ cache = SimpleCache()
 
 # Cache TTLs (in seconds)
 CACHE_TTL = {
-    "scoreboard": 30,      # 30 seconds - live scores change frequently
-    "boxscores": 60,       # 1 minute
-    "leaders": 300,        # 5 minutes
-    "standings": 3600,     # 1 hour - doesn't change often
-    "player_stats": 30,    # 30 seconds
-    "injuries": 7200,      # 2 hours - injury reports don't change often, avoid rate limits
+    "scoreboard": 30,  # 30 seconds - live scores change frequently
+    "boxscores": 60,  # 1 minute
+    "leaders": 300,  # 5 minutes
+    "standings": 3600,  # 1 hour - doesn't change often
+    "player_stats": 30,  # 30 seconds
+    "injuries": 7200,  # 2 hours - injury reports don't change often, avoid rate limits
 }
 
 
@@ -108,8 +114,9 @@ def get_display_date(days_offset: int = 0) -> str:
 def convert_et_to_cet(time_str: str) -> str:
     """Convert NBA game time from US/Eastern to CET (e.g. '7:00 pm ET' -> '23:00 CET')"""
     import re
+
     try:
-        m = re.match(r'(\d{1,2}):(\d{2})\s*(am|pm)', time_str.strip(), re.IGNORECASE)
+        m = re.match(r"(\d{1,2}):(\d{2})\s*(am|pm)", time_str.strip(), re.IGNORECASE)
         if not m:
             return time_str
         hour, minute, ampm = int(m.group(1)), int(m.group(2)), m.group(3).lower()
@@ -192,6 +199,7 @@ def get_games_leaders_list(days_offset: int = 1):
 
 # API Endpoints
 
+
 @app.get("/api/scoreboard")
 async def get_scoreboard():
     """Get live scoreboard with game results and leading scorers"""
@@ -212,32 +220,38 @@ async def get_scoreboard():
             if "ET" in status_text:
                 status_text = convert_et_to_cet(status_text)
 
-            games.append({
-                "gameId": game["gameId"],
-                "status": status_text,
-                "homeTeam": {
-                    "name": "{} {}".format(home_team["teamCity"], home_team["teamName"]),
-                    "tricode": home_team["teamTricode"],
-                    "score": home_team["score"],
-                    "leader": {
-                        "name": fix_encoding(home_leaders["name"]),
-                        "points": home_leaders["points"],
-                        "rebounds": home_leaders["rebounds"],
-                        "assists": home_leaders["assists"]
-                    }
-                },
-                "awayTeam": {
-                    "name": "{} {}".format(away_team["teamCity"], away_team["teamName"]),
-                    "tricode": away_team["teamTricode"],
-                    "score": away_team["score"],
-                    "leader": {
-                        "name": fix_encoding(away_leaders["name"]),
-                        "points": away_leaders["points"],
-                        "rebounds": away_leaders["rebounds"],
-                        "assists": away_leaders["assists"]
-                    }
+            games.append(
+                {
+                    "gameId": game["gameId"],
+                    "status": status_text,
+                    "homeTeam": {
+                        "name": "{} {}".format(
+                            home_team["teamCity"], home_team["teamName"]
+                        ),
+                        "tricode": home_team["teamTricode"],
+                        "score": home_team["score"],
+                        "leader": {
+                            "name": fix_encoding(home_leaders["name"]),
+                            "points": home_leaders["points"],
+                            "rebounds": home_leaders["rebounds"],
+                            "assists": home_leaders["assists"],
+                        },
+                    },
+                    "awayTeam": {
+                        "name": "{} {}".format(
+                            away_team["teamCity"], away_team["teamName"]
+                        ),
+                        "tricode": away_team["teamTricode"],
+                        "score": away_team["score"],
+                        "leader": {
+                            "name": fix_encoding(away_leaders["name"]),
+                            "points": away_leaders["points"],
+                            "rebounds": away_leaders["rebounds"],
+                            "assists": away_leaders["assists"],
+                        },
+                    },
                 }
-            })
+            )
 
         result = {"games": games, "date": get_display_date(0)}
         cache.set("scoreboard", result, CACHE_TTL["scoreboard"])
@@ -261,28 +275,35 @@ def fetch_single_boxscore(game_id, leaders_data):
             team_id = team[1]  # TEAM_ID from boxscore
             ld = next((l for l in leaders_data if len(l) > 4 and l[4] == team_id), None)
             if ld:
-                leader = {"name": ld[0], "points": ld[1], "rebounds": ld[2], "assists": ld[3]}
+                leader = {
+                    "name": ld[0],
+                    "points": ld[1],
+                    "rebounds": ld[2],
+                    "assists": ld[3],
+                }
 
-            game_box["teams"].append({
-                "name": "{} {}".format(team[2], team[3]),
-                "score": team[-2],
-                "stats": {
-                    "fg": "{}/{}".format(team[7], team[8]),
-                    "fgPct": team[9],
-                    "threePt": "{}/{}".format(team[10], team[11]),
-                    "threePtPct": team[12],
-                    "ft": "{}/{}".format(team[13], team[14]),
-                    "ftPct": team[15],
-                    "rebounds": team[18],
-                    "offRebounds": team[16],
-                    "assists": team[19],
-                    "steals": team[20],
-                    "blocks": team[21],
-                    "turnovers": team[22],
-                    "fouls": team[23]
-                },
-                "leader": leader
-            })
+            game_box["teams"].append(
+                {
+                    "name": "{} {}".format(team[2], team[3]),
+                    "score": team[-2],
+                    "stats": {
+                        "fg": "{}/{}".format(team[7], team[8]),
+                        "fgPct": team[9],
+                        "threePt": "{}/{}".format(team[10], team[11]),
+                        "threePtPct": team[12],
+                        "ft": "{}/{}".format(team[13], team[14]),
+                        "ftPct": team[15],
+                        "rebounds": team[18],
+                        "offRebounds": team[16],
+                        "assists": team[19],
+                        "steals": team[20],
+                        "blocks": team[21],
+                        "turnovers": team[22],
+                        "fouls": team[23],
+                    },
+                    "leader": leader,
+                }
+            )
 
         return game_box
     except Exception:
@@ -330,11 +351,9 @@ async def search_players(q: str = Query(..., min_length=2)):
 
         for player in players:
             if query in player[1].lower():
-                results.append({
-                    "id": player[0],
-                    "name": player[1],
-                    "teamId": player[2]
-                })
+                results.append(
+                    {"id": player[0], "name": player[1], "teamId": player[2]}
+                )
 
         return {"players": results[:20]}  # Limit to 20 results
     except Exception as e:
@@ -342,7 +361,9 @@ async def search_players(q: str = Query(..., min_length=2)):
 
 
 @app.get("/api/players/stats")
-async def get_player_stats(ids: str = Query(..., description="Comma-separated player IDs")):
+async def get_player_stats(
+    ids: str = Query(..., description="Comma-separated player IDs")
+):
     """Get live stats for specific players"""
     try:
         player_ids = [int(pid.strip()) for pid in ids.split(",")]
@@ -358,7 +379,10 @@ async def get_player_stats(ids: str = Query(..., description="Comma-separated pl
         results = []
 
         for game in scoreboard.ScoreBoard().games.data:
-            if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids:
+            if (
+                game["homeTeam"]["teamId"] in team_ids
+                or game["awayTeam"]["teamId"] in team_ids
+            ):
                 try:
                     bs = boxscore.BoxScore(game_id=game["gameId"]).get_dict()
                 except Exception:
@@ -367,28 +391,38 @@ async def get_player_stats(ids: str = Query(..., description="Comma-separated pl
                 for team_key in ["homeTeam", "awayTeam"]:
                     team = bs["game"][team_key]
                     for player in team["players"]:
-                        if player["personId"] in player_ids and player["status"] == "ACTIVE":
+                        if (
+                            player["personId"] in player_ids
+                            and player["status"] == "ACTIVE"
+                        ):
                             stats = player["statistics"]
                             try:
                                 minutes = reformat_player_minutes(
-                                    int(parse_duration(stats["minutes"]).total_seconds())
+                                    int(
+                                        parse_duration(stats["minutes"]).total_seconds()
+                                    )
                                 )
                             except Exception:
                                 minutes = "0:00"
 
-                            results.append({
-                                "id": player["personId"],
-                                "name": fix_encoding(player["name"]),
-                                "team": team["teamTricode"],
-                                "minutes": minutes,
-                                "points": stats["points"],
-                                "threePointers": "{}/{}".format(stats["threePointersMade"], stats["threePointersAttempted"]),
-                                "rebounds": stats["reboundsTotal"],
-                                "assists": stats["assists"],
-                                "blocks": stats["blocks"],
-                                "steals": stats["steals"],
-                                "turnovers": stats["turnovers"]
-                            })
+                            results.append(
+                                {
+                                    "id": player["personId"],
+                                    "name": fix_encoding(player["name"]),
+                                    "team": team["teamTricode"],
+                                    "minutes": minutes,
+                                    "points": stats["points"],
+                                    "threePointers": "{}/{}".format(
+                                        stats["threePointersMade"],
+                                        stats["threePointersAttempted"],
+                                    ),
+                                    "rebounds": stats["reboundsTotal"],
+                                    "assists": stats["assists"],
+                                    "blocks": stats["blocks"],
+                                    "steals": stats["steals"],
+                                    "turnovers": stats["turnovers"],
+                                }
+                            )
 
         return {"players": results}
     except ValueError:
@@ -424,16 +458,18 @@ async def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                 for player in team["players"]:
                     if player["status"] == "ACTIVE":
                         stats = player["statistics"]
-                        all_players.append({
-                            "name": fix_encoding(player["name"]),
-                            "team": tricode,
-                            "points": stats["points"],
-                            "rebounds": stats["reboundsTotal"],
-                            "assists": stats["assists"],
-                            "blocks": stats["blocks"],
-                            "steals": stats["steals"],
-                            "threePointers": stats["threePointersMade"]
-                        })
+                        all_players.append(
+                            {
+                                "name": fix_encoding(player["name"]),
+                                "team": tricode,
+                                "points": stats["points"],
+                                "rebounds": stats["reboundsTotal"],
+                                "assists": stats["assists"],
+                                "blocks": stats["blocks"],
+                                "steals": stats["steals"],
+                                "threePointers": stats["threePointersMade"],
+                            }
+                        )
 
         categories = [
             ("points", "Points"),
@@ -441,7 +477,7 @@ async def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
             ("assists", "Assists"),
             ("blocks", "Blocks"),
             ("steals", "Steals"),
-            ("threePointers", "3-Pointers")
+            ("threePointers", "3-Pointers"),
         ]
 
         leaders = {}
@@ -452,7 +488,9 @@ async def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                 leaders[key] = {
                     "label": label,
                     "value": max_val,
-                    "players": [{"name": p["name"], "team": p["team"]} for p in top_players]
+                    "players": [
+                        {"name": p["name"], "team": p["team"]} for p in top_players
+                    ],
                 }
 
         result = {"leaders": leaders, "date": get_display_date(days_offset)}
@@ -492,7 +530,7 @@ async def get_standings():
                 "streak": team[36] or "-",
                 "last10": team[19] or "0-0",
                 "homeRecord": team[17] or "0-0",
-                "awayRecord": team[18] or "0-0"
+                "awayRecord": team[18] or "0-0",
             }
 
             if team[5] == "East":
@@ -512,7 +550,9 @@ async def get_standings():
 
 
 @app.get("/api/players/advanced")
-async def get_player_advanced_stats(ids: str = Query(..., description="Comma-separated player IDs")):
+async def get_player_advanced_stats(
+    ids: str = Query(..., description="Comma-separated player IDs")
+):
     """Get advanced stats for players including plus/minus, efficiency metrics"""
     try:
         player_ids = [int(pid.strip()) for pid in ids.split(",")]
@@ -528,7 +568,10 @@ async def get_player_advanced_stats(ids: str = Query(..., description="Comma-sep
         results = []
 
         for game in scoreboard.ScoreBoard().games.data:
-            if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids:
+            if (
+                game["homeTeam"]["teamId"] in team_ids
+                or game["awayTeam"]["teamId"] in team_ids
+            ):
                 game_id = game["gameId"]
 
                 # Get live boxscore for basic stats
@@ -547,18 +590,23 @@ async def get_player_advanced_stats(ids: str = Query(..., description="Comma-sep
                 for team_key in ["homeTeam", "awayTeam"]:
                     team = bs["game"][team_key]
                     for player in team["players"]:
-                        if player["personId"] in player_ids and player["status"] == "ACTIVE":
+                        if (
+                            player["personId"] in player_ids
+                            and player["status"] == "ACTIVE"
+                        ):
                             stats = player["statistics"]
 
                             # Find advanced stats for this player
                             adv_stat = next(
                                 (p for p in adv_players if p[6] == player["personId"]),
-                                None
+                                None,
                             )
 
                             try:
                                 minutes = reformat_player_minutes(
-                                    int(parse_duration(stats["minutes"]).total_seconds())
+                                    int(
+                                        parse_duration(stats["minutes"]).total_seconds()
+                                    )
                                 )
                             except Exception:
                                 minutes = "0:00"
@@ -581,10 +629,14 @@ async def get_player_advanced_stats(ids: str = Query(..., description="Comma-sep
                             ts_pct = round(pts / ts_denom, 3) if ts_denom > 0 else 0
 
                             # Effective FG%: (FGM + 0.5 * 3PM) / FGA
-                            efg_pct = round((fgm + 0.5 * tpm) / fga, 3) if fga > 0 else 0
+                            efg_pct = (
+                                round((fgm + 0.5 * tpm) / fga, 3) if fga > 0 else 0
+                            )
 
                             # Check for double-double / triple-double
-                            double_digits = sum(1 for x in [pts, reb, ast, stl, blk] if x >= 10)
+                            double_digits = sum(
+                                1 for x in [pts, reb, ast, stl, blk] if x >= 10
+                            )
 
                             player_result = {
                                 "id": player["personId"],
@@ -604,9 +656,13 @@ async def get_player_advanced_stats(ids: str = Query(..., description="Comma-sep
                                 "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
                                 "efgPct": efg_pct,
                                 "tsPct": ts_pct,
-                                "plusMinus": adv_stat[14] if adv_stat else stats.get("plusMinusPoints", 0),
+                                "plusMinus": (
+                                    adv_stat[14]
+                                    if adv_stat
+                                    else stats.get("plusMinusPoints", 0)
+                                ),
                                 "isDoubleDouble": double_digits >= 2,
-                                "isTripleDouble": double_digits >= 3
+                                "isTripleDouble": double_digits >= 3,
                             }
 
                             results.append(player_result)
@@ -650,8 +706,16 @@ async def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
                         stl = stats["steals"]
                         blk = stats["blocks"]
 
-                        categories = {"pts": pts, "reb": reb, "ast": ast, "stl": stl, "blk": blk}
-                        double_digit_cats = [k for k, v in categories.items() if v >= 10]
+                        categories = {
+                            "pts": pts,
+                            "reb": reb,
+                            "ast": ast,
+                            "stl": stl,
+                            "blk": blk,
+                        }
+                        double_digit_cats = [
+                            k for k, v in categories.items() if v >= 10
+                        ]
 
                         if len(double_digit_cats) >= 2:
                             player_data = {
@@ -662,7 +726,7 @@ async def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
                                 "assists": ast,
                                 "steals": stl,
                                 "blocks": blk,
-                                "categories": double_digit_cats
+                                "categories": double_digit_cats,
                             }
 
                             if len(double_digit_cats) >= 3:
@@ -673,7 +737,7 @@ async def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
         return {
             "tripleDoubles": triple_doubles,
             "doubleDoubles": double_doubles,
-            "date": get_display_date(days_offset)
+            "date": get_display_date(days_offset),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -700,7 +764,7 @@ async def get_game_players(game_id: str):
                 "name": f"{team['teamCity']} {team['teamName']}",
                 "tricode": team["teamTricode"],
                 "score": team["score"],
-                "players": []
+                "players": [],
             }
 
             for player in team["players"]:
@@ -716,8 +780,7 @@ async def get_game_players(game_id: str):
 
                     # Find advanced stats
                     adv_stat = next(
-                        (p for p in adv_players if p[6] == player["personId"]),
-                        None
+                        (p for p in adv_players if p[6] == player["personId"]), None
                     )
 
                     fgm = stats["fieldGoalsMade"]
@@ -729,27 +792,35 @@ async def get_game_players(game_id: str):
 
                     ts_denom = 2 * (fga + 0.44 * fta)
 
-                    team_data["players"].append({
-                        "id": player["personId"],
-                        "name": fix_encoding(player["name"]),
-                        "minutes": minutes,
-                        "points": pts,
-                        "rebounds": stats["reboundsTotal"],
-                        "offRebounds": stats["reboundsOffensive"],
-                        "defRebounds": stats["reboundsDefensive"],
-                        "assists": stats["assists"],
-                        "steals": stats["steals"],
-                        "blocks": stats["blocks"],
-                        "turnovers": stats["turnovers"],
-                        "fouls": stats["foulsPersonal"],
-                        "fg": f"{fgm}/{fga}",
-                        "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
-                        "threePt": f"{tpm}/{stats['threePointersAttempted']}",
-                        "ft": f"{ftm}/{fta}",
-                        "plusMinus": adv_stat[14] if adv_stat else stats.get("plusMinusPoints", 0),
-                        "efgPct": round((fgm + 0.5 * tpm) / fga, 3) if fga > 0 else 0,
-                        "tsPct": round(pts / ts_denom, 3) if ts_denom > 0 else 0
-                    })
+                    team_data["players"].append(
+                        {
+                            "id": player["personId"],
+                            "name": fix_encoding(player["name"]),
+                            "minutes": minutes,
+                            "points": pts,
+                            "rebounds": stats["reboundsTotal"],
+                            "offRebounds": stats["reboundsOffensive"],
+                            "defRebounds": stats["reboundsDefensive"],
+                            "assists": stats["assists"],
+                            "steals": stats["steals"],
+                            "blocks": stats["blocks"],
+                            "turnovers": stats["turnovers"],
+                            "fouls": stats["foulsPersonal"],
+                            "fg": f"{fgm}/{fga}",
+                            "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
+                            "threePt": f"{tpm}/{stats['threePointersAttempted']}",
+                            "ft": f"{ftm}/{fta}",
+                            "plusMinus": (
+                                adv_stat[14]
+                                if adv_stat
+                                else stats.get("plusMinusPoints", 0)
+                            ),
+                            "efgPct": (
+                                round((fgm + 0.5 * tpm) / fga, 3) if fga > 0 else 0
+                            ),
+                            "tsPct": round(pts / ts_denom, 3) if ts_denom > 0 else 0,
+                        }
+                    )
 
             # Sort by minutes played (descending)
             team_data["players"].sort(key=lambda x: x["minutes"], reverse=True)
@@ -758,7 +829,7 @@ async def get_game_players(game_id: str):
         return {
             "gameId": game_id,
             "status": bs["game"]["gameStatusText"],
-            "teams": teams
+            "teams": teams,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -801,12 +872,18 @@ def scrape_cbs_injuries():
             date_el = row.find("span", class_="CellGameDate")
 
             if name_el and len(cells) >= 5:
-                players.append({
-                    "name": name_el.get_text(strip=True),
-                    "updated": date_el.get_text(strip=True) if date_el else "",
-                    "injury": cells[3].get_text(strip=True) if len(cells) > 3 else "",
-                    "status": cells[4].get_text(strip=True) if len(cells) > 4 else ""
-                })
+                players.append(
+                    {
+                        "name": name_el.get_text(strip=True),
+                        "updated": date_el.get_text(strip=True) if date_el else "",
+                        "injury": (
+                            cells[3].get_text(strip=True) if len(cells) > 3 else ""
+                        ),
+                        "status": (
+                            cells[4].get_text(strip=True) if len(cells) > 4 else ""
+                        ),
+                    }
+                )
 
         if players:
             injuries_by_team.append({"team": team_name, "players": players})
@@ -814,7 +891,7 @@ def scrape_cbs_injuries():
     result = {
         "injuries": injuries_by_team,
         "source": "CBS Sports",
-        "lastUpdated": get_display_date(0)
+        "lastUpdated": get_display_date(0),
     }
     with open(CBS_INJURIES_FILE, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
@@ -838,7 +915,9 @@ async def get_injuries():
 
     try:
         if not os.path.exists(CBS_INJURIES_FILE):
-            raise HTTPException(status_code=503, detail="CBS injuries data not available")
+            raise HTTPException(
+                status_code=503, detail="CBS injuries data not available"
+            )
         with open(CBS_INJURIES_FILE, "r", encoding="utf-8") as f:
             result = json.load(f)
         cache.set("injuries", result, CACHE_TTL["injuries"])
@@ -880,8 +959,5 @@ async def serve_frontend():
     return {"message": "NBA Stables API", "docs": "/docs"}
 
 
-
-
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
