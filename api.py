@@ -154,6 +154,7 @@ def get_games_list(days_offset: int = 1):
         sb = scoreboardv2.ScoreboardV2(
             game_date=target_date.strftime("%Y-%m-%d"), headers=NBA_STATS_HEADERS
         )
+        logger.info(sb.headers)
         games = sb.game_header.get_dict()
         for g in games["data"]:
             g_dict.append(g[2])  # game_id is at index 2
@@ -170,6 +171,7 @@ def get_games_leaders_list(days_offset: int = 1):
         sb = scoreboardv2.ScoreboardV2(
             game_date=target_date.strftime("%Y-%m-%d"), headers=NBA_STATS_HEADERS
         )
+        logger.info(sb.headers)
         games = sb.game_header.get_dict()
         leaders = sb.team_leaders.get_dict()
 
@@ -264,6 +266,7 @@ def fetch_single_boxscore(game_id, leaders_data):
         bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(
             game_id=game_id, headers=NBA_STATS_HEADERS
         )
+        logger.info(bs_stats.headers)
         if bs_stats is None:
             return None
 
