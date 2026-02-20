@@ -148,6 +148,7 @@ def load_players_file():
 
 def get_games_list(days_offset: int = 1):
     """Get list of game IDs for a given date offset"""
+    logger.info("######### EASY TO SEE THIS ##########")
     g_dict = []
     target_date = date.today() - timedelta(days=days_offset)
     try:
@@ -165,6 +166,7 @@ def get_games_list(days_offset: int = 1):
 
 def get_games_leaders_list(days_offset: int = 1):
     """Get games with their leaders"""
+    logger.info("######### EASY TO SEE THIS ##########")
     g_dict = {}
     target_date = date.today() - timedelta(days=days_offset)
     try:
@@ -204,6 +206,7 @@ def get_games_leaders_list(days_offset: int = 1):
 def get_scoreboard():
     """Get live scoreboard with game results and leading scorers"""
     # Check cache first
+    logger.info("######### EASY TO SEE THIS ##########")
     cached = cache.get("scoreboard")
     if cached:
         return cached
@@ -262,6 +265,7 @@ def get_scoreboard():
 
 def fetch_single_boxscore(game_id, leaders_data):
     """Fetch boxscore for a single game (for parallel execution)"""
+    logger.info("######### EASY TO SEE THIS ##########")
     try:
         bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(
             game_id=game_id, headers=NBA_STATS_HEADERS
@@ -364,9 +368,7 @@ def search_players(q: str = Query(..., min_length=2)):
 
 
 @app.get("/api/players/stats")
-def get_player_stats(
-    ids: str = Query(..., description="Comma-separated player IDs")
-):
+def get_player_stats(ids: str = Query(..., description="Comma-separated player IDs")):
     """Get live stats for specific players"""
     try:
         player_ids = [int(pid.strip()) for pid in ids.split(",")]
