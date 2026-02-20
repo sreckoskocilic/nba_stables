@@ -20,3 +20,18 @@ NBA_STATS_HEADERS = {
         "Chrome/131.0.0.0 Safari/537.36"
     ),
 }
+
+
+def patch_nba_api_headers():
+    try:
+        from nba_api.stats.library import http as stats_http
+        from nba_api.library import http as base_http
+
+        stats_http.STATS_HEADERS = NBA_STATS_HEADERS  # global constant
+        stats_http.NBAStatsHTTP.headers = NBA_STATS_HEADERS  # class default
+
+        # Reset any existing session so stale connections are dropped
+        stats_http.NBAStatsHTTP._session = None
+        base_http.NBAHTTP._session = None
+    except Exception:
+        pass  # nba_api not installed — nothing to patch

@@ -19,7 +19,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from isodate import parse_duration
-from nba_api.library import http as base_http
 from nba_api.live.nba.endpoints import boxscore, scoreboard
 from nba_api.stats.endpoints import (
     boxscoretraditionalv3,
@@ -27,18 +26,10 @@ from nba_api.stats.endpoints import (
     leaguestandings,
     boxscoreadvancedv3,
 )
-from nba_api.stats.library import http as stats_http
 
-from common.http import NBA_STATS_HEADERS
+from common.http import patch_nba_api_headers
 
-try:
-    stats_http.STATS_HEADERS = NBA_STATS_HEADERS  # global constant
-    stats_http.NBAStatsHTTP.headers = NBA_STATS_HEADERS  # class default
-    # Reset any existing session so stale connections are dropped
-    stats_http.NBAStatsHTTP._session = None
-    base_http.NBAHTTP._session = None
-except Exception:
-    pass  # nba_api not installed — nothing to patch
+patch_nba_api_headers()
 
 app = FastAPI(
     title="NBA Stables API",
@@ -146,17 +137,6 @@ def fix_encoding(s: str) -> str:
         return s
 
 
-def set_stats_header():
-    try:
-        stats_http.STATS_HEADERS = NBA_STATS_HEADERS  # global constant
-        stats_http.NBAStatsHTTP.headers = NBA_STATS_HEADERS  # class default
-        # Reset any existing session so stale connections are dropped
-        stats_http.NBAStatsHTTP._session = None
-        base_http.NBAHTTP._session = None
-    except Exception:
-        pass  # nba_api not installed — nothing to patch
-
-
 def load_players_file():
     with open(PLAYERS_FILE, "r") as f:
         return json.load(f)
@@ -217,8 +197,6 @@ async def get_scoreboard():
     cached = cache.get("scoreboard")
     if cached:
         return cached
-
-    set_stats_header()
 
     try:
         games = []
@@ -329,8 +307,6 @@ async def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
     cached = cache.get(cache_key)
     if cached:
         return cached
-
-    set_stats_header()
 
     try:
         # Use the helper function to get games with leaders
