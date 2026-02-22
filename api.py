@@ -4,9 +4,7 @@ FastAPI backend for live NBA statistics
 """
 
 import json
-import logging
 import os
-import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
@@ -23,10 +21,10 @@ from fastapi.staticfiles import StaticFiles
 from isodate import parse_duration
 from nba_api.live.nba.endpoints import boxscore, scoreboard
 from nba_api.stats.endpoints import (
-    boxscoretraditionalv3,
-    scoreboardv2,
-    leaguestandings,
     boxscoreadvancedv3,
+    boxscoretraditionalv3,
+    leaguestandings,
+    scoreboardv2,
 )
 
 from common.http import NBA_STATS_HEADERS

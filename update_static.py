@@ -1,10 +1,8 @@
 import json
 import sys
-import time
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 
 from nba_api.stats.endpoints import boxscoretraditionalv3
-from nba_api.stats.library.data import players
 
 from common.games import get_games_list
 

@@ -21,7 +21,9 @@ def get_games_list(days_offset: int = 1):
 def get_games_leaders_list(days_offset=1):
     g_dict = {}
     yesterday = date.today() - timedelta(days=days_offset)
-    games_list = scoreboardv3.ScoreboardV3(game_date=yesterday.strftime("%Y-%m-%d")).game_leaders.get_dict()
+    games_list = scoreboardv3.ScoreboardV3(
+        game_date=yesterday.strftime("%Y-%m-%d")
+    ).game_leaders.get_dict()
 
     for g in games_list["data"]:
         g_dict.setdefault(g[0], [])
@@ -39,8 +41,8 @@ def get_games_leaders_list(days_offset=1):
 def parse_scoreboard(game):
     parsed = []
     home_team = f"{game['homeTeam']['teamCity']} {game['homeTeam']['teamName']}"
-    away_team = f"{game["awayTeam"]["teamCity"]} {game["awayTeam"]["teamName"]}"
-    score = f"{game["homeTeam"]['score']}\n{game['awayTeam']['score']}"
+    away_team = f"{game['awayTeam']['teamCity']} {game['awayTeam']['teamName']}"
+    score = f"{game['homeTeam']['score']}\n{game['awayTeam']['score']}"
     game_status = game["gameStatusText"]
     if "ET" in game["gameStatus"]:
         game_status = convert_time_to_cet(game_status)
@@ -53,24 +55,29 @@ def parse_scoreboard(game):
     parsed.append(score)
     parsed.append(game_status)
     parsed.append(f"{home_leader_player}\n{away_leader_player}")
-    parsed.append(f"{home_leaders["points"]}\n{away_leaders["points"]}")
-    parsed.append(f"{home_leaders["rebounds"]}\n{away_leaders["rebounds"]}")
-    parsed.append(f"{home_leaders["assists"]}\n{away_leaders["assists"]}")
+    parsed.append(f"{home_leaders['points']}\n{away_leaders['points']}")
+    parsed.append(f"{home_leaders['rebounds']}\n{away_leaders['rebounds']}")
+    parsed.append(f"{home_leaders['assists']}\n{away_leaders['assists']}")
     return parsed
+
 
 def convert_time_to_cet(time_str: str) -> str:
     """Convert NBA game time from US/Eastern to CET (e.g. '7:00 PM ET' -> '01:00')"""
     import re
+
     try:
         cleaned = time_str.replace("ET", "").strip()
-        cleaned = re.sub(r'(\d)(AM|PM)', r'\1 \2', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"(\d)(AM|PM)", r"\1 \2", cleaned, flags=re.IGNORECASE)
         now = datetime.now()
-        naive_dt = datetime.strptime(f"{now.year}-{now.month}-{now.day} {cleaned}", "%Y-%m-%d %I:%M %p")
+        naive_dt = datetime.strptime(
+            f"{now.year}-{now.month}-{now.day} {cleaned}", "%Y-%m-%d %I:%M %p"
+        )
         et_dt = naive_dt.replace(tzinfo=ZoneInfo("US/Eastern"))
         cet_dt = et_dt.astimezone(ZoneInfo("Europe/Berlin"))
         return cet_dt.strftime("%H:%M CET")
     except Exception:
         return time_str
+
 
 def parse_boxscore_stats(bscore_stats, leader):
     stats = []
