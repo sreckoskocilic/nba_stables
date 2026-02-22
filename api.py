@@ -233,7 +233,9 @@ def get_scoreboard():
                         "tricode": home_team["teamTricode"],
                         "score": home_team["score"],
                         "leader": {
-                            "name": fix_encoding(home_leaders["name"]),
+                            "name": fix_encoding(home_leaders["name"])
+                            if home_leaders["name"]
+                            else "",
                             "points": home_leaders["points"],
                             "rebounds": home_leaders["rebounds"],
                             "assists": home_leaders["assists"],
@@ -246,7 +248,9 @@ def get_scoreboard():
                         "tricode": away_team["teamTricode"],
                         "score": away_team["score"],
                         "leader": {
-                            "name": fix_encoding(away_leaders["name"]),
+                            "name": fix_encoding(away_leaders["name"])
+                            if away_leaders["name"]
+                            else "",
                             "points": away_leaders["points"],
                             "rebounds": away_leaders["rebounds"],
                             "assists": away_leaders["assists"],
@@ -566,7 +570,7 @@ def get_standings():
 
 @app.get("/api/players/advanced")
 def get_player_advanced_stats(
-    ids: str = Query(..., description="Comma-separated player IDs")
+    ids: str = Query(..., description="Comma-separated player IDs"),
 ):
     """Get advanced stats for players including plus/minus, efficiency metrics"""
     try:
