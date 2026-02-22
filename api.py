@@ -6,6 +6,7 @@ FastAPI backend for live NBA statistics
 import json
 import logging
 import os
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
@@ -31,7 +32,7 @@ from nba_api.stats.endpoints import (
 from common.http import NBA_STATS_HEADERS
 
 # SOCKS5 proxy for stats.nba.com (Cloudflare WARP on the host)
-STATS_PROXY = os.environ.get("STATS_PROXY")
+STATS_PROXY = os.environ.get("STATS_PROXY", None)
 
 app = FastAPI(
     title="NBA Stables API",
@@ -50,11 +51,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-logger = logging.getLogger("uvicorn.error")
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
 
 PLAYERS_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "players_with_teamid.json"
