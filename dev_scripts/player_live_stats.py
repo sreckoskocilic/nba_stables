@@ -19,15 +19,17 @@ def reformat_player_minutes(total_seconds: int) -> str:
 
 def parse_player_stats(player_dict, team_tricode):
     return [
-        f"{player_dict["name"]} - {player_dict["personId"]}",
+        f"{player_dict['name']} - {player_dict['personId']}",
         team_tricode,
-        reformat_player_minutes(int(parse_duration(player_dict["statistics"]["minutes"]).total_seconds())),
+        reformat_player_minutes(
+            int(parse_duration(player_dict["statistics"]["minutes"]).total_seconds())
+        ),
         (
             colored(player_dict["statistics"]["points"], "light_green")
             if player_dict["statistics"]["points"] > 0
             else player_dict["statistics"]["points"]
         ),
-        f"{player_dict["statistics"]["threePointersMade"]}/{player_dict["statistics"]["threePointersAttempted"]}",
+        f"{player_dict['statistics']['threePointersMade']}/{player_dict['statistics']['threePointersAttempted']}",
         (
             colored(player_dict["statistics"]["reboundsTotal"], "light_green")
             if player_dict["statistics"]["reboundsTotal"] > 0
@@ -56,7 +58,9 @@ if __name__ == "__main__":
     player_ids = [int(item) for item in args.ids.split(",")]
     team_ids = []
 
-    result = [["Player - ID", "TEAM", "TIME", "PT", "3P", "RB", "AS", "BL", "ST", "TO"]]  #
+    result = [
+        ["Player - ID", "TEAM", "TIME", "PT", "3P", "RB", "AS", "BL", "ST", "TO"]
+    ]  #
 
     with open(PLAYERS_FILE, "r") as ff:
         players_with_teamid = json.load(ff)
@@ -67,7 +71,10 @@ if __name__ == "__main__":
             team_ids.append(p[2])
 
     for game in scoreboard.ScoreBoard().games.data:
-        if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids:
+        if (
+            game["homeTeam"]["teamId"] in team_ids
+            or game["awayTeam"]["teamId"] in team_ids
+        ):
             try:
                 bs = boxscore.BoxScore(game_id=game.get("gameId")).get_dict()
             except Exception:
@@ -75,10 +82,18 @@ if __name__ == "__main__":
 
             for player in bs["game"]["homeTeam"]["players"]:
                 if player["personId"] in player_ids and player["status"] == "ACTIVE":
-                    result.append(parse_player_stats(player, bs["game"]["homeTeam"]["teamTricode"]))
+                    result.append(
+                        parse_player_stats(
+                            player, bs["game"]["homeTeam"]["teamTricode"]
+                        )
+                    )
             for player in bs["game"]["awayTeam"]["players"]:
                 if player["personId"] in player_ids and player["status"] == "ACTIVE":
-                    result.append(parse_player_stats(player, bs["game"]["awayTeam"]["teamTricode"]))
+                    result.append(
+                        parse_player_stats(
+                            player, bs["game"]["awayTeam"]["teamTricode"]
+                        )
+                    )
 
     print(
         tabulate(

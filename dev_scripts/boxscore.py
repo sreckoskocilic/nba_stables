@@ -33,7 +33,7 @@ def get_boxscore():
         ]
         try:
             bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(game_id=game_id)
-        except:
+        except Exception:
             continue
         if bs_stats is None:
             continue
@@ -72,12 +72,14 @@ def get_boxscores_list():
         ]
         try:
             bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(game_id=game_id)
-        except:
+        except Exception:
             continue
         if bs_stats is None:
             continue
         result += parse_boxscore_stats(bs_stats.team_stats.get_dict()["data"], leaders)
-        bscores += tabulate(result, tablefmt="fancy_grid", preserve_whitespace=False) + "\n\n"
+        bscores += (
+            tabulate(result, tablefmt="fancy_grid", preserve_whitespace=False) + "\n\n"
+        )
     return bscores
 
 

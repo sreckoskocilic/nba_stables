@@ -1,6 +1,7 @@
 from operator import itemgetter
-from tabulate2 import tabulate
+
 from nba_api.live.nba.endpoints import boxscore
+from tabulate2 import tabulate
 
 from common.games import get_games_list
 
@@ -23,7 +24,7 @@ def get_top_performers():
     for gid in g_list:
         try:
             bs = boxscore.BoxScore(game_id=gid).get_dict()
-        except:
+        except Exception:
             continue
         home_name = bs["game"]["homeTeam"]["teamTricode"]
         away_name = bs["game"]["awayTeam"]["teamTricode"]
@@ -31,7 +32,7 @@ def get_top_performers():
             if player["status"] == "ACTIVE":
                 pls.append(
                     [
-                        f"{player["name"]}  ({home_name})",
+                        f"{player['name']}  ({home_name})",
                         player["statistics"]["points"],
                         player["statistics"]["reboundsTotal"],
                         player["statistics"]["assists"],
@@ -45,7 +46,7 @@ def get_top_performers():
             if player["status"] == "ACTIVE":
                 pls.append(
                     [
-                        f"{player["name"]}  ({away_name})",
+                        f"{player['name']}  ({away_name})",
                         player["statistics"]["points"],
                         player["statistics"]["reboundsTotal"],
                         player["statistics"]["assists"],
