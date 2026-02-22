@@ -22,7 +22,6 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - TZ=Europe/Berlin
-      - STATS_PROXY=socks5h://host.docker.internal:40001
     volumes:
       - ./:/app
   umami:
