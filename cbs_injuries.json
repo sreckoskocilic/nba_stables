@@ -37,12 +37,6 @@
       "team": "Charlotte",
       "players": [
         {
-          "name": "Ryan Kalkbrenner",
-          "updated": "Sun, Feb 22",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Coby White",
           "updated": "Sat, Feb 21",
           "injury": "Calf",
@@ -53,12 +47,30 @@
           "updated": "Sat, Feb 21",
           "injury": "Ankle",
           "status": "Expected to be out until at least Feb 24"
+        },
+        {
+          "name": "Moussa Diabate",
+          "updated": "Wed, Feb 11",
+          "injury": "Suspension",
+          "status": "Expected to be out until at least Feb 24"
+        },
+        {
+          "name": "Miles Bridges",
+          "updated": "Wed, Feb 11",
+          "injury": "Suspension",
+          "status": "Expected to be out until at least Feb 24"
         }
       ]
     },
     {
       "team": "Chicago",
       "players": [
+        {
+          "name": "Jalen Smith",
+          "updated": "Sun, Feb 22",
+          "injury": "Calf",
+          "status": "Game Time Decision"
+        },
         {
           "name": "Jaden Ivey",
           "updated": "Sat, Feb 21",
@@ -222,15 +234,15 @@
           "status": "Expected to be out until at least Mar 1"
         },
         {
-          "name": "Ivica Zubac",
-          "updated": "Tue, Feb 17",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Mar 1"
-        },
-        {
           "name": "Obi Toppin",
           "updated": "Tue, Feb 17",
           "injury": "Foot",
+          "status": "Expected to be out until at least Mar 1"
+        },
+        {
+          "name": "Ivica Zubac",
+          "updated": "Tue, Feb 17",
+          "injury": "Ankle",
           "status": "Expected to be out until at least Mar 1"
         },
         {
@@ -250,12 +262,6 @@
     {
       "team": "L.A. Clippers",
       "players": [
-        {
-          "name": "Kawhi Leonard",
-          "updated": "Sat, Feb 21",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
         {
           "name": "John Collins",
           "updated": "Sat, Feb 21",
@@ -294,7 +300,7 @@
           "name": "Santi Aldama",
           "updated": "Sun, Feb 22",
           "injury": "Knee",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Feb 25"
         },
         {
           "name": "Cedric Coward",
@@ -381,6 +387,12 @@
           "name": "Naz Reid",
           "updated": "Sun, Feb 22",
           "injury": "Shoulder",
+          "status": "Expected to be out until at least Feb 24"
+        },
+        {
+          "name": "Rudy Gobert",
+          "updated": "Sat, Feb 21",
+          "injury": "Suspension",
           "status": "Expected to be out until at least Feb 24"
         }
       ]
@@ -503,6 +515,12 @@
           "updated": "Sun, Feb 22",
           "injury": "Lower Leg",
           "status": "Expected to be out until at least Feb 24"
+        },
+        {
+          "name": "Paul George",
+          "updated": "Sat, Jan 31",
+          "injury": "Suspension",
+          "status": "Expected to be out until at least Mar 25"
         }
       ]
     },
@@ -516,12 +534,6 @@
           "status": "Expected to be out until at least Feb 24"
         },
         {
-          "name": "Cole Anthony",
-          "updated": "Sun, Feb 22",
-          "injury": "Not Injury Related",
-          "status": "Expected to be out until at least Feb 24"
-        },
-        {
           "name": "Dillon Brooks",
           "updated": "Sun, Feb 22",
           "injury": "Hand",
@@ -531,6 +543,12 @@
           "name": "Jordan Goodwin",
           "updated": "Sun, Feb 22",
           "injury": "Calf",
+          "status": "Expected to be out until at least Feb 24"
+        },
+        {
+          "name": "Cole Anthony",
+          "updated": "Sun, Feb 22",
+          "injury": "Not Injury Related",
           "status": "Expected to be out until at least Feb 24"
         },
         {
@@ -550,6 +568,12 @@
     {
       "team": "Portland",
       "players": [
+        {
+          "name": "Deni Avdija",
+          "updated": "Sun, Feb 22",
+          "injury": "Back",
+          "status": "Game Time Decision"
+        },
         {
           "name": "Shaedon Sharpe",
           "updated": "Sat, Feb 21",
@@ -580,16 +604,16 @@
           "status": "Out for the season"
         },
         {
-          "name": "Dylan Cardwell",
-          "updated": "Wed, Feb 18",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Mar 19"
-        },
-        {
           "name": "Domantas Sabonis",
           "updated": "Wed, Feb 18",
           "injury": "Knee",
           "status": "Out for the season"
+        },
+        {
+          "name": "Dylan Cardwell",
+          "updated": "Wed, Feb 18",
+          "injury": "Ankle",
+          "status": "Expected to be out until at least Mar 19"
         }
       ]
     },
@@ -643,15 +667,15 @@
           "status": "Expected to be out until at least Feb 26"
         },
         {
-          "name": "Lauri Markkanen",
-          "updated": "Fri, Feb 20",
-          "injury": "Illness",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Keyonte George",
           "updated": "Fri, Feb 20",
           "injury": "Ankle",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Lauri Markkanen",
+          "updated": "Fri, Feb 20",
+          "injury": "Illness",
           "status": "Game Time Decision"
         },
         {
@@ -723,5 +747,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "February 23, 2026"
+  "lastUpdated": "February 23, 2026 04:01 UTC"
 }
