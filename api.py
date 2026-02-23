@@ -194,7 +194,7 @@ def get_games_leaders_list(days_offset: int = 1):
             proxy=STATS_PROXY,
         )
         games = sb.game_header.get_dict()
-        leaders = sb.team_leaders.get_dict()
+        leaders = sb.game_leaders.get_dict()
 
         # Get game IDs
         for g in games["data"]:
@@ -202,17 +202,14 @@ def get_games_leaders_list(days_offset: int = 1):
                 game_id = g[0]
                 g_dict[game_id] = []
 
-        # Leaders structure: GAME_ID, TEAM_ID, TEAM_CITY, TEAM_NICKNAME, TEAM_ABBREVIATION,
-        # PTS_PLAYER_ID, PTS_PLAYER_NAME, PTS, REB_PLAYER_ID, REB_PLAYER_NAME, REB,
-        # AST_PLAYER_ID, AST_PLAYER_NAME, AST
         for ld in leaders["data"]:
             game_id = ld[0]
             if game_id in g_dict:
-                team_id = ld[1] if len(ld) > 1 else 0
-                pts_player = fix_encoding(ld[6]) if len(ld) > 6 else ""
-                pts = ld[7] if len(ld) > 7 else 0
-                reb = ld[10] if len(ld) > 10 else 0
-                ast = ld[13] if len(ld) > 13 else 0
+                team_id = ld[1]
+                pts_player = fix_encoding(ld[4])
+                pts = ld[9]
+                reb = ld[10]
+                ast = ld[11]
                 g_dict[game_id].append([pts_player, pts, reb, ast, team_id])
     except Exception as ex:
         logger.exception(ex)
