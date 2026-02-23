@@ -3,6 +3,11 @@ name: Deploy to Hetzner
 on:
   push:
     branches: [main]
+  workflow_run:
+    workflows: ["Update CBS Injuries"]
+    types: [completed]
+    branches:
+      - main
 
 jobs:
   deploy:
