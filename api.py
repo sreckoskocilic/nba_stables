@@ -9,6 +9,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
+from logging.handlers import RotatingFileHandler
 from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
@@ -55,6 +56,9 @@ PLAYERS_FILE = os.path.join(
 CBS_INJURIES_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "cbs_injuries.json"
 )
+ERROR_LOG_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "logs/error.log"
+)
 
 
 # Simple in-memory cache
@@ -90,14 +94,22 @@ CACHE_TTL = {
     "injuries": 7200,  # 2 hours - injury reports don't change often, avoid rate limits
 }
 
-
+if not os.path.exists("logs"):
+    os.makedirs("logs")
 # logger setup
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
-logger.addHandler(handler)
+rotating_logfile_handler = RotatingFileHandler(
+    ERROR_LOG_FILE,
+    maxBytes=2 * 1024 * 1024,
+    backupCount=5,
+    encoding="utf-8",
+)
 
 formatter = logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
-handler.setFormatter(formatter)
+rotating_logfile_handler.setFormatter(formatter)
+
+logger.addHandler(rotating_logfile_handler)
 
 def log_exceptions(exception: Exception):
     logger.exception(exception)
