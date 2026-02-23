@@ -4,6 +4,7 @@ FastAPI backend for live NBA statistics
 """
 
 import json
+import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -90,6 +91,17 @@ CACHE_TTL = {
 }
 
 
+# logger setup
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+logger.addHandler(handler)
+
+formatter = logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
+handler.setFormatter(formatter)
+
+def log_exceptions(exception: Exception):
+    logger.exception(exception)
+    
 # Helper functions
 def get_date_str(days_offset: int = 0) -> str:
     target_date = date.today() - timedelta(days=days_offset)
@@ -119,7 +131,8 @@ def convert_et_to_cet(time_str: str) -> str:
         et_dt = naive_dt.replace(tzinfo=ZoneInfo("US/Eastern"))
         cet_dt = et_dt.astimezone(ZoneInfo("Europe/Berlin"))
         return cet_dt.strftime("%H:%M CET")
-    except Exception:
+    except Exception as ex:
+        logger.exception(ex)
         return time_str
 
 
@@ -155,7 +168,8 @@ def get_games_list(days_offset: int = 1):
         games = sb.game_header.get_dict()
         for g in games["data"]:
             g_dict.append(g[2])  # game_id is at index 2
-    except Exception:
+    except Exception as ex:
+        logger.exception(ex)
         pass
     return list(set(g_dict))
 
@@ -190,7 +204,8 @@ def get_games_leaders_list(days_offset: int = 1):
                 reb = ld[10] if len(ld) > 10 else 0
                 ast = ld[13] if len(ld) > 13 else 0
                 g_dict[game_id].append([pts_player, pts, reb, ast, team_id])
-    except Exception:
+    except Exception as ex:
+        logger.exception(ex)
         pass
     return g_dict
 
@@ -259,6 +274,7 @@ def get_scoreboard():
         cache.set("scoreboard", result, CACHE_TTL["scoreboard"])
         return result
     except Exception as e:
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -279,7 +295,7 @@ def fetch_single_boxscore(game_id, leaders_data):
         for i, team in enumerate(team_stats):
             leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
             team_id = team[1]  # TEAM_ID from boxscore
-            ld = next((l for l in leaders_data if len(l) > 4 and l[4] == team_id), None)
+            ld = next((leader for leader in leaders_data if len(leader) > 4 and leader[4] == team_id), None)
             if ld:
                 leader = {
                     "name": ld[0],
@@ -312,7 +328,8 @@ def fetch_single_boxscore(game_id, leaders_data):
             )
 
         return game_box
-    except Exception:
+    except Exception as ex:
+        logger.exception(ex)
         return None
 
 
@@ -345,6 +362,7 @@ def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -364,6 +382,7 @@ def search_players(q: str = Query(..., min_length=2)):
 
         return {"players": results[:20]}  # Limit to 20 results
     except Exception as e:
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -390,7 +409,8 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
             ):
                 try:
                     bs = boxscore.BoxScore(game_id=game["gameId"]).get_dict()
-                except Exception:
+                except Exception as ex:
+                    logger.exception(ex)
                     continue
 
                 for team_key in ["homeTeam", "awayTeam"]:
@@ -407,7 +427,8 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
                                         parse_duration(stats["minutes"]).total_seconds()
                                     )
                                 )
-                            except Exception:
+                            except Exception as ex:
+                                logger.exception(ex)
                                 minutes = "0:00"
 
                             results.append(
@@ -431,8 +452,10 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
 
         return {"players": results}
     except ValueError:
+        logger.exception("Invalid player IDs format")
         raise HTTPException(status_code=400, detail="Invalid player IDs format")
     except Exception as e:
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -453,7 +476,8 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
         def fetch_leaders_boxscore(gid):
             try:
                 return boxscore.BoxScore(game_id=gid).get_dict()
-            except Exception:
+            except Exception as ex:
+                logger.exception(ex)
                 return None
 
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -509,6 +533,7 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -561,6 +586,7 @@ def get_standings():
         cache.set("standings", result, CACHE_TTL["standings"])
         return result
     except Exception as e:
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -592,7 +618,8 @@ def get_player_advanced_stats(
                 # Get live boxscore for basic stats
                 try:
                     bs = boxscore.BoxScore(game_id=game_id).get_dict()
-                except Exception:
+                except Exception as ex:
+                    logger.exception(ex)
                     continue
 
                 # Get advanced stats
@@ -603,7 +630,8 @@ def get_player_advanced_stats(
                         proxy=STATS_PROXY,
                     )
                     adv_players = adv.player_stats.get_dict()["data"]
-                except Exception:
+                except Exception as ex:
+                    logger.exception(ex)
                     adv_players = []
 
                 for team_key in ["homeTeam", "awayTeam"]:
@@ -627,7 +655,8 @@ def get_player_advanced_stats(
                                         parse_duration(stats["minutes"]).total_seconds()
                                     )
                                 )
-                            except Exception:
+                            except Exception as ex:
+                                logger.exception(ex)
                                 minutes = "0:00"
 
                             # Calculate efficiency metrics
@@ -688,8 +717,10 @@ def get_player_advanced_stats(
 
         return {"players": results}
     except ValueError:
+        logger.exception("Invalid player IDs format")
         raise HTTPException(status_code=400, detail="Invalid player IDs format")
     except Exception as e:
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -714,7 +745,8 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
         def fetch_dd_boxscore(gid):
             try:
                 return boxscore.BoxScore(game_id=gid).get_dict()
-            except Exception:
+            except Exception as ex:
+                logger.exception(ex)
                 return None
 
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -773,6 +805,7 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -790,7 +823,8 @@ def get_game_players(game_id: str):
                 proxy=STATS_PROXY,
             )
             adv_players = adv.player_stats.get_dict()["data"]
-        except Exception:
+        except Exception as ex:
+            logger.exception(ex)
             adv_players = []
 
         teams = []
@@ -812,7 +846,8 @@ def get_game_players(game_id: str):
                         minutes = reformat_player_minutes(
                             int(parse_duration(stats["minutes"]).total_seconds())
                         )
-                    except Exception:
+                    except Exception as ex:
+                        logger.exception(ex)
                         minutes = "0:00"
 
                     # Find advanced stats
@@ -869,6 +904,7 @@ def get_game_players(game_id: str):
             "teams": teams,
         }
     except Exception as e:
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -896,6 +932,7 @@ def get_injuries():
         cache.set("injuries", result, CACHE_TTL["injuries"])
         return result
     except Exception as e:
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
