@@ -538,7 +538,7 @@ def get_standings():
             win_pct = team[14] if team[14] is not None else 0
             team_data = {
                 "rank": team[7] or 0,
-                "name": team[4] or "",
+                "name": f"{team[3]} {team[4]}" or "",
                 "tricode": (team[3] or "")[:3].upper(),  # TeamCity -> tricode
                 "wins": team[12] or 0,
                 "losses": team[13] or 0,
