@@ -1150,7 +1150,7 @@
                                     <th>STL</th>
                                     <th>BLK</th>
                                     <th>TO</th>
-                                    <th>Leader</th>
+                                    <th>Leader  |PTS|REB|AST|</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1169,7 +1169,7 @@
                                         <td>${team.stats.steals}</td>
                                         <td>${team.stats.blocks}</td>
                                         <td>${team.stats.turnovers}</td>
-                                        <td>${team.leader.name} (${team.leader.points}/${team.leader.rebounds}/${team.leader.assists})</td>
+                                        <td>${team.leader.name}  |${team.leader.points}|${team.leader.rebounds}|${team.leader.assists}|</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1575,8 +1575,8 @@
                     const shortTeam = teamCodes[teamLower] || Object.entries(teamCodes).find(([k]) => teamLower.includes(k))?.[1] || p.team.substring(0, 3).toUpperCase();
                     return `<div style="display: flex; justify-content: space-between; padding: 3px 6px; border-bottom: 1px solid var(--border); font-size: 10px;">
                         <span style="flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</span>
-                        <span style="width: 28px; color: var(--text-secondary); text-align: center;">${shortTeam}</span>
-                        <span style="width: 38px; text-align: right; color: ${statusColor}; font-weight: 600;">${shortStatus}</span>
+                        <span style="width: 30px; color: var(--text-secondary); text-align: center;">${shortTeam}</span>
+                        <span style="width: 45px; text-align: right; color: ${statusColor}; font-weight: 600;">${shortStatus}</span>
                     </div>`;
                 };
 
@@ -1584,8 +1584,8 @@
                     <div class="card" style="padding: 0; overflow: hidden;">
                         <div style="padding: 4px 6px; background: var(--bg-secondary); font-size: 9px; color: var(--text-secondary); display: flex; justify-content: space-between;">
                             <span style="flex: 1;">Player</span>
-                            <span style="width: 28px; text-align: center;">Team</span>
-                            <span style="width: 38px; text-align: right;">Status</span>
+                            <span style="width: 30px; text-align: center;">Team</span>
+                            <span style="width: 45px; text-align: right;">Status</span>
                         </div>
                         ${players.map(renderPlayer).join('')}
                     </div>
