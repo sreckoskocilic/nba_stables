@@ -61,16 +61,16 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Zach Collins",
-          "updated": "Sat, Feb 21",
-          "injury": "Toe",
-          "status": "Out for the season"
-        },
-        {
           "name": "Jaden Ivey",
           "updated": "Sat, Feb 21",
           "injury": "Knee",
           "status": "Expected to be out until at least Mar 8"
+        },
+        {
+          "name": "Zach Collins",
+          "updated": "Sat, Feb 21",
+          "injury": "Toe",
+          "status": "Out for the season"
         },
         {
           "name": "Noa Essengue",
@@ -265,15 +265,15 @@
       "team": "Indiana",
       "players": [
         {
-          "name": "Obi Toppin",
-          "updated": "Wed, Feb 25",
-          "injury": "Foot",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Andrew Nembhard",
           "updated": "Wed, Feb 25",
           "injury": "Back",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Obi Toppin",
+          "updated": "Wed, Feb 25",
+          "injury": "Foot",
           "status": "Game Time Decision"
         },
         {
@@ -378,7 +378,7 @@
         {
           "name": "Kyle Anderson",
           "updated": "Thu, Feb 26",
-          "injury": "Knee",
+          "injury": "Personal",
           "status": "Game Time Decision"
         },
         {
@@ -409,6 +409,12 @@
           "updated": "Thu, Feb 26",
           "injury": "Back",
           "status": "Expected to be out until at least Feb 28"
+        },
+        {
+          "name": "Norman Powell",
+          "updated": "Thu, Feb 26",
+          "injury": "Groin",
+          "status": "Game Time Decision"
         },
         {
           "name": "Davion Mitchell",
@@ -497,12 +503,6 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Branden Carlson",
-          "updated": "Wed, Feb 25",
-          "injury": "Back",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Chet Holmgren",
           "updated": "Wed, Feb 25",
           "injury": "Back",
@@ -512,6 +512,12 @@
           "name": "Alex Caruso",
           "updated": "Wed, Feb 25",
           "injury": "Ankle",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Branden Carlson",
+          "updated": "Wed, Feb 25",
+          "injury": "Back",
           "status": "Game Time Decision"
         },
         {
@@ -712,21 +718,21 @@
       "players": [
         {
           "name": "Lauri Markkanen",
-          "updated": "Wed, Feb 25",
+          "updated": "Thu, Feb 26",
           "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Keyonte George",
-          "updated": "Tue, Feb 24",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Feb 28"
         },
         {
           "name": "Vince Williams Jr.",
           "updated": "Tue, Feb 24",
           "injury": "Knee",
           "status": "Out for the season"
+        },
+        {
+          "name": "Keyonte George",
+          "updated": "Tue, Feb 24",
+          "injury": "Ankle",
+          "status": "Game Time Decision"
         },
         {
           "name": "Jusuf Nurkic",
@@ -803,5 +809,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "February 26, 2026 17:15 UTC"
+  "lastUpdated": "February 26, 2026 17:38 UTC"
 }
