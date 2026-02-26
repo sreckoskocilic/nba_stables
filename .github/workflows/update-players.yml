@@ -28,7 +28,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add players_with_teamid.json trades.log
+          git add api/static/players_with_teamid.json api/static/trades.log
           git diff --cached --quiet && exit 0
           git commit -m "Update player team data"
           git pull --rebase origin main
