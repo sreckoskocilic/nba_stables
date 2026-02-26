@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from helpers.logger import log_exceptions
 from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv3
 
-PLAYERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../players_with_teamid.json")
+PLAYERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../static/players_with_teamid.json")
 STATS_PROXY = os.environ.get("STATS_PROXY", None)
 
 # Helper functions

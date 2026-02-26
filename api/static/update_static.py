@@ -1,19 +1,27 @@
 import json
+import os
 import sys
 from datetime import date, datetime, timedelta
 
-from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv2
+from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv3
 
+PLAYERS_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "players_with_teamid.json"
+)
+
+TRADES_LOG_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "trades.log"
+)
 
 def get_games_list(days_offset: int = 1):
     """Get list of game IDs for a given date offset"""
     g_dict = []
     target_date = date.today() - timedelta(days=days_offset)
     try:
-        sb = scoreboardv2.ScoreboardV2(game_date=target_date.strftime("%Y-%m-%d"))
+        sb = scoreboardv3.ScoreboardV3(game_date=target_date.strftime("%Y-%m-%d"))
         games = sb.game_header.get_dict()
         for g in games["data"]:
-            g_dict.append(g[2])  # game_id is at index 2
+            g_dict.append(g[0])
     except Exception:
         pass
     return list(set(g_dict))
@@ -23,10 +31,10 @@ def update_players():
     date_offset = 1
     now = datetime.now()
 
-    log_file = open("trades.log", "w")
+    log_file = open(TRADES_LOG_FILE, "w")
     sys.stdout = log_file
 
-    with open("players_with_teamid.json", "r") as file:
+    with open(PLAYERS_FILE, "r") as file:
         players_with_teamid = json.load(file)
 
     changes = 0
@@ -46,7 +54,7 @@ def update_players():
                         p[2] = player[1]
                         changes += 1
                         changed_players.append(player)
-    with open("players_with_teamid.json", "w") as ffile:
+    with open(PLAYERS_FILE, "w") as ffile:
         json.dump(players_with_teamid, ffile, indent=4)
 
     if changes > 0:

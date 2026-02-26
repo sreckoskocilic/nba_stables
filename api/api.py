@@ -4,7 +4,7 @@ FastAPI backend for live NBA statistics
 """
 
 import json
-import logging
+import logging.config
 import os
 import sys
 
@@ -45,16 +45,15 @@ app.add_middleware(
 # sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 app.include_router(router)
 
-CBS_INJURIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../cbs_injuries.json")
+CBS_INJURIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static/cbs_injuries.json")
 LOG_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log_config.yml")
 cache = SimpleCache()
+with open(LOG_CONFIG_FILE, 'r') as f:
+    logging.config.dictConfig(yaml.safe_load(f.read()))
 
 if not os.path.exists("../logs"):
     os.makedirs("../logs")
 
-def setup_logging(config_path=LOG_CONFIG_FILE):
-    with open(config_path, 'r') as f:
-        logging.config.dictConfig(yaml.safe_load(f.read()))
 
 @app.get("/api/health")
 async def health_check():
@@ -82,10 +81,10 @@ def get_injuries():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Serve static files
-static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../static")
+# Serve web files
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    app.mount("/web", StaticFiles(directory=static_dir), name="web")
 
 
 @app.get("/sitemap.xml")
@@ -100,7 +99,7 @@ async def serve_sitemap():
 @app.get("/about")
 async def serve_about():
     """Serve the about page"""
-    about_path = os.path.join(static_dir, "about.html")
+    about_path = os.path.join(static_dir, "abbout.html")
     if os.path.exists(about_path):
         return FileResponse(about_path)
     raise HTTPException(status_code=404, detail="Page not found")

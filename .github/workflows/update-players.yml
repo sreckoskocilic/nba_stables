@@ -22,7 +22,7 @@ jobs:
         run: pip install nba_api
 
       - name: Run update script
-        run: python update_static.py
+        run: python api/web/update_static.py
 
       - name: Commit and push if changed
         run: |
