@@ -1,10 +1,22 @@
 import json
 import sys
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
-from nba_api.stats.endpoints import boxscoretraditionalv3
+from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv2
 
-from common.games import get_games_list
+
+def get_games_list(days_offset: int = 1):
+    """Get list of game IDs for a given date offset"""
+    g_dict = []
+    target_date = date.today() - timedelta(days=days_offset)
+    try:
+        sb = scoreboardv2.ScoreboardV2(game_date=target_date.strftime("%Y-%m-%d"))
+        games = sb.game_header.get_dict()
+        for g in games["data"]:
+            g_dict.append(g[2])  # game_id is at index 2
+    except Exception:
+        pass
+    return list(set(g_dict))
 
 
 def update_players():
