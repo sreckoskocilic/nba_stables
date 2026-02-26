@@ -99,7 +99,7 @@ async def serve_sitemap():
 @app.get("/about")
 async def serve_about():
     """Serve the about page"""
-    about_path = os.path.join(static_dir, "abbout.html")
+    about_path = os.path.join(static_dir, "about.html")
     if os.path.exists(about_path):
         return FileResponse(about_path)
     raise HTTPException(status_code=404, detail="Page not found")
