@@ -21,7 +21,7 @@ jobs:
           pip install requests beautifulsoup4 lxml
 
       - name: Scrape CBS injuries
-        run: python api/web/update_injuries.py
+        run: python api/static/update_injuries.py
 
       - name: Commit and push
         run: |
