@@ -8,7 +8,5 @@ LICENSE
 **/.env
 **/.idea
 **/.github
-common/
-dev_scripts/
 Dockerfile
 docker-compose.yml

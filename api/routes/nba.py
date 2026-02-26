@@ -1,226 +1,229 @@
-"""
-NBA Stables REST API
-FastAPI backend for live NBA statistics
-"""
-
-import json
-import logging
 import os
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, datetime, timedelta
-from logging.handlers import RotatingFileHandler
-from typing import Any, Dict, Optional
-from zoneinfo import ZoneInfo
 
-import uvicorn
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import APIRouter, HTTPException, Query
+from helpers.common import CACHE_TTL, SimpleCache
+from helpers.logger import log_exceptions
+from helpers.stats import (
+    convert_et_to_cet,
+    fetch_single_boxscore,
+    fix_encoding,
+    get_display_date,
+    get_games_leaders_list,
+    get_games_list,
+    load_players_file,
+    reformat_player_minutes,
+)
 from isodate import parse_duration
 from nba_api.live.nba.endpoints import boxscore, scoreboard
-from nba_api.stats.endpoints import (
-    boxscoreadvancedv3,
-    boxscoretraditionalv3,
-    leaguestandings,
-    scoreboardv3,
-)
+from nba_api.stats.endpoints import boxscoreadvancedv3, leaguestandings
 
-from common.http import NBA_STATS_HEADERS
-
-# SOCKS5 proxy for stats.nba.com (Cloudflare WARP on the host)
+router = APIRouter()
 STATS_PROXY = os.environ.get("STATS_PROXY", None)
-
-app = FastAPI(
-    title="NBA Stables API",
-    description="Live NBA statistics API",
-    version="1.0.0",
-    docs_url=None,
-    redoc_url=None,
-    openapi_url=None,
-)
-
-# Enable CORS for frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-PLAYERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "players_with_teamid.json")
-CBS_INJURIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cbs_injuries.json")
-ERROR_LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs/error.log")
-
-
-# Simple in-memory cache
-class SimpleCache:
-    def __init__(self):
-        self._cache: Dict[str, Dict[str, Any]] = {}
-
-    def get(self, key: str) -> Optional[Any]:
-        if key in self._cache:
-            entry = self._cache[key]
-            if time.time() < entry["expires"]:
-                return entry["data"]
-            del self._cache[key]
-        return None
-
-    def set(self, key: str, data: Any, ttl_seconds: int):
-        self._cache[key] = {"data": data, "expires": time.time() + ttl_seconds}
-
-    def clear(self):
-        self._cache.clear()
-
-
 cache = SimpleCache()
 
-# Cache TTLs (in seconds)
-CACHE_TTL = {
-    "scoreboard": 30,  # 30 seconds - live scores change frequently
-    "boxscores": 60,  # 1 minute
-    "leaders": 300,  # 5 minutes
-    "standings": 3600,  # 1 hour - doesn't change often
-    "player_stats": 30,  # 30 seconds
-    "historical": 86400,  # 24 hours - days_offset >= 2 never changes
-    "injuries": 7200,  # 2 hours - injury reports don't change often, avoid rate limits
-}
-
-if not os.path.exists("logs"):
-    os.makedirs("logs")
-# logger setup
-logger = logging.getLogger(__name__)
-handler = logging.StreamHandler()
-rotating_logfile_handler = RotatingFileHandler(
-    ERROR_LOG_FILE,
-    maxBytes=2 * 1024 * 1024,
-    backupCount=5,
-    encoding="utf-8",
-)
-
-formatter = logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
-rotating_logfile_handler.setFormatter(formatter)
-
-logger.addHandler(rotating_logfile_handler)
-
-
-def log_exceptions(exception: Exception):
-    logger.exception(exception)
-
-
-# Helper functions
-def get_date_str(days_offset: int = 0) -> str:
-    target_date = date.today() - timedelta(days=days_offset)
-    return target_date.strftime("%Y-%m-%d")
-
-
-def get_display_date(days_offset: int = 0) -> str:
-    target_date = date.today() - timedelta(days=days_offset)
-    return target_date.strftime("%B %d, %Y")
-
-
-def convert_et_to_cet(time_str: str) -> str:
-    """Convert NBA game time from US/Eastern to CET (e.g. '7:00 pm ET' -> '23:00 CET')"""
-    import re
+@router.get("/api/boxscores")
+def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
+    """Get detailed box scores for games"""
+    cache_key = f"boxscores_{days_offset}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
 
     try:
-        m = re.match(r"(\d{1,2}):(\d{2})\s*(am|pm)", time_str.strip(), re.IGNORECASE)
-        if not m:
-            return time_str
-        hour, minute, ampm = int(m.group(1)), int(m.group(2)), m.group(3).lower()
-        if ampm == "pm" and hour != 12:
-            hour += 12
-        elif ampm == "am" and hour == 12:
-            hour = 0
-        now = datetime.now()
-        naive_dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        et_dt = naive_dt.replace(tzinfo=ZoneInfo("US/Eastern"))
-        cet_dt = et_dt.astimezone(ZoneInfo("Europe/Berlin"))
-        return cet_dt.strftime("%H:%M CET")
-    except Exception as ex:
-        logger.exception(ex)
-        return time_str
+        # Use the helper function to get games with leaders
+        leaders_by_game = get_games_leaders_list(days_offset)
+
+        # Fetch all boxscores in parallel
+        boxscores_list = []
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {
+                executor.submit(fetch_single_boxscore, game_id, leaders_data): game_id
+                for game_id, leaders_data in leaders_by_game.items()
+                if leaders_data
+            }
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    boxscores_list.append(result)
+
+        result = {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
+        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
+        cache.set(cache_key, result, ttl)
+        return result
+    except Exception as e:
+        log_exceptions(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-def reformat_player_minutes(total_seconds: int) -> str:
-    minutes = total_seconds // 60
-    seconds = total_seconds % 60
-    return f"{minutes}:{seconds:02d}"
-
-
-def fix_encoding(s: str) -> str:
-    """Fix nba_api mojibake: UTF-8 bytes decoded as Latin-1"""
+@router.get("/api/players/search")
+def search_players(q: str = Query(..., min_length=2)):
+    """Search for players by name"""
     try:
-        return s.encode("iso-8859-1").decode("utf-8")
-    except (UnicodeDecodeError, UnicodeEncodeError):
-        return s
+        players = load_players_file()
+        results = []
+        query = q.lower()
+
+        for player in players:
+            if query in player[1].lower():
+                results.append({"id": player[0], "name": player[1], "teamId": player[2]})
+
+        return {"players": results[:20]}  # Limit to 20 results
+    except Exception as e:
+        log_exceptions(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-def load_players_file():
-    with open(PLAYERS_FILE, "r") as f:
-        return json.load(f)
-
-
-def get_games_list(days_offset: int = 1):
-    """Get list of game IDs for a given date offset"""
-    g_dict = []
-    target_date = date.today() - timedelta(days=days_offset)
+@router.get("/api/players/stats")
+def get_player_stats(ids: str = Query(..., description="Comma-separated player IDs")):
+    """Get live stats for specific players"""
     try:
-        sb = scoreboardv3.ScoreboardV3(
-            game_date=target_date.strftime("%Y-%m-%d"),
-            headers=NBA_STATS_HEADERS,
-            proxy=STATS_PROXY,
-        )
-        games = sb.game_header.get_dict()
-        for g in games["data"]:
-            if g[2] > 1:
-                g_dict.append(g[0])
-    except Exception as ex:
-        logger.exception(ex)
-        pass
-    return list(set(g_dict))
+        player_ids = [int(pid.strip()) for pid in ids.split(",")]
+        players_data = load_players_file()
 
+        # Get team IDs for requested players
+        team_ids = []
+        for pid in player_ids:
+            player = next((p for p in players_data if p[0] == pid), None)
+            if player and player[2] and player[2] not in team_ids:
+                team_ids.append(player[2])
 
-def get_games_leaders_list(days_offset: int = 1):
-    """Get games with their leaders"""
-    g_dict = {}
-    target_date = date.today() - timedelta(days=days_offset)
+        results = []
+
+        for game in scoreboard.ScoreBoard().games.data:
+            if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids:
+                try:
+                    bs = boxscore.BoxScore(game_id=game["gameId"]).get_dict()
+                except Exception as ex:
+                    log_exceptions(ex)
+                    continue
+
+                for team_key in ["homeTeam", "awayTeam"]:
+                    team = bs["game"][team_key]
+                    for player in team["players"]:
+                        if player["personId"] in player_ids and player["status"] == "ACTIVE":
+                            stats = player["statistics"]
+                            try:
+                                minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
+                            except Exception as ex:
+                                log_exceptions(ex)
+                                minutes = "0:00"
+
+                            results.append(
+                                {
+                                    "id": player["personId"],
+                                    "name": fix_encoding(player["name"]),
+                                    "team": team["teamTricode"],
+                                    "minutes": minutes,
+                                    "points": stats["points"],
+                                    "threePointers": "{}/{}".format(
+                                        stats["threePointersMade"],
+                                        stats["threePointersAttempted"],
+                                    ),
+                                    "rebounds": stats["reboundsTotal"],
+                                    "assists": stats["assists"],
+                                    "blocks": stats["blocks"],
+                                    "steals": stats["steals"],
+                                    "turnovers": stats["turnovers"],
+                                }
+                            )
+
+        return {"players": results}
+    except ValueError as err:
+        log_exceptions(err)
+        raise HTTPException(status_code=400, detail="Invalid player IDs format")
+    except Exception as e:
+        log_exceptions(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/games/{game_id}/players")
+def get_game_players(game_id: str):
+    """Get all player stats for a specific game with advanced metrics"""
     try:
-        sb = scoreboardv3.ScoreboardV3(
-            game_date=target_date.strftime("%Y-%m-%d"),
-            headers=NBA_STATS_HEADERS,
-            proxy=STATS_PROXY,
-        )
-        games = sb.game_header.get_dict()
-        leaders = sb.game_leaders.get_dict()
+        bs = boxscore.BoxScore(game_id=game_id).get_dict()
 
-        # Get game IDs
-        for g in games["data"]:
-            if g[2] > 1:
-                game_id = g[0]
-                g_dict[game_id] = []
+        # Try to get advanced stats
+        try:
+            adv = boxscoreadvancedv3.BoxScoreAdvancedV3(
+                game_id=game_id,
+                proxy=STATS_PROXY,
+            )
+            adv_players = adv.player_stats.get_dict()["data"]
+        except Exception as ex:
+            log_exceptions(ex)
+            adv_players = []
 
-        for ld in leaders["data"]:
-            game_id = ld[0]
-            if game_id in g_dict:
-                team_id = ld[1]
-                pts_player = fix_encoding(ld[4])
-                pts = ld[9]
-                reb = ld[10]
-                ast = ld[11]
-                g_dict[game_id].append([pts_player, pts, reb, ast, team_id])
-    except Exception as ex:
-        logger.exception(ex)
-        pass
-    return g_dict
+        teams = []
 
+        for team_key in ["homeTeam", "awayTeam"]:
+            team = bs["game"][team_key]
+            team_data = {
+                "name": f"{team['teamCity']} {team['teamName']}",
+                "tricode": team["teamTricode"],
+                "score": team["score"],
+                "players": [],
+            }
 
-# API Endpoints
+            for player in team["players"]:
+                if player["status"] == "ACTIVE":
+                    stats = player["statistics"]
 
+                    try:
+                        minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
+                    except Exception as ex:
+                        log_exceptions(ex)
+                        minutes = "0:00"
 
-@app.get("/api/scoreboard")
+                    # Find advanced stats
+                    adv_stat = next((p for p in adv_players if p[6] == player["personId"]), None)
+
+                    fgm = stats["fieldGoalsMade"]
+                    fga = stats["fieldGoalsAttempted"]
+                    tpm = stats["threePointersMade"]
+                    fta = stats["freeThrowsAttempted"]
+                    ftm = stats["freeThrowsMade"]
+                    pts = stats["points"]
+
+                    ts_denom = 2 * (fga + 0.44 * fta)
+
+                    team_data["players"].append(
+                        {
+                            "id": player["personId"],
+                            "name": fix_encoding(player["name"]),
+                            "minutes": minutes,
+                            "points": pts,
+                            "rebounds": stats["reboundsTotal"],
+                            "offRebounds": stats["reboundsOffensive"],
+                            "defRebounds": stats["reboundsDefensive"],
+                            "assists": stats["assists"],
+                            "steals": stats["steals"],
+                            "blocks": stats["blocks"],
+                            "turnovers": stats["turnovers"],
+                            "fouls": stats["foulsPersonal"],
+                            "fg": f"{fgm}/{fga}",
+                            "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
+                            "threePt": f"{tpm}/{stats['threePointersAttempted']}",
+                            "ft": f"{ftm}/{fta}",
+                            "plusMinus": (adv_stat[14] if adv_stat else stats.get("plusMinusPoints", 0)),
+                            "efgPct": (round((fgm + 0.5 * tpm) / fga, 3) if fga > 0 else 0),
+                            "tsPct": round(pts / ts_denom, 3) if ts_denom > 0 else 0,
+                        }
+                    )
+
+            # Sort by minutes played (descending)
+            team_data["players"].sort(key=lambda x: x["minutes"], reverse=True)
+            teams.append(team_data)
+
+        return {
+            "gameId": game_id,
+            "status": bs["game"]["gameStatusText"],
+            "teams": teams,
+        }
+    except Exception as e:
+        log_exceptions(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/scoreboard")
 def get_scoreboard():
     """Get live scoreboard with game results and leading scorers"""
     # Check cache first
@@ -273,180 +276,10 @@ def get_scoreboard():
         cache.set("scoreboard", result, CACHE_TTL["scoreboard"])
         return result
     except Exception as e:
-        logger.exception(e)
+        log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
-
-def fetch_single_boxscore(game_id, leaders_data):
-    """Fetch boxscore for a single game (for parallel execution)"""
-    game_box = {}
-    try:
-        bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(
-            game_id=game_id,
-            headers=NBA_STATS_HEADERS,
-            proxy=STATS_PROXY,
-        )
-
-        team_stats = bs_stats.team_stats.get_dict()["data"]
-        game_box = {"gameId": game_id, "teams": []}
-
-        for i, team in enumerate(team_stats):
-            leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
-            team_id = team[1]  # TEAM_ID from boxscore
-            ld = next((leader for leader in leaders_data if len(leader) > 4 and leader[4] == team_id), None)
-            if ld:
-                leader = {
-                    "name": ld[0],
-                    "points": ld[1],
-                    "rebounds": ld[2],
-                    "assists": ld[3],
-                }
-
-            game_box["teams"].append(
-                {
-                    "name": "{} {}".format(team[2], team[3]),
-                    "score": team[-2],
-                    "stats": {
-                        "fg": "{}/{}".format(team[7], team[8]),
-                        "fgPct": team[9],
-                        "threePt": "{}/{}".format(team[10], team[11]),
-                        "threePtPct": team[12],
-                        "ft": "{}/{}".format(team[13], team[14]),
-                        "ftPct": team[15],
-                        "rebounds": team[18],
-                        "offRebounds": team[16],
-                        "assists": team[19],
-                        "steals": team[20],
-                        "blocks": team[21],
-                        "turnovers": team[22],
-                        "fouls": team[23],
-                    },
-                    "leader": leader,
-                }
-            )
-
-        return game_box
-    except Exception as ex:
-        logger.exception(ex)
-        return game_box
-
-
-@app.get("/api/boxscores")
-def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
-    """Get detailed box scores for games"""
-    cache_key = f"boxscores_{days_offset}"
-    cached = cache.get(cache_key)
-    if cached:
-        return cached
-
-    try:
-        # Use the helper function to get games with leaders
-        leaders_by_game = get_games_leaders_list(days_offset)
-
-        # Fetch all boxscores in parallel
-        boxscores_list = []
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = {
-                executor.submit(fetch_single_boxscore, game_id, leaders_data): game_id
-                for game_id, leaders_data in leaders_by_game.items()
-                if leaders_data
-            }
-            for future in as_completed(futures):
-                result = future.result()
-                if result:
-                    boxscores_list.append(result)
-
-        result = {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
-        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
-        cache.set(cache_key, result, ttl)
-        return result
-    except Exception as e:
-        logger.exception(e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/players/search")
-def search_players(q: str = Query(..., min_length=2)):
-    """Search for players by name"""
-    try:
-        players = load_players_file()
-        results = []
-        query = q.lower()
-
-        for player in players:
-            if query in player[1].lower():
-                results.append({"id": player[0], "name": player[1], "teamId": player[2]})
-
-        return {"players": results[:20]}  # Limit to 20 results
-    except Exception as e:
-        logger.exception(e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/players/stats")
-def get_player_stats(ids: str = Query(..., description="Comma-separated player IDs")):
-    """Get live stats for specific players"""
-    try:
-        player_ids = [int(pid.strip()) for pid in ids.split(",")]
-        players_data = load_players_file()
-
-        # Get team IDs for requested players
-        team_ids = []
-        for pid in player_ids:
-            player = next((p for p in players_data if p[0] == pid), None)
-            if player and player[2] and player[2] not in team_ids:
-                team_ids.append(player[2])
-
-        results = []
-
-        for game in scoreboard.ScoreBoard().games.data:
-            if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids:
-                try:
-                    bs = boxscore.BoxScore(game_id=game["gameId"]).get_dict()
-                except Exception as ex:
-                    logger.exception(ex)
-                    continue
-
-                for team_key in ["homeTeam", "awayTeam"]:
-                    team = bs["game"][team_key]
-                    for player in team["players"]:
-                        if player["personId"] in player_ids and player["status"] == "ACTIVE":
-                            stats = player["statistics"]
-                            try:
-                                minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
-                            except Exception as ex:
-                                logger.exception(ex)
-                                minutes = "0:00"
-
-                            results.append(
-                                {
-                                    "id": player["personId"],
-                                    "name": fix_encoding(player["name"]),
-                                    "team": team["teamTricode"],
-                                    "minutes": minutes,
-                                    "points": stats["points"],
-                                    "threePointers": "{}/{}".format(
-                                        stats["threePointersMade"],
-                                        stats["threePointersAttempted"],
-                                    ),
-                                    "rebounds": stats["reboundsTotal"],
-                                    "assists": stats["assists"],
-                                    "blocks": stats["blocks"],
-                                    "steals": stats["steals"],
-                                    "turnovers": stats["turnovers"],
-                                }
-                            )
-
-        return {"players": results}
-    except ValueError:
-        logger.exception("Invalid player IDs format")
-        raise HTTPException(status_code=400, detail="Invalid player IDs format")
-    except Exception as e:
-        logger.exception(e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/leaders")
+@router.get("/api/leaders")
 def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
     """Get daily leaders across statistical categories"""
     cache_key = f"leaders_{days_offset}"
@@ -464,7 +297,7 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
             try:
                 return boxscore.BoxScore(game_id=gid).get_dict()
             except Exception as ex:
-                logger.exception(ex)
+                log_exceptions(ex)
                 return {}
 
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -518,11 +351,11 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
-        logger.exception(e)
+        log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/standings")
+@router.get("/api/standings")
 def get_standings():
     """Get current NBA standings by conference"""
     cached = cache.get("standings")
@@ -531,7 +364,6 @@ def get_standings():
 
     try:
         standings = leaguestandings.LeagueStandings(
-            headers=NBA_STATS_HEADERS,
             proxy=STATS_PROXY,
         ).get_dict()
         teams = standings["resultSets"][0]["rowSet"]
@@ -571,11 +403,11 @@ def get_standings():
         cache.set("standings", result, CACHE_TTL["standings"])
         return result
     except Exception as e:
-        logger.exception(e)
+        log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/players/advanced")
+@router.get("/api/players/advanced")
 def get_player_advanced_stats(
     ids: str = Query(..., description="Comma-separated player IDs"),
 ):
@@ -601,19 +433,18 @@ def get_player_advanced_stats(
                 try:
                     bs = boxscore.BoxScore(game_id=game_id).get_dict()
                 except Exception as ex:
-                    logger.exception(ex)
+                    log_exceptions(ex)
                     continue
 
                 # Get advanced stats
                 try:
                     adv = boxscoreadvancedv3.BoxScoreAdvancedV3(
                         game_id=game_id,
-                        headers=NBA_STATS_HEADERS,
                         proxy=STATS_PROXY,
                     )
                     adv_players = adv.player_stats.get_dict()["data"]
                 except Exception as ex:
-                    logger.exception(ex)
+                    log_exceptions(ex)
                     adv_players = []
 
                 for team_key in ["homeTeam", "awayTeam"]:
@@ -631,7 +462,7 @@ def get_player_advanced_stats(
                             try:
                                 minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
                             except Exception as ex:
-                                logger.exception(ex)
+                                log_exceptions(ex)
                                 minutes = "0:00"
 
                             # Calculate efficiency metrics
@@ -683,15 +514,15 @@ def get_player_advanced_stats(
                             results.append(player_result)
 
         return {"players": results}
-    except ValueError:
-        logger.exception("Invalid player IDs format")
+    except ValueError as err:
+        log_exceptions(err)
         raise HTTPException(status_code=400, detail="Invalid player IDs format")
     except Exception as e:
-        logger.exception(e)
+        log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/doubledoubles")
+@router.get("/api/doubledoubles")
 def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
     """Get players with double-doubles or triple-doubles for a given day"""
     cache_key = f"doubledoubles_{days_offset}"
@@ -713,7 +544,7 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
             try:
                 return boxscore.BoxScore(game_id=gid).get_dict()
             except Exception as ex:
-                logger.exception(ex)
+                log_exceptions(ex)
                 return {}
 
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -770,156 +601,5 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
-        logger.exception(e)
+        log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/games/{game_id}/players")
-def get_game_players(game_id: str):
-    """Get all player stats for a specific game with advanced metrics"""
-    try:
-        bs = boxscore.BoxScore(game_id=game_id).get_dict()
-
-        # Try to get advanced stats
-        try:
-            adv = boxscoreadvancedv3.BoxScoreAdvancedV3(
-                game_id=game_id,
-                headers=NBA_STATS_HEADERS,
-                proxy=STATS_PROXY,
-            )
-            adv_players = adv.player_stats.get_dict()["data"]
-        except Exception as ex:
-            logger.exception(ex)
-            adv_players = []
-
-        teams = []
-
-        for team_key in ["homeTeam", "awayTeam"]:
-            team = bs["game"][team_key]
-            team_data = {
-                "name": f"{team['teamCity']} {team['teamName']}",
-                "tricode": team["teamTricode"],
-                "score": team["score"],
-                "players": [],
-            }
-
-            for player in team["players"]:
-                if player["status"] == "ACTIVE":
-                    stats = player["statistics"]
-
-                    try:
-                        minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
-                    except Exception as ex:
-                        logger.exception(ex)
-                        minutes = "0:00"
-
-                    # Find advanced stats
-                    adv_stat = next((p for p in adv_players if p[6] == player["personId"]), None)
-
-                    fgm = stats["fieldGoalsMade"]
-                    fga = stats["fieldGoalsAttempted"]
-                    tpm = stats["threePointersMade"]
-                    fta = stats["freeThrowsAttempted"]
-                    ftm = stats["freeThrowsMade"]
-                    pts = stats["points"]
-
-                    ts_denom = 2 * (fga + 0.44 * fta)
-
-                    team_data["players"].append(
-                        {
-                            "id": player["personId"],
-                            "name": fix_encoding(player["name"]),
-                            "minutes": minutes,
-                            "points": pts,
-                            "rebounds": stats["reboundsTotal"],
-                            "offRebounds": stats["reboundsOffensive"],
-                            "defRebounds": stats["reboundsDefensive"],
-                            "assists": stats["assists"],
-                            "steals": stats["steals"],
-                            "blocks": stats["blocks"],
-                            "turnovers": stats["turnovers"],
-                            "fouls": stats["foulsPersonal"],
-                            "fg": f"{fgm}/{fga}",
-                            "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
-                            "threePt": f"{tpm}/{stats['threePointersAttempted']}",
-                            "ft": f"{ftm}/{fta}",
-                            "plusMinus": (adv_stat[14] if adv_stat else stats.get("plusMinusPoints", 0)),
-                            "efgPct": (round((fgm + 0.5 * tpm) / fga, 3) if fga > 0 else 0),
-                            "tsPct": round(pts / ts_denom, 3) if ts_denom > 0 else 0,
-                        }
-                    )
-
-            # Sort by minutes played (descending)
-            team_data["players"].sort(key=lambda x: x["minutes"], reverse=True)
-            teams.append(team_data)
-
-        return {
-            "gameId": game_id,
-            "status": bs["game"]["gameStatusText"],
-            "teams": teams,
-        }
-    except Exception as e:
-        logger.exception(e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "date": get_display_date(0)}
-
-
-@app.get("/api/injuries")
-def get_injuries():
-    """Get NBA injury report from CBS Sports"""
-    cached = cache.get("injuries")
-    if cached:
-        return cached
-
-    try:
-        if not os.path.exists(CBS_INJURIES_FILE):
-            raise HTTPException(status_code=503, detail="CBS injuries data not available")
-        with open(CBS_INJURIES_FILE, "r", encoding="utf-8") as f:
-            result = json.load(f)
-        cache.set("injuries", result, CACHE_TTL["injuries"])
-        return result
-    except Exception as e:
-        logger.exception(e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# Serve static files
-static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
-if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
-
-
-@app.get("/sitemap.xml")
-async def serve_sitemap():
-    """Serve sitemap.xml"""
-    sitemap_path = os.path.join(static_dir, "sitemap.xml")
-    if os.path.exists(sitemap_path):
-        return FileResponse(sitemap_path, media_type="application/xml")
-    raise HTTPException(status_code=404, detail="Sitemap not found")
-
-
-@app.get("/about")
-async def serve_about():
-    """Serve the about page"""
-    about_path = os.path.join(static_dir, "about.html")
-    if os.path.exists(about_path):
-        return FileResponse(about_path)
-    raise HTTPException(status_code=404, detail="Page not found")
-
-
-@app.get("/")
-async def serve_frontend():
-    """Serve the frontend"""
-    index_path = os.path.join(static_dir, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"message": "NBA Stables API", "docs": "/docs"}
-
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
