@@ -541,7 +541,7 @@
         }
 
         .player-chip {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
             padding: 8px 15px;
@@ -549,6 +549,7 @@
             border: 1px solid var(--accent);
             border-radius: 20px;
             font-size: 0.9rem;
+            width: fit-content;
         }
 
         .player-chip-remove {
@@ -822,6 +823,7 @@
                 <button class="nav-tab" data-section="tracker">Player Tracker</button>
                 <button class="nav-tab" data-section="standings">Standings</button>
                 <button class="nav-tab" data-section="injuries">Injuries</button>
+                <button class="nav-tab" data-section="lastngames">Last N Games</button>
                 <button class="nav-tab" data-section="download">App</button>
                 <a href="/about" class="nav-tab" style="text-decoration: none;">About</a>
             </div>
@@ -932,6 +934,34 @@
                 </div>
                 <div id="injuriesContent">
                     <div class="loading"><div class="spinner"></div> Loading injury report...</div>
+                </div>
+            </section>
+
+            <!-- Last N Games Section -->
+            <section id="lastngames" class="section">
+                <div class="section-title">Last N Games</div>
+                <div class="player-search">
+                    <div class="search-container">
+                        <div class="search-input-wrapper">
+                            <input type="text" class="search-input" id="lastNSearch" placeholder="Search for a player..." autocomplete="off">
+                            <div class="search-results" id="lastNSearchResults"></div>
+                        </div>
+                        <button class="btn" id="lastNBtn" onclick="loadLastNGames()" disabled>Get Stats</button>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; margin-top: 12px;">
+                        <span style="color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap;">Last:</span>
+                        <button class="date-btn active" data-n="5" style="padding: 8px 10px; min-width: unset;">5</button>
+                        <button class="date-btn" data-n="10" style="padding: 8px 10px; min-width: unset;">10</button>
+                        <button class="date-btn" data-n="15" style="padding: 8px 10px; min-width: unset;">15</button>
+                    </div>
+                    <div id="lastNPlayerChip" style="margin-top: 10px;"></div>
+                </div>
+                <div id="lastNContent">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#128202;</div>
+                        <div class="empty-state-title">Last N Games Stats</div>
+                        <p>Search for a player to view their recent game log</p>
+                    </div>
                 </div>
             </section>
 
@@ -1669,6 +1699,170 @@
                     <div class="empty-state">
                         <div class="empty-state-icon">&#9888;</div>
                         <div class="empty-state-title">Error Loading Injuries</div>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Last N Games
+        let lastNSelectedPlayer = null;
+        let lastNGamesCount = 5;
+
+        const lastNSearch = document.getElementById('lastNSearch');
+        const lastNSearchResults = document.getElementById('lastNSearchResults');
+        let lastNSearchTimeout;
+
+        document.querySelectorAll('#lastngames .date-btn[data-n]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#lastngames .date-btn[data-n]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                lastNGamesCount = parseInt(btn.dataset.n);
+            });
+        });
+
+        lastNSearch.addEventListener('input', () => {
+            clearTimeout(lastNSearchTimeout);
+            const query = lastNSearch.value.trim();
+            if (query.length < 2) {
+                lastNSearchResults.classList.remove('show');
+                return;
+            }
+            lastNSearchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/players/search?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+                    if (data.players.length === 0) {
+                        lastNSearchResults.innerHTML = '<div class="search-result-item">No players found</div>';
+                    } else {
+                        lastNSearchResults.innerHTML = data.players.map(p => `
+                            <div class="search-result-item" data-id="${p.id}" data-name="${p.name}">
+                                <span>${p.name}</span>
+                                <span style="color: var(--text-secondary); font-size: 0.85rem;">ID: ${p.id}</span>
+                            </div>
+                        `).join('');
+                    }
+                    lastNSearchResults.classList.add('show');
+                } catch (err) {
+                    lastNSearchResults.innerHTML = '<div class="search-result-item">Error searching</div>';
+                    lastNSearchResults.classList.add('show');
+                }
+            }, 300);
+        });
+
+        lastNSearchResults.addEventListener('click', (e) => {
+            const item = e.target.closest('.search-result-item');
+            if (item && item.dataset.id) {
+                lastNSelectedPlayer = { id: parseInt(item.dataset.id), name: item.dataset.name };
+                lastNSearch.value = '';
+                lastNSearchResults.classList.remove('show');
+                document.getElementById('lastNPlayerChip').innerHTML = `
+                    <div class="player-chip">
+                        <span>${lastNSelectedPlayer.name}</span>
+                        <button class="player-chip-remove" onclick="lastNSelectedPlayer=null; document.getElementById('lastNPlayerChip').innerHTML=''; document.getElementById('lastNBtn').disabled=true;">&times;</button>
+                    </div>
+                `;
+                document.getElementById('lastNBtn').disabled = false;
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!lastNSearch.contains(e.target) && !lastNSearchResults.contains(e.target)) {
+                lastNSearchResults.classList.remove('show');
+            }
+        });
+
+        async function loadLastNGames() {
+            if (!lastNSelectedPlayer) return;
+            const container = document.getElementById('lastNContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading game log...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/players/${lastNSelectedPlayer.id}/last-n-games?n=${lastNGamesCount}`);
+                const data = await res.json();
+
+                if (!data.games || data.games.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#128564;</div>
+                            <div class="empty-state-title">No Games Found</div>
+                            <p>No recent game data available for ${data.playerName}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const avgOf = (key) => {
+                    const played = data.games.filter(g => !g.dnp);
+                    if (!played.length) return '-';
+                    const sum = played.reduce((acc, g) => acc + (g[key] || 0), 0);
+                    return (sum / played.length).toFixed(1);
+                };
+
+                container.innerHTML = `
+                    <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 0.85rem;">
+                        ${data.games.filter(g => !g.dnp).length} games played of ${data.games.length} shown
+                    </div>
+                    <div class="card" style="overflow-x: auto;">
+                        <table class="player-stats-table">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">Matchup</th>
+                                    <th>MIN</th>
+                                    <th>PTS</th>
+                                    <th>FG</th>
+                                    <th>3P</th>
+                                    <th>FT</th>
+                                    <th>REB</th>
+                                    <th>AST</th>
+                                    <th>BLK</th>
+                                    <th>STL</th>
+                                    <th>PF</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.games.map(g => g.dnp ? `
+                                    <tr style="opacity: 0.5;">
+                                        <td style="text-align: left;">${g.matchup}</td>
+                                        <td colspan="10" style="text-align: center; color: var(--text-secondary); font-style: italic;">DNP</td>
+                                    </tr>
+                                ` : `
+                                    <tr>
+                                        <td style="text-align: left; white-space: nowrap; font-size: 0.8rem;">${g.matchup}</td>
+                                        <td>${g.minutes}</td>
+                                        <td class="${g.points >= 20 ? 'highlight' : ''}">${g.points}</td>
+                                        <td>${g.fg}</td>
+                                        <td>${g.threePointers}</td>
+                                        <td>${g.ft}</td>
+                                        <td class="${g.rebounds >= 10 ? 'highlight' : ''}">${g.rebounds}</td>
+                                        <td class="${g.assists >= 10 ? 'highlight' : ''}">${g.assists}</td>
+                                        <td>${g.blocks}</td>
+                                        <td>${g.steals}</td>
+                                        <td>${g.fouls}</td>
+                                    </tr>
+                                `).join('')}
+                                <tr style="border-top: 2px solid var(--accent); background: var(--bg-secondary); font-weight: 600;">
+                                    <td style="text-align: left; color: var(--text-secondary);">AVG</td>
+                                    <td>-</td>
+                                    <td class="highlight">${avgOf('points')}</td>
+                                    <td>-</td>
+                                    <td>-</td>
+                                    <td>-</td>
+                                    <td>${avgOf('rebounds')}</td>
+                                    <td>${avgOf('assists')}</td>
+                                    <td>${avgOf('blocks')}</td>
+                                    <td>${avgOf('steals')}</td>
+                                    <td>-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#9888;</div>
+                        <div class="empty-state-title">Error Loading Stats</div>
                         <p>${error.message}</p>
                     </div>
                 `;
