@@ -23,7 +23,9 @@ services:
     environment:
       - TZ=Europe/Berlin
     volumes:
-      - ./:/app
+      - type: bind
+        source: ./
+        target: /app
   umami:
     profiles: [ "prod" ]
     image: ghcr.io/umami-software/umami:postgresql-latest

@@ -32,3 +32,4 @@ jobs:
           git commit -m "update CBS injuries data"
           git pull --rebase origin main
           git push
+          git pull

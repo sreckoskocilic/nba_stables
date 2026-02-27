@@ -63,6 +63,8 @@ for gg in game_ids:
 
 
 print("\n" + pl_name)
+
+
 print(
     tabulate(
         stats,
