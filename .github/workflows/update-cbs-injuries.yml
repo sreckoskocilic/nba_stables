@@ -30,10 +30,15 @@ jobs:
           git add api/static/cbs_injuries.json
           git diff --cached --quiet && exit 0
           git commit -m "update CBS injuries data"
-          git pull --rebase origin main
-          git push
+          git pull origin main -r
+          git push -u origin main
 
-      - name: Pull the changes
-        run: |
-          cd /opt/nba_stables
-          git pull origin main
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/nba_stables
+            git pull origin main

@@ -35,6 +35,11 @@ jobs:
           git push -u origin main
 
       - name: Pull the changes
-        run: |
-          cd /opt/nba_stables
-          git pull origin main
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/nba_stables
+            git pull origin main
