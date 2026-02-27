@@ -13,13 +13,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from helpers.common import CACHE_TTL, SimpleCache
+from helpers.common import CACHE_TTL, cache
 from helpers.stats import get_display_date
 from routes.nba import router
 from routes.players import router as players_router
-
-# SOCKS5 proxy for stats.nba.com (Cloudflare WARP on the host)
-STATS_PROXY = os.environ.get("STATS_PROXY", None)
 
 app = FastAPI(
     title="NBA Stables API",
@@ -45,7 +42,6 @@ app.include_router(players_router)
 
 CBS_INJURIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static/cbs_injuries.json")
 LOG_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log_config.yml")
-cache = SimpleCache()
 with open(LOG_CONFIG_FILE, 'r') as f:
     logging.config.dictConfig(yaml.safe_load(f.read()))
 

@@ -1,9 +1,7 @@
-import os
-import time
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, HTTPException, Query
-from helpers.common import CACHE_TTL, SimpleCache
+from helpers.common import CACHE_TTL, STATS_PROXY, cache
 from helpers.logger import log_exceptions
 from helpers.stats import fix_encoding, load_players_file, reformat_player_minutes
 from isodate import parse_duration
@@ -15,8 +13,6 @@ from nba_api.stats.endpoints import (
 )
 
 router = APIRouter()
-STATS_PROXY = os.environ.get("STATS_PROXY", None)
-cache = SimpleCache()
 
 @router.get("/api/players/search")
 def search_players(q: str = Query(..., min_length=2)):
@@ -51,44 +47,53 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
                 team_ids.append(player[2])
 
         results = []
+        relevant_game_ids = [
+            game["gameId"]
+            for game in scoreboard.ScoreBoard().games.data
+            if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids
+        ]
 
-        for game in scoreboard.ScoreBoard().games.data:
-            if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids:
-                try:
-                    bs = boxscore.BoxScore(game_id=game["gameId"]).get_dict()
-                except Exception:
-                    # Ignore exception as the game hasn't started yet (No response from boxscore endpoint for provided gameId)
-                    continue
+        def fetch_player_boxscore(game_id):
+            try:
+                return boxscore.BoxScore(game_id=game_id).get_dict()
+            except Exception:
+                return None
 
-                for team_key in ["homeTeam", "awayTeam"]:
-                    team = bs["game"][team_key]
-                    for player in team["players"]:
-                        if player["personId"] in player_ids and player["status"] == "ACTIVE":
-                            stats = player["statistics"]
-                            try:
-                                minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
-                            except Exception as ex:
-                                log_exceptions(ex)
-                                minutes = "0:00"
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            boxscores = list(executor.map(fetch_player_boxscore, relevant_game_ids))
 
-                            results.append(
-                                {
-                                    "id": player["personId"],
-                                    "name": fix_encoding(player["name"]),
-                                    "team": team["teamTricode"],
-                                    "minutes": minutes,
-                                    "points": stats["points"],
-                                    "threePointers": "{}/{}".format(
-                                        stats["threePointersMade"],
-                                        stats["threePointersAttempted"],
-                                    ),
-                                    "rebounds": stats["reboundsTotal"],
-                                    "assists": stats["assists"],
-                                    "blocks": stats["blocks"],
-                                    "steals": stats["steals"],
-                                    "turnovers": stats["turnovers"],
-                                }
-                            )
+        for bs in boxscores:
+            if not bs:
+                continue
+            for team_key in ["homeTeam", "awayTeam"]:
+                team = bs["game"][team_key]
+                for player in team["players"]:
+                    if player["personId"] in player_ids and player["status"] == "ACTIVE":
+                        stats = player["statistics"]
+                        try:
+                            minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
+                        except Exception as ex:
+                            log_exceptions(ex)
+                            minutes = "0:00"
+
+                        results.append(
+                            {
+                                "id": player["personId"],
+                                "name": fix_encoding(player["name"]),
+                                "team": team["teamTricode"],
+                                "minutes": minutes,
+                                "points": stats["points"],
+                                "threePointers": "{}/{}".format(
+                                    stats["threePointersMade"],
+                                    stats["threePointersAttempted"],
+                                ),
+                                "rebounds": stats["reboundsTotal"],
+                                "assists": stats["assists"],
+                                "blocks": stats["blocks"],
+                                "steals": stats["steals"],
+                                "turnovers": stats["turnovers"],
+                            }
+                        )
 
         return {"players": results}
     except ValueError as err:

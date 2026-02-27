@@ -1,8 +1,7 @@
-import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import APIRouter, HTTPException, Query
-from helpers.common import CACHE_TTL, SimpleCache
+from helpers.common import CACHE_TTL, STATS_PROXY, cache
 from helpers.logger import log_exceptions
 from helpers.stats import (
     convert_et_to_cet,
@@ -19,8 +18,6 @@ from nba_api.live.nba.endpoints import boxscore, scoreboard
 from nba_api.stats.endpoints import boxscoreadvancedv3, leaguestandings
 
 router = APIRouter()
-STATS_PROXY = os.environ.get("STATS_PROXY", None)
-cache = SimpleCache()
 
 @router.get("/api/boxscores")
 def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
@@ -259,94 +256,90 @@ def get_player_advanced_stats(
                 team_ids.append(player[2])
 
         results = []
+        relevant_game_ids = [
+            game["gameId"]
+            for game in scoreboard.ScoreBoard().games.data
+            if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids
+        ]
 
-        for game in scoreboard.ScoreBoard().games.data:
-            if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids:
-                game_id = game["gameId"]
+        def fetch_advanced_boxscore(game_id):
+            try:
+                bs = boxscore.BoxScore(game_id=game_id).get_dict()
+            except Exception as ex:
+                log_exceptions(ex)
+                return None, []
+            try:
+                adv = boxscoreadvancedv3.BoxScoreAdvancedV3(
+                    game_id=game_id, proxy=STATS_PROXY,
+                )
+                adv_players = adv.player_stats.get_dict()["data"]
+            except Exception as ex:
+                log_exceptions(ex)
+                adv_players = []
+            return bs, adv_players
 
-                # Get live boxscore for basic stats
-                try:
-                    bs = boxscore.BoxScore(game_id=game_id).get_dict()
-                except Exception as ex:
-                    log_exceptions(ex)
-                    continue
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            game_data = list(executor.map(fetch_advanced_boxscore, relevant_game_ids))
 
-                # Get advanced stats
-                try:
-                    adv = boxscoreadvancedv3.BoxScoreAdvancedV3(
-                        game_id=game_id,
-                        proxy=STATS_PROXY,
-                    )
-                    adv_players = adv.player_stats.get_dict()["data"]
-                except Exception as ex:
-                    log_exceptions(ex)
-                    adv_players = []
+        for bs, adv_players in game_data:
+            if not bs:
+                continue
+            for team_key in ["homeTeam", "awayTeam"]:
+                team = bs["game"][team_key]
+                for player in team["players"]:
+                    if player["personId"] in player_ids and player["status"] == "ACTIVE":
+                        stats = player["statistics"]
 
-                for team_key in ["homeTeam", "awayTeam"]:
-                    team = bs["game"][team_key]
-                    for player in team["players"]:
-                        if player["personId"] in player_ids and player["status"] == "ACTIVE":
-                            stats = player["statistics"]
+                        adv_stat = next(
+                            (p for p in adv_players if p[6] == player["personId"]),
+                            None,
+                        )
 
-                            # Find advanced stats for this player
-                            adv_stat = next(
-                                (p for p in adv_players if p[6] == player["personId"]),
-                                None,
-                            )
+                        try:
+                            minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
+                        except Exception as ex:
+                            log_exceptions(ex)
+                            minutes = "0:00"
 
-                            try:
-                                minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
-                            except Exception as ex:
-                                log_exceptions(ex)
-                                minutes = "0:00"
+                        pts = stats["points"]
+                        fgm = stats["fieldGoalsMade"]
+                        fga = stats["fieldGoalsAttempted"]
+                        tpm = stats["threePointersMade"]
+                        fta = stats["freeThrowsAttempted"]
+                        ftm = stats["freeThrowsMade"]
+                        reb = stats["reboundsTotal"]
+                        ast = stats["assists"]
+                        stl = stats["steals"]
+                        blk = stats["blocks"]
+                        tov = stats["turnovers"]
 
-                            # Calculate efficiency metrics
-                            pts = stats["points"]
-                            fgm = stats["fieldGoalsMade"]
-                            fga = stats["fieldGoalsAttempted"]
-                            tpm = stats["threePointersMade"]
-                            fta = stats["freeThrowsAttempted"]
-                            ftm = stats["freeThrowsMade"]
-                            reb = stats["reboundsTotal"]
-                            ast = stats["assists"]
-                            stl = stats["steals"]
-                            blk = stats["blocks"]
-                            tov = stats["turnovers"]
+                        ts_denom = 2 * (fga + 0.44 * fta)
+                        ts_pct = round(pts / ts_denom, 3) if ts_denom > 0 else 0
+                        efg_pct = round((fgm + 0.5 * tpm) / fga, 3) if fga > 0 else 0
+                        double_digits = sum(1 for x in [pts, reb, ast, stl, blk] if x >= 10)
 
-                            # True Shooting %: PTS / (2 * (FGA + 0.44 * FTA))
-                            ts_denom = 2 * (fga + 0.44 * fta)
-                            ts_pct = round(pts / ts_denom, 3) if ts_denom > 0 else 0
-
-                            # Effective FG%: (FGM + 0.5 * 3PM) / FGA
-                            efg_pct = round((fgm + 0.5 * tpm) / fga, 3) if fga > 0 else 0
-
-                            # Check for double-double / triple-double
-                            double_digits = sum(1 for x in [pts, reb, ast, stl, blk] if x >= 10)
-
-                            player_result = {
-                                "id": player["personId"],
-                                "name": fix_encoding(player["name"]),
-                                "team": team["teamTricode"],
-                                "minutes": minutes,
-                                "points": pts,
-                                "rebounds": reb,
-                                "assists": ast,
-                                "steals": stl,
-                                "blocks": blk,
-                                "turnovers": tov,
-                                "fg": f"{fgm}/{fga}",
-                                "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
-                                "threePt": f"{tpm}/{stats['threePointersAttempted']}",
-                                "ft": f"{ftm}/{fta}",
-                                "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
-                                "efgPct": efg_pct,
-                                "tsPct": ts_pct,
-                                "plusMinus": (adv_stat[14] if adv_stat else stats.get("plusMinusPoints", 0)),
-                                "isDoubleDouble": double_digits >= 2,
-                                "isTripleDouble": double_digits >= 3,
-                            }
-
-                            results.append(player_result)
+                        results.append({
+                            "id": player["personId"],
+                            "name": fix_encoding(player["name"]),
+                            "team": team["teamTricode"],
+                            "minutes": minutes,
+                            "points": pts,
+                            "rebounds": reb,
+                            "assists": ast,
+                            "steals": stl,
+                            "blocks": blk,
+                            "turnovers": tov,
+                            "fg": f"{fgm}/{fga}",
+                            "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
+                            "threePt": f"{tpm}/{stats['threePointersAttempted']}",
+                            "ft": f"{ftm}/{fta}",
+                            "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
+                            "efgPct": efg_pct,
+                            "tsPct": ts_pct,
+                            "plusMinus": (adv_stat[14] if adv_stat else stats.get("plusMinusPoints", 0)),
+                            "isDoubleDouble": double_digits >= 2,
+                            "isTripleDouble": double_digits >= 3,
+                        })
 
         return {"players": results}
     except ValueError as err:
