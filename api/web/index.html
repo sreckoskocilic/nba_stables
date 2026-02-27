@@ -377,7 +377,7 @@
         .boxscore-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.75rem;
+            font-size: 0.82rem;
         }
 
         .boxscore-table th,
@@ -391,7 +391,7 @@
             background: var(--bg-secondary);
             color: var(--text-secondary);
             font-weight: 500;
-            font-size: 0.65rem;
+            font-size: 0.72rem;
             text-transform: uppercase;
         }
 
@@ -591,30 +591,39 @@
         .player-stats-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            font-size: 0.92rem;
         }
 
         .player-stats-table th,
         .player-stats-table td {
-            padding: 15px;
+            padding: 4px 8px;
             text-align: center;
-            border-bottom: 1px solid var(--border);
+            border: 1px solid #2a3a4a;
         }
 
         .player-stats-table th {
-            background: var(--bg-secondary);
-            color: var(--text-secondary);
-            font-weight: 500;
-            font-size: 0.8rem;
+            background: #1a2a3a;
+            color: #8aaccc;
+            font-weight: 600;
+            font-size: 0.78rem;
             text-transform: uppercase;
+            letter-spacing: 0.03em;
         }
 
-        .player-stats-table td:first-child {
+        .player-stats-table tbody tr:nth-child(even) td {
+            background: #13131c;
+        }
+
+        .player-stats-table td:first-child,
+        .player-stats-table th:first-child {
             text-align: left;
+            white-space: nowrap;
+            width: 1%;
+            padding-left: 10px;
         }
 
-        .player-stats-table tbody tr:hover {
-            background: var(--bg-hover);
+        .player-stats-table tbody tr:hover td {
+            background: #1e2e40 !important;
         }
 
         /* Loading State */
@@ -781,13 +790,13 @@
             .boxscore-table th,
             .boxscore-table td {
                 padding: 3px 4px;
-                font-size: 0.65rem;
+                font-size: 0.72rem;
             }
 
             .player-stats-table th,
             .player-stats-table td {
-                padding: 10px 6px;
-                font-size: 0.75rem;
+                padding: 3px 5px;
+                font-size: 0.77rem;
             }
 
             .date-btn {
@@ -1439,7 +1448,7 @@
                     return `
                     <div style="padding: 8px; border-top: 1px solid var(--border);">
                         <h4 style="margin-bottom: 6px; color: var(--accent); font-size: 0.75rem;">${team.name} - ${team.score}</h4>
-                        <table class="boxscore-table" style="font-size: 0.65rem;">
+                        <table class="boxscore-table" style="font-size: 0.72rem;">
                             <thead>
                                 <tr>
                                     <th style="text-align: left;">Player</th>
@@ -1642,7 +1651,7 @@
                                     ${team.team}
                                     <span style="color: var(--text-secondary); font-weight: normal; font-size: 0.85rem; margin-left: 10px;">${team.players.length} player${team.players.length !== 1 ? 's' : ''}</span>
                                 </div>
-                                <table class="boxscore-table" style="font-size: 0.85rem;">
+                                <table class="boxscore-table" style="font-size: 0.92rem;">
                                     <thead>
                                         <tr>
                                             <th style="text-align: left;">Player</th>
