@@ -2,12 +2,10 @@ name: Deploy to Hetzner
 
 on:
   push:
+    paths-ignore:
+      - "api/static/*.json"
+      - "api/statis/trades.log"
     branches: [main]
-  workflow_run:
-    workflows: ["Update CBS Injuries"]
-    types: [completed]
-    branches:
-      - main
 
 jobs:
   deploy:
