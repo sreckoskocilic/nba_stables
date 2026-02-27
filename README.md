@@ -1,8 +1,4 @@
-## nba_stables - NBA Live Stats Tables
-
-I have a strange habit to listen to NBA live streams on nba.com while doing something else on my laptop. In order to
-stay updated with latest results I have to click through all active games to check the stats. That led me to an idea to
-show desired stats in one webpage and make them easy to read.
+## nba_stables - NBA Live Stats & Tables
 
 ## Features
 

@@ -13,11 +13,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
+
 from helpers.common import CACHE_TTL, cache
 from helpers.stats import get_display_date
-from routes.nba import router
 from routes.players import router as players_router
-from starlette.middleware.gzip import GZipMiddleware
+from routes.scores import router
 
 app = FastAPI(
     title="NBA Stables API",

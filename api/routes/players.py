@@ -3,6 +3,7 @@ from helpers.common import CACHE_TTL, STATS_PROXY, cache, executor
 from helpers.logger import log_exceptions
 from helpers.stats import fix_encoding, load_players_dict, load_players_file, reformat_player_minutes
 from isodate import parse_duration
+
 from nba_api.live.nba.endpoints import boxscore, scoreboard
 from nba_api.stats.endpoints import (
     boxscoreadvancedv3,
@@ -11,6 +12,7 @@ from nba_api.stats.endpoints import (
 )
 
 router = APIRouter()
+
 
 @router.get("/api/players/search")
 def search_players(q: str = Query(..., min_length=2)):
@@ -100,6 +102,7 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/api/games/{game_id}/players")
 def get_game_players(game_id: str):
     """Get all player stats for a specific game with advanced metrics"""
@@ -188,10 +191,11 @@ def get_game_players(game_id: str):
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/api/players/{player_id}/last-n-games")
 def get_last_n_games_stats(
-    player_id: int,
-    n: int = Query(default=5, ge=1, le=15),
+        player_id: int,
+        n: int = Query(default=5, ge=1, le=15),
 ):
     """Get last N games stats for a specific player"""
     cache_key = f"last_n_games_{player_id}_{n}"
@@ -218,7 +222,7 @@ def get_last_n_games_stats(
                 )
                 player_stats = csp.player_stats.get_dict()["data"]
                 ss = next((x for x in player_stats if x[6] == player_id), None)
-                if ss is not None:
+                if ss is not None and ss[14] != "":
                     return {
                         "matchup": gg[0],
                         "gameId": gg[1],
