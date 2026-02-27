@@ -3,11 +3,11 @@ import os
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from helpers.common import STATS_PROXY
 from helpers.logger import log_exceptions
 from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv3
 
 PLAYERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../static/players_with_teamid.json")
-STATS_PROXY = os.environ.get("STATS_PROXY", None)
 
 # Helper functions
 def get_date_str(days_offset: int = 0) -> str:
@@ -57,9 +57,20 @@ def fix_encoding(s: str) -> str:
         return s
 
 
+_players_cache = None
+_players_cache_mtime = 0
+
 def load_players_file():
-    with open(PLAYERS_FILE, "r") as f:
-        return json.load(f)
+    global _players_cache, _players_cache_mtime
+    try:
+        mtime = os.path.getmtime(PLAYERS_FILE)
+    except OSError:
+        mtime = 0
+    if _players_cache is None or mtime != _players_cache_mtime:
+        with open(PLAYERS_FILE, "r") as f:
+            _players_cache = json.load(f)
+        _players_cache_mtime = mtime
+    return _players_cache
 
 
 def get_games_list(days_offset: int = 1):

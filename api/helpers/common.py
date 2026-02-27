@@ -1,4 +1,5 @@
 # Cache TTLs (in seconds)
+import os
 import time
 from typing import Any, Dict, Optional
 
@@ -32,6 +33,10 @@ class SimpleCache:
 
     def clear(self):
         self._cache.clear()
+
+# Shared singleton instances
+cache = SimpleCache()
+STATS_PROXY = os.environ.get("STATS_PROXY", None)
 
 def rgc(statval: list) -> list:
     return [colored(item, "light_green") for item in statval]

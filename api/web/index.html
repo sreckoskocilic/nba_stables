@@ -1271,56 +1271,56 @@
             }
         }
 
-        // Player Search
-        const searchInput = document.getElementById('playerSearch');
-        const searchResults = document.getElementById('searchResults');
-        let searchTimeout;
+        // Reusable player search setup
+        function initPlayerSearch(inputId, resultsId, onSelect) {
+            const input = document.getElementById(inputId);
+            const results = document.getElementById(resultsId);
+            let timeout;
 
-        searchInput.addEventListener('input', () => {
-            clearTimeout(searchTimeout);
-            const query = searchInput.value.trim();
-
-            if (query.length < 2) {
-                searchResults.classList.remove('show');
-                return;
-            }
-
-            searchTimeout = setTimeout(async () => {
-                try {
-                    const res = await fetch(`${API_BASE}/api/players/search?q=${encodeURIComponent(query)}`);
-                    const data = await res.json();
-
-                    if (data.players.length === 0) {
-                        searchResults.innerHTML = '<div class="search-result-item">No players found</div>';
-                    } else {
-                        searchResults.innerHTML = data.players.map(p => `
-                            <div class="search-result-item" data-id="${p.id}" data-name="${p.name}">
-                                <span>${p.name}</span>
-                                <span style="color: var(--text-secondary); font-size: 0.85rem;">ID: ${p.id}</span>
-                            </div>
-                        `).join('');
+            input.addEventListener('input', () => {
+                clearTimeout(timeout);
+                const query = input.value.trim();
+                if (query.length < 2) { results.classList.remove('show'); return; }
+                timeout = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`${API_BASE}/api/players/search?q=${encodeURIComponent(query)}`);
+                        if (!res.ok) throw new Error('Search failed');
+                        const data = await res.json();
+                        results.innerHTML = data.players.length === 0
+                            ? '<div class="search-result-item">No players found</div>'
+                            : data.players.map(p => `
+                                <div class="search-result-item" data-id="${p.id}" data-name="${p.name}">
+                                    <span>${p.name}</span>
+                                    <span style="color: var(--text-secondary); font-size: 0.85rem;">ID: ${p.id}</span>
+                                </div>
+                            `).join('');
+                        results.classList.add('show');
+                    } catch (err) {
+                        results.innerHTML = '<div class="search-result-item">Error searching</div>';
+                        results.classList.add('show');
                     }
-                    searchResults.classList.add('show');
-                } catch (error) {
-                    searchResults.innerHTML = '<div class="search-result-item">Error searching</div>';
-                    searchResults.classList.add('show');
+                }, 300);
+            });
+
+            results.addEventListener('click', (e) => {
+                const item = e.target.closest('.search-result-item');
+                if (item && item.dataset.id) {
+                    onSelect(parseInt(item.dataset.id), item.dataset.name);
+                    input.value = '';
+                    results.classList.remove('show');
                 }
-            }, 300);
-        });
+            });
 
-        searchResults.addEventListener('click', (e) => {
-            const item = e.target.closest('.search-result-item');
-            if (item && item.dataset.id) {
-                addTrackedPlayer(parseInt(item.dataset.id), item.dataset.name);
-                searchInput.value = '';
-                searchResults.classList.remove('show');
-            }
-        });
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !results.contains(e.target)) {
+                    results.classList.remove('show');
+                }
+            });
+        }
 
-        document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-                searchResults.classList.remove('show');
-            }
+        // Player Tracker search
+        initPlayerSearch('playerSearch', 'searchResults', (id, name) => {
+            addTrackedPlayer(id, name);
         });
 
         function addTrackedPlayer(id, name) {
@@ -1709,10 +1709,6 @@
         let lastNSelectedPlayer = null;
         let lastNGamesCount = 5;
 
-        const lastNSearch = document.getElementById('lastNSearch');
-        const lastNSearchResults = document.getElementById('lastNSearchResults');
-        let lastNSearchTimeout;
-
         document.querySelectorAll('#lastngames .date-btn[data-n]').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#lastngames .date-btn[data-n]').forEach(b => b.classList.remove('active'));
@@ -1721,55 +1717,16 @@
             });
         });
 
-        lastNSearch.addEventListener('input', () => {
-            clearTimeout(lastNSearchTimeout);
-            const query = lastNSearch.value.trim();
-            if (query.length < 2) {
-                lastNSearchResults.classList.remove('show');
-                return;
-            }
-            lastNSearchTimeout = setTimeout(async () => {
-                try {
-                    const res = await fetch(`${API_BASE}/api/players/search?q=${encodeURIComponent(query)}`);
-                    const data = await res.json();
-                    if (data.players.length === 0) {
-                        lastNSearchResults.innerHTML = '<div class="search-result-item">No players found</div>';
-                    } else {
-                        lastNSearchResults.innerHTML = data.players.map(p => `
-                            <div class="search-result-item" data-id="${p.id}" data-name="${p.name}">
-                                <span>${p.name}</span>
-                                <span style="color: var(--text-secondary); font-size: 0.85rem;">ID: ${p.id}</span>
-                            </div>
-                        `).join('');
-                    }
-                    lastNSearchResults.classList.add('show');
-                } catch (err) {
-                    lastNSearchResults.innerHTML = '<div class="search-result-item">Error searching</div>';
-                    lastNSearchResults.classList.add('show');
-                }
-            }, 300);
-        });
-
-        lastNSearchResults.addEventListener('click', (e) => {
-            const item = e.target.closest('.search-result-item');
-            if (item && item.dataset.id) {
-                lastNSelectedPlayer = { id: parseInt(item.dataset.id), name: item.dataset.name };
-                lastNSearch.value = '';
-                lastNSearchResults.classList.remove('show');
-                document.getElementById('lastNPlayerChip').innerHTML = `
-                    <div class="player-chip">
-                        <span>${lastNSelectedPlayer.name}</span>
-                        <button class="player-chip-remove" onclick="lastNSelectedPlayer=null; document.getElementById('lastNPlayerChip').innerHTML=''; document.getElementById('lastNBtn').disabled=true;">&times;</button>
-                    </div>
-                `;
-                document.getElementById('lastNBtn').disabled = false;
-            }
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!lastNSearch.contains(e.target) && !lastNSearchResults.contains(e.target)) {
-                lastNSearchResults.classList.remove('show');
-            }
+        // Last N Games search
+        initPlayerSearch('lastNSearch', 'lastNSearchResults', (id, name) => {
+            lastNSelectedPlayer = { id, name };
+            document.getElementById('lastNPlayerChip').innerHTML = `
+                <div class="player-chip">
+                    <span>${name}</span>
+                    <button class="player-chip-remove" onclick="lastNSelectedPlayer=null; document.getElementById('lastNPlayerChip').innerHTML=''; document.getElementById('lastNBtn').disabled=true;">&times;</button>
+                </div>
+            `;
+            document.getElementById('lastNBtn').disabled = false;
         });
 
         async function loadLastNGames() {
