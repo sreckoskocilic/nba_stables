@@ -23,7 +23,7 @@ jobs:
             cd /opt/nba_stables
             git pull origin main
             docker-compose down --remove-orphans
-            docker image prune -f
+            yes | docker image prune -a
             find . -type f -name "*.py[co]" -delete -or -type d -name "__pycache__" -delete
             docker-compose --profile prod up -d --build
             cp /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile
