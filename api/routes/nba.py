@@ -94,8 +94,8 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
             if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids:
                 try:
                     bs = boxscore.BoxScore(game_id=game["gameId"]).get_dict()
-                except Exception as ex:
-                    log_exceptions(ex)
+                except Exception:
+                    # Ignore exception as the game hasn't started yet (No response from boxscore endpoint for provided gameId)
                     continue
 
                 for team_key in ["homeTeam", "awayTeam"]:
