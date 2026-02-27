@@ -11,7 +11,9 @@ services:
       - TZ=Europe/Berlin
       - STATS_PROXY=socks5h://host.docker.internal:40001
     volumes:
-      - /opt/nba_stables:/app
+      - type: bind
+        source: /opt/nba_stables
+        target: /app
   nba-stables-dev:
     profiles: ["dev"]
     build: .
