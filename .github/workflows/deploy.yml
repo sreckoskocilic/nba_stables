@@ -8,9 +8,6 @@ on:
       - ".github/workflows/**"
     branches: [main]
 
-concurrency:
-  group: deploy-production
-  cancel-in-progress: true
 
 jobs:
   deploy:
