@@ -11,7 +11,7 @@ import uvicorn
 import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, ORJSONResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from helpers.common import CACHE_TTL, cache
 from helpers.stats import get_display_date
@@ -22,8 +22,7 @@ from starlette.middleware.gzip import GZipMiddleware
 app = FastAPI(
     title="NBA Stables API",
     description="Live NBA statistics API",
-    version="1.0.0",
-    default_response_class=ORJSONResponse,
+    version="1.1.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
