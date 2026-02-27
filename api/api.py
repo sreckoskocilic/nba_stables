@@ -6,13 +6,9 @@ FastAPI backend for live NBA statistics
 import json
 import logging.config
 import os
-import sys
-
-import yaml
-
-sys.path.append(os.getcwd())
 
 import uvicorn
+import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -20,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from helpers.common import CACHE_TTL, SimpleCache
 from helpers.stats import get_display_date
 from routes.nba import router
+from routes.players import router as players_router
 
 # SOCKS5 proxy for stats.nba.com (Cloudflare WARP on the host)
 STATS_PROXY = os.environ.get("STATS_PROXY", None)
@@ -44,6 +41,7 @@ app.add_middleware(
 
 # sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 app.include_router(router)
+app.include_router(players_router)
 
 CBS_INJURIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static/cbs_injuries.json")
 LOG_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log_config.yml")

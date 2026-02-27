@@ -2,6 +2,8 @@
 import time
 from typing import Any, Dict, Optional
 
+from termcolor import colored
+
 CACHE_TTL = {
     "scoreboard": 30,  # 30 seconds - live scores change frequently
     "boxscores": 60,  # 1 minute
@@ -30,3 +32,10 @@ class SimpleCache:
 
     def clear(self):
         self._cache.clear()
+
+def rgc(statval: list) -> list:
+    return [colored(item, "light_green") for item in statval]
+
+
+def bgc(statval: list) -> list:
+    return [colored(item, "light_blue") for item in statval]
