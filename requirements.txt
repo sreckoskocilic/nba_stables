@@ -3,6 +3,7 @@ tabulate2
 isodate
 termcolor
 fastapi
+orjson
 uvicorn[standard]
 beautifulsoup4
 requests[socks]

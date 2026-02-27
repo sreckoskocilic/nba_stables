@@ -14,26 +14,31 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: 'pip'
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 lxml
+        run: pip install requests beautifulsoup4 lxml
 
       - name: Scrape CBS injuries
         run: python api/static/update_injuries.py
 
       - name: Commit and push
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add api/static/cbs_injuries.json
-          git diff --cached --quiet && exit 0
-          git commit -m "update CBS injuries data"
-          git pull origin main -r
-          git push -u origin main
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "update CBS injuries data"
+            git pull origin main -r
+            git push -u origin main
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Deploy to server
+        if: steps.commit.outputs.changed == 'true'
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_IP }}

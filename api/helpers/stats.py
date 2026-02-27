@@ -59,9 +59,10 @@ def fix_encoding(s: str) -> str:
 
 _players_cache = None
 _players_cache_mtime = 0
+_players_dict_cache = None
 
 def load_players_file():
-    global _players_cache, _players_cache_mtime
+    global _players_cache, _players_cache_mtime, _players_dict_cache
     try:
         mtime = os.path.getmtime(PLAYERS_FILE)
     except OSError:
@@ -69,8 +70,15 @@ def load_players_file():
     if _players_cache is None or mtime != _players_cache_mtime:
         with open(PLAYERS_FILE, "r") as f:
             _players_cache = json.load(f)
+        _players_dict_cache = {p[0]: p for p in _players_cache}
         _players_cache_mtime = mtime
     return _players_cache
+
+
+def load_players_dict():
+    """Return {player_id: player_row} dict for O(1) lookups."""
+    load_players_file()
+    return _players_dict_cache
 
 
 def get_games_list(days_offset: int = 1):

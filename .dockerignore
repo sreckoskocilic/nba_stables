@@ -8,5 +8,11 @@ LICENSE
 **/.env
 **/.idea
 **/.github
+**/.claude
+**/logs
+**/venv
+**/.venv
+**/node_modules
 Dockerfile
 docker-compose.yml
+Caddyfile
