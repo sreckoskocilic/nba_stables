@@ -33,4 +33,8 @@ jobs:
           git commit -m "Update player team data"
           git pull --rebase origin main
           git push
-          git pull
+
+      - name: Pull the changes
+        run: |
+          cd /opt/nba_stables
+          git pull origin main

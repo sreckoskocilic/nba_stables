@@ -32,4 +32,8 @@ jobs:
           git commit -m "update CBS injuries data"
           git pull --rebase origin main
           git push
-          git pull
+
+      - name: Pull the changes
+        run: |
+          cd /opt/nba_stables
+          git pull origin main
