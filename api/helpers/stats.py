@@ -161,6 +161,6 @@ def fetch_single_boxscore(game_id, leaders_data):
             )
 
         return game_box
-    except Exception as ex:
-        log_exceptions(ex)
+    except Exception:
+        # Ignore exception as the game hasn't started yet (No response from boxscore endpoint for provided gameId)
         return game_box
