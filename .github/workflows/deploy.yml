@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - "api/static/*.json"
       - "api/statis/trades.log"
+      - ".github/workflows/**"
     branches: [main]
 
 jobs:
