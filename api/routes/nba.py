@@ -1,7 +1,7 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 
 from fastapi import APIRouter, HTTPException, Query
-from helpers.common import CACHE_TTL, STATS_PROXY, cache
+from helpers.common import CACHE_TTL, STATS_PROXY, cache, executor
 from helpers.logger import log_exceptions
 from helpers.stats import (
     convert_et_to_cet,
@@ -10,7 +10,7 @@ from helpers.stats import (
     get_display_date,
     get_games_leaders_list,
     get_games_list,
-    load_players_file,
+    load_players_dict,
     reformat_player_minutes,
 )
 from isodate import parse_duration
@@ -33,16 +33,15 @@ def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
 
         # Fetch all boxscores in parallel
         boxscores_list = []
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = {
-                executor.submit(fetch_single_boxscore, game_id, leaders_data): game_id
-                for game_id, leaders_data in leaders_by_game.items()
-                if leaders_data
-            }
-            for future in as_completed(futures):
-                result = future.result()
-                if result:
-                    boxscores_list.append(result)
+        futures = {
+            executor.submit(fetch_single_boxscore, game_id, leaders_data): game_id
+            for game_id, leaders_data in leaders_by_game.items()
+            if leaders_data
+        }
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                boxscores_list.append(result)
 
         result = {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
         ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
@@ -132,8 +131,7 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                 log_exceptions(ex)
                 return {}
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            results = executor.map(fetch_leaders_boxscore, game_ids)
+        results = executor.map(fetch_leaders_boxscore, game_ids)
 
         for bs in results:
             if not bs:
@@ -245,13 +243,13 @@ def get_player_advanced_stats(
 ):
     """Get advanced stats for players including plus/minus, efficiency metrics"""
     try:
-        player_ids = [int(pid.strip()) for pid in ids.split(",")]
-        players_data = load_players_file()
+        player_ids = {int(pid.strip()) for pid in ids.split(",")}
+        players_dict = load_players_dict()
 
         # Get team IDs for requested players
         team_ids = []
         for pid in player_ids:
-            player = next((p for p in players_data if p[0] == pid), None)
+            player = players_dict.get(pid)
             if player and player[2] and player[2] not in team_ids:
                 team_ids.append(player[2])
 
@@ -278,22 +276,19 @@ def get_player_advanced_stats(
                 adv_players = []
             return bs, adv_players
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            game_data = list(executor.map(fetch_advanced_boxscore, relevant_game_ids))
+        game_data = list(executor.map(fetch_advanced_boxscore, relevant_game_ids))
 
         for bs, adv_players in game_data:
             if not bs:
                 continue
+            adv_by_pid = {p[6]: p for p in adv_players} if adv_players else {}
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
                 for player in team["players"]:
                     if player["personId"] in player_ids and player["status"] == "ACTIVE":
                         stats = player["statistics"]
 
-                        adv_stat = next(
-                            (p for p in adv_players if p[6] == player["personId"]),
-                            None,
-                        )
+                        adv_stat = adv_by_pid.get(player["personId"])
 
                         try:
                             minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
@@ -375,8 +370,7 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
                 log_exceptions(ex)
                 return {}
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            boxscore_results = list(executor.map(fetch_dd_boxscore, game_ids))
+        boxscore_results = list(executor.map(fetch_dd_boxscore, game_ids))
 
         for bs in boxscore_results:
             if not bs:

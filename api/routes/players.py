@@ -1,9 +1,7 @@
-from concurrent.futures import ThreadPoolExecutor
-
 from fastapi import APIRouter, HTTPException, Query
-from helpers.common import CACHE_TTL, STATS_PROXY, cache
+from helpers.common import CACHE_TTL, STATS_PROXY, cache, executor
 from helpers.logger import log_exceptions
-from helpers.stats import fix_encoding, load_players_file, reformat_player_minutes
+from helpers.stats import fix_encoding, load_players_dict, load_players_file, reformat_player_minutes
 from isodate import parse_duration
 from nba_api.live.nba.endpoints import boxscore, scoreboard
 from nba_api.stats.endpoints import (
@@ -36,13 +34,13 @@ def search_players(q: str = Query(..., min_length=2)):
 def get_player_stats(ids: str = Query(..., description="Comma-separated player IDs")):
     """Get live stats for specific players"""
     try:
-        player_ids = [int(pid.strip()) for pid in ids.split(",")]
-        players_data = load_players_file()
+        player_ids = {int(pid.strip()) for pid in ids.split(",")}
+        players_dict = load_players_dict()
 
         # Get team IDs for requested players
         team_ids = []
         for pid in player_ids:
-            player = next((p for p in players_data if p[0] == pid), None)
+            player = players_dict.get(pid)
             if player and player[2] and player[2] not in team_ids:
                 team_ids.append(player[2])
 
@@ -59,8 +57,7 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
             except Exception:
                 return None
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            boxscores = list(executor.map(fetch_player_boxscore, relevant_game_ids))
+        boxscores = list(executor.map(fetch_player_boxscore, relevant_game_ids))
 
         for bs in boxscores:
             if not bs:
@@ -121,6 +118,7 @@ def get_game_players(game_id: str):
             adv_players = []
 
         teams = []
+        adv_by_pid = {p[6]: p for p in adv_players} if adv_players else {}
 
         for team_key in ["homeTeam", "awayTeam"]:
             team = bs["game"][team_key]
@@ -142,7 +140,7 @@ def get_game_players(game_id: str):
                         minutes = "0:00"
 
                     # Find advanced stats
-                    adv_stat = next((p for p in adv_players if p[6] == player["personId"]), None)
+                    adv_stat = adv_by_pid.get(player["personId"])
 
                     fgm = stats["fieldGoalsMade"]
                     fga = stats["fieldGoalsAttempted"]
@@ -202,8 +200,8 @@ def get_last_n_games_stats(
         return cached
 
     try:
-        players_data = load_players_file()
-        player = next((p for p in players_data if p[0] == player_id), None)
+        players_dict = load_players_dict()
+        player = players_dict.get(player_id)
         if not player:
             raise HTTPException(status_code=404, detail="Player not found")
 
@@ -242,9 +240,8 @@ def get_last_n_games_stats(
                 log_exceptions(ex)
                 return None
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [executor.submit(fetch_game_stats, gg) for gg in game_rows]
-            games = [r for f in futures for r in [f.result()] if r is not None]
+        futures = [executor.submit(fetch_game_stats, gg) for gg in game_rows]
+        games = [r for f in futures for r in [f.result()] if r is not None]
 
         result = {
             "playerId": player_id,

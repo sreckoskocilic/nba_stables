@@ -1,6 +1,7 @@
 # Cache TTLs (in seconds)
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, Optional
 
 from termcolor import colored
@@ -36,6 +37,7 @@ class SimpleCache:
 
 # Shared singleton instances
 cache = SimpleCache()
+executor = ThreadPoolExecutor(max_workers=10)
 STATS_PROXY = os.environ.get("STATS_PROXY", None)
 
 def rgc(statval: list) -> list:

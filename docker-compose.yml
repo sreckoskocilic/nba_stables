@@ -1,12 +1,22 @@
+x-nba-common: &nba-common
+  build: .
+  ports:
+    - "8000:8000"
+  restart: unless-stopped
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  environment:
+    - TZ=Europe/Berlin
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
   nba-stables:
+    <<: *nba-common
     profiles: ["prod"]
-    build: .
-    ports:
-      - "8000:8000"
-    restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       - TZ=Europe/Berlin
       - STATS_PROXY=socks5h://host.docker.internal:40001
@@ -15,15 +25,8 @@ services:
         source: /opt/nba_stables
         target: /app
   nba-stables-dev:
+    <<: *nba-common
     profiles: ["dev"]
-    build: .
-    ports:
-      - "8000:8000"
-    restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    environment:
-      - TZ=Europe/Berlin
     volumes:
       - type: bind
         source: ./
