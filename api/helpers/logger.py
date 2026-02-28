@@ -3,6 +3,7 @@ import os
 from logging.handlers import RotatingFileHandler
 
 ERROR_LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../logs/error.log")
+os.makedirs(os.path.dirname(ERROR_LOG_FILE), exist_ok=True)
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
