@@ -4,7 +4,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, Optional
 
-from termcolor import colored
 
 CACHE_TTL = {
     "scoreboard": 30,  # 30 seconds - live scores change frequently
@@ -39,10 +38,3 @@ class SimpleCache:
 cache = SimpleCache()
 executor = ThreadPoolExecutor(max_workers=10)
 STATS_PROXY = os.environ.get("STATS_PROXY", None)
-
-def rgc(statval: list) -> list:
-    return [colored(item, "light_green") for item in statval]
-
-
-def bgc(statval: list) -> list:
-    return [colored(item, "light_blue") for item in statval]

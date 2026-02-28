@@ -1,9 +1,13 @@
 from fastapi import APIRouter, HTTPException, Query
 from helpers.common import CACHE_TTL, STATS_PROXY, cache, executor
 from helpers.logger import log_exceptions
-from helpers.stats import fix_encoding, load_players_dict, load_players_file, reformat_player_minutes
+from helpers.stats import (
+    fix_encoding,
+    load_players_dict,
+    load_players_file,
+    reformat_player_minutes,
+)
 from isodate import parse_duration
-
 from nba_api.live.nba.endpoints import boxscore, scoreboard
 from nba_api.stats.endpoints import (
     boxscoreadvancedv3,
@@ -36,13 +40,20 @@ def search_players(q: str = Query(..., min_length=2)):
 @router.get("/api/players/stats")
 def get_player_stats(ids: str = Query(..., description="Comma-separated player IDs")):
     """Get live stats for specific players"""
+
     try:
-        player_ids = {int(pid.strip()) for pid in ids.split(",")}
+        players_ids = []
+        for pid in ids.split(","):
+            if pid.strip().isdigit():
+                players_ids.append(int(pid.strip()))
+
+        if not players_ids:
+            return {"players": []}
         players_dict = load_players_dict()
 
         # Get team IDs for requested players
         team_ids = []
-        for pid in player_ids:
+        for pid in players_ids:
             player = players_dict.get(pid)
             if player and player[2] and player[2] not in team_ids:
                 team_ids.append(player[2])
@@ -68,7 +79,7 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
                 for player in team["players"]:
-                    if player["personId"] in player_ids and player["status"] == "ACTIVE":
+                    if player["personId"] in players_ids and player["status"] == "ACTIVE":
                         stats = player["statistics"]
                         try:
                             minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
