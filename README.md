@@ -7,13 +7,15 @@
 - **Daily Leaders** - Top performers per stat category across all games
 - **Player Tracker** - Search and track specific players with live stats and advanced metrics
 - **Last N Games** - Per-player performance over the last N games (up to 15)
+- **Season Averages** - Current season averages for any player
 - **Double/Triple Doubles** - Automatic detection and dedicated tracking endpoint
+- **Playoffs** - Current playoff picture with projected seedings
 - **Standings** - Conference standings with W/L, streak, home/away splits
 - **Injury Report** - Current NBA injury data sourced from CBS Sports
 
 ## Tech Stack
 
-- **Backend**: FastAPI + uvicorn (Python 3.12)
+- **Backend**: FastAPI + uvicorn (Python 3.12+)
 - **Frontend**: Vanilla JS SPA, PWA-ready (installable, service worker)
 - **Data**: `nba_api` library for live stats; CBS Sports scraping for injuries
 - **Caching**: In-memory cache with tiered TTLs (30s live → 24h historical)
@@ -24,7 +26,7 @@
 
 ### Prerequisites
 
-- Python 3.9+
+- Python 3.12+
 - pip
 
 ### Setup
@@ -38,7 +40,8 @@ pip install -r requirements.txt
 ### Start the web app
 
 ```bash
-uvicorn api:app --host 0.0.0.0 --port 8000
+cd api
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 Open http://localhost:8000
@@ -55,10 +58,13 @@ docker-compose --profile dev up -d --build
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/health` | Health check |
+| GET | `/api/dates` | Date labels for day offset buttons (0–7) |
 | GET | `/api/scoreboard` | Live scores with leading scorers |
 | GET | `/api/boxscores` | Box scores (`?days_offset=0-7`) |
 | GET | `/api/leaders` | Daily stat leaders (`?days_offset=0-7`) |
 | GET | `/api/standings` | East/West conference standings |
+| GET | `/api/playoffs` | Playoff picture with projected seedings |
 | GET | `/api/doubledoubles` | DD/TD tracker (`?days_offset=0-7`) |
 | GET | `/api/injuries` | CBS Sports injury report |
 
@@ -70,6 +76,7 @@ docker-compose --profile dev up -d --build
 | GET | `/api/players/stats?ids={ids}` | Live stats for specific players |
 | GET | `/api/players/advanced?ids={ids}` | Advanced stats (TS%, eFG%, +/-, DD/TD) |
 | GET | `/api/players/{id}/last-n-games` | Last N games stats (default 5, max 15) |
+| GET | `/api/players/{id}/season-avg` | Current season averages |
 | GET | `/api/games/{game_id}/players` | All player stats for a game |
 
 ## Statistics Reference

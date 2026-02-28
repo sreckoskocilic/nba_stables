@@ -65,15 +65,15 @@ def get_injuries():
     if cached:
         return cached
 
+    if not os.path.exists(CBS_INJURIES_FILE):
+        raise HTTPException(status_code=503, detail="CBS injuries data not available")
     try:
-        if not os.path.exists(CBS_INJURIES_FILE):
-            raise HTTPException(status_code=503, detail="CBS injuries data not available")
         with open(CBS_INJURIES_FILE, "r", encoding="utf-8") as f:
             result = json.load(f)
         cache.set("injuries", result, CACHE_TTL["injuries"])
         return result
     except Exception as e:
-        from api.helpers.logger import log_exceptions
+        from helpers.logger import log_exceptions
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
