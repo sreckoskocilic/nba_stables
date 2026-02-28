@@ -9,6 +9,7 @@ from nba_api.stats.endpoints import (
     boxscoreadvancedv3,
     boxscoretraditionalv3,
     cumestatsteamgames,
+    playercareerstats,
 )
 
 router = APIRouter()
@@ -253,6 +254,65 @@ def get_last_n_games_stats(
             "games": games,
         }
         cache.set(cache_key, result, CACHE_TTL["historical"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exceptions(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/players/{player_id}/season-avg")
+def get_player_season_avg(player_id: int):
+    """Get current season averages for a player"""
+    cache_key = f"season_avg_{player_id}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    try:
+        career = playercareerstats.PlayerCareerStats(player_id=player_id, proxy=STATS_PROXY)
+        season_data = career.season_totals_regular_season.get_dict()
+        headers = season_data["headers"]
+        rows = season_data["data"]
+
+        if not rows:
+            raise HTTPException(status_code=404, detail="No season data found")
+
+        row = rows[-1]
+        h = {k: i for i, k in enumerate(headers)}
+        gp = row[h["GP"]] or 1
+
+        def avg(key):
+            return round((row[h[key]] or 0) / gp, 1)
+
+        def pct(key):
+            val = row[h[key]]
+            return round(val * 100, 1) if val else 0.0
+
+        result = {
+            "season": row[h["SEASON_ID"]],
+            "gp": gp,
+            "minutes": avg("MIN"),
+            "points": avg("PTS"),
+            "rebounds": avg("REB"),
+            "assists": avg("AST"),
+            "steals": avg("STL"),
+            "blocks": avg("BLK"),
+            "turnovers": avg("TOV"),
+            "fouls": avg("PF"),
+            "fgm": round((row[h["FGM"]] or 0) / gp, 1),
+            "fga": round((row[h["FGA"]] or 0) / gp, 1),
+            "fgPct": pct("FG_PCT"),
+            "fg3m": round((row[h["FG3M"]] or 0) / gp, 1),
+            "fg3a": round((row[h["FG3A"]] or 0) / gp, 1),
+            "fg3Pct": pct("FG3_PCT"),
+            "ftm": round((row[h["FTM"]] or 0) / gp, 1),
+            "fta": round((row[h["FTA"]] or 0) / gp, 1),
+            "ftPct": pct("FT_PCT"),
+        }
+
+        cache.set(cache_key, result, CACHE_TTL["standings"])
         return result
     except HTTPException:
         raise
