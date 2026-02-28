@@ -1,5 +1,11 @@
 ## nba_stables - NBA Live Stats & Tables
 
+![Python](https://img.shields.io/badge/python-3.12+-blue?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
+[![codecov](https://codecov.io/gh/sreckoskocilic/nba_stables/branch/main/graph/badge.svg)](https://codecov.io/gh/sreckoskocilic/nba_stables)
+
 ## Features
 
 - **Live Scoreboard** - Real-time scores with game clock, status, and leading scorers
@@ -20,7 +26,6 @@
 - **Data**: `nba_api` library for live stats; CBS Sports scraping for injuries
 - **Caching**: In-memory cache with tiered TTLs (30s live → 24h historical)
 - **Deployment**: Docker + Caddy reverse proxy; automated via GitHub Actions
-- **Android**: Kotlin widget app with 3 widget types (Scores, Standings, Injuries)
 
 ## Running Locally
 
