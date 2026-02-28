@@ -29,17 +29,6 @@
       ]
     },
     {
-      "team": "Charlotte",
-      "players": [
-        {
-          "name": "Liam McNeeley",
-          "updated": "Fri, Feb 27",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        }
-      ]
-    },
-    {
       "team": "Chicago",
       "players": [
         {
@@ -84,40 +73,34 @@
       "team": "Cleveland",
       "players": [
         {
-          "name": "Dennis Schroder",
-          "updated": "Thu, Feb 26",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Keon Ellis",
-          "updated": "Thu, Feb 26",
+          "updated": "Fri, Feb 27",
           "injury": "Finger",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Mar 1"
         },
         {
           "name": "James Harden",
-          "updated": "Thu, Feb 26",
+          "updated": "Fri, Feb 27",
           "injury": "Thumb",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Donovan Mitchell",
-          "updated": "Thu, Feb 26",
-          "injury": "Groin",
           "status": "Expected to be out until at least Mar 1"
         },
         {
           "name": "Dean Wade",
-          "updated": "Thu, Feb 26",
+          "updated": "Fri, Feb 27",
           "injury": "Ankle",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Mar 1"
         },
         {
           "name": "Max Strus",
           "updated": "Thu, Feb 26",
           "injury": "Foot",
           "status": "Expected to be out until at least Mar 9"
+        },
+        {
+          "name": "Donovan Mitchell",
+          "updated": "Thu, Feb 26",
+          "injury": "Groin",
+          "status": "Expected to be out until at least Mar 1"
         }
       ]
     },
@@ -131,16 +114,16 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Marvin Bagley III",
-          "updated": "Fri, Feb 27",
-          "injury": "Neck",
-          "status": "Expected to be out until at least Mar 1"
-        },
-        {
           "name": "Cooper Flagg",
           "updated": "Fri, Feb 27",
           "injury": "Foot",
-          "status": "Expected to be out until at least Mar 1"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Marvin Bagley III",
+          "updated": "Fri, Feb 27",
+          "injury": "Neck",
+          "status": "Game Time Decision"
         },
         {
           "name": "Caleb Martin",
@@ -172,34 +155,10 @@
       "team": "Denver",
       "players": [
         {
-          "name": "Spencer Jones",
-          "updated": "Thu, Feb 26",
-          "injury": "Shoulder",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Julian Strawther",
-          "updated": "Thu, Feb 26",
-          "injury": "Toe",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Jalen Pickett",
-          "updated": "Thu, Feb 26",
-          "injury": "Knee",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Aaron Gordon",
           "updated": "Thu, Feb 26",
           "injury": "Hamstring",
           "status": "Expected to be out until at least Mar 1"
-        },
-        {
-          "name": "Jamal Murray",
-          "updated": "Wed, Feb 25",
-          "injury": "Illness",
-          "status": "Game Time Decision"
         },
         {
           "name": "Peyton Watson",
@@ -225,21 +184,15 @@
           "status": "Expected to be out until at least Mar 2"
         },
         {
-          "name": "Draymond Green",
-          "updated": "Thu, Feb 26",
-          "injury": "Back",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "De'Anthony Melton",
-          "updated": "Thu, Feb 26",
-          "injury": "Knee",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Kristaps Porzingis",
           "updated": "Thu, Feb 26",
           "injury": "Illness",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Draymond Green",
+          "updated": "Thu, Feb 26",
+          "injury": "Back",
           "status": "Game Time Decision"
         },
         {
@@ -301,15 +254,15 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Pascal Siakam",
-          "updated": "Fri, Feb 27",
-          "injury": "Wrist",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Ivica Zubac",
           "updated": "Fri, Feb 27",
           "injury": "Ankle",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Pascal Siakam",
+          "updated": "Fri, Feb 27",
+          "injury": "Wrist",
           "status": "Game Time Decision"
         },
         {
@@ -370,21 +323,27 @@
       "team": "Memphis",
       "players": [
         {
+          "name": "Ty Jerome",
+          "updated": "Fri, Feb 27",
+          "injury": "Thigh",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Santi Aldama",
-          "updated": "Thu, Feb 26",
+          "updated": "Fri, Feb 27",
           "injury": "Knee",
-          "status": "Expected to be out until at least Mar 1"
+          "status": "Game Time Decision"
         },
         {
           "name": "Cedric Coward",
-          "updated": "Thu, Feb 26",
+          "updated": "Fri, Feb 27",
           "injury": "Knee",
-          "status": "Expected to be out until at least Mar 1"
+          "status": "Game Time Decision"
         },
         {
-          "name": "Ty Jerome",
-          "updated": "Thu, Feb 26",
-          "injury": "Thigh",
+          "name": "Taj Gibson",
+          "updated": "Fri, Feb 27",
+          "injury": "Not Injury Related",
           "status": "Game Time Decision"
         },
         {
@@ -420,13 +379,13 @@
           "name": "Nikola Jovic",
           "updated": "Fri, Feb 27",
           "injury": "Back",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Mar 3"
         },
         {
           "name": "Norman Powell",
-          "updated": "Thu, Feb 26",
+          "updated": "Fri, Feb 27",
           "injury": "Groin",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Mar 8"
         },
         {
           "name": "Terry Rozier",
@@ -441,9 +400,9 @@
       "players": [
         {
           "name": "Giannis Antetokounmpo",
-          "updated": "Thu, Feb 26",
+          "updated": "Fri, Feb 27",
           "injury": "Calf",
-          "status": "Expected to be out until at least Mar 1"
+          "status": "Game Time Decision"
         },
         {
           "name": "Taurean Prince",
@@ -460,7 +419,13 @@
           "name": "Trey Murphy III",
           "updated": "Fri, Feb 27",
           "injury": "Shoulder",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Mar 1"
+        },
+        {
+          "name": "Dejounte Murray",
+          "updated": "Fri, Feb 27",
+          "injury": "Rest",
+          "status": "Expected to be out until at least Mar 1"
         },
         {
           "name": "Yves Missi",
@@ -535,6 +500,12 @@
           "updated": "Sun, Feb 22",
           "injury": "Knee",
           "status": "Expected to be out until at least Apr 1"
+        },
+        {
+          "name": "Paul George",
+          "updated": "Sat, Jan 31",
+          "injury": "Suspension",
+          "status": "Expected to be out until at least Mar 25"
         }
       ]
     },
@@ -609,7 +580,7 @@
           "name": "Keegan Murray",
           "updated": "Fri, Feb 27",
           "injury": "Ankle",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Mar 14"
         },
         {
           "name": "De'Andre Hunter",
@@ -624,16 +595,16 @@
           "status": "Out for the season"
         },
         {
-          "name": "Domantas Sabonis",
-          "updated": "Wed, Feb 18",
-          "injury": "Knee",
-          "status": "Out for the season"
-        },
-        {
           "name": "Dylan Cardwell",
           "updated": "Wed, Feb 18",
           "injury": "Ankle",
           "status": "Expected to be out until at least Mar 19"
+        },
+        {
+          "name": "Domantas Sabonis",
+          "updated": "Wed, Feb 18",
+          "injury": "Knee",
+          "status": "Out for the season"
         }
       ]
     },
@@ -658,16 +629,16 @@
       "team": "Toronto",
       "players": [
         {
-          "name": "Chucky Hepburn",
-          "updated": "Wed, Feb 25",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Mar 3"
-        },
-        {
           "name": "Collin Murray-Boyles",
           "updated": "Wed, Feb 25",
           "injury": "Thumb",
           "status": "Game Time Decision"
+        },
+        {
+          "name": "Chucky Hepburn",
+          "updated": "Wed, Feb 25",
+          "injury": "Knee",
+          "status": "Expected to be out until at least Mar 3"
         }
       ]
     },
@@ -716,22 +687,34 @@
       "team": "Washington",
       "players": [
         {
+          "name": "Trae Young",
+          "updated": "Fri, Feb 27",
+          "injury": "Knee",
+          "status": "Expected to be out until at least Mar 2"
+        },
+        {
+          "name": "Tristan Vukcevic",
+          "updated": "Fri, Feb 27",
+          "injury": "Hip",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Kyshawn George",
           "updated": "Fri, Feb 27",
           "injury": "Knee",
           "status": "Game Time Decision"
         },
         {
-          "name": "Trae Young",
+          "name": "Will Riley",
           "updated": "Fri, Feb 27",
-          "injury": "Knee",
+          "injury": "Ankle",
           "status": "Game Time Decision"
         },
         {
           "name": "D'Angelo Russell",
           "updated": "Fri, Feb 27",
           "injury": "Not Injury Related",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Mar 2"
         },
         {
           "name": "Anthony Davis",
@@ -755,5 +738,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "February 27, 2026 22:27 UTC"
+  "lastUpdated": "February 28, 2026 10:27 UTC"
 }
