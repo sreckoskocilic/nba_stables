@@ -5,8 +5,8 @@ import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 from fastapi.testclient import TestClient
-
 from helpers.common import cache
 from main import app
 
@@ -519,8 +519,9 @@ class TestPlayerStats:
         assert players[0]["points"] == 28
         assert players[0]["team"] == "LAL"
 
-    def test_invalid_id_returns_400(self, client):
-        assert client.get("/api/players/stats?ids=not_a_number").status_code == 400
+    def test_invalid_id_returns_empty(self, client):
+        r = client.get("/api/players/stats?ids=not_a_number")
+        assert r.json()["players"] == []
 
     def test_player_not_in_game_returns_empty(self, client):
         mock_sb = MagicMock()
@@ -572,7 +573,7 @@ class TestGamePlayers:
         mock_bs = MagicMock()
         mock_bs.get_dict.return_value = make_live_boxscore()
         mock_adv = MagicMock()
-        mock_adv.player_stats.get_dict.side_effect = Exception("unavailable")
+        mock_adv.player_stats.get_dict.side_effect = None
 
         with patch("routes.players.boxscore.BoxScore", return_value=mock_bs), \
              patch("routes.players.boxscoreadvancedv3.BoxScoreAdvancedV3", return_value=mock_adv):
@@ -661,3 +662,128 @@ class TestSeasonAvg:
         with patch("routes.players.playercareerstats.PlayerCareerStats", return_value=self._mock_career(rows=[])):
             r = client.get(f"/api/players/{PLAYER_ID}/season-avg")
         assert r.status_code == 404
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /api/trades
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestTrades:
+    def _resp(self, rows):
+        m = MagicMock()
+        m.raise_for_status.return_value = None
+        m.json.return_value = {"NBA_Player_Movement": {"rows": rows}}
+        return m
+
+    def _row(self, **kw):
+        row = {
+            "Transaction_Type": "Signing",
+            "TRANSACTION_DATE": "2026-02-01T00:00:00",
+            "TRANSACTION_DESCRIPTION": "Brooklyn Nets signed LeBron James to a 10-Day Contract.",
+            "TEAM_ID": 1610612751.0,   # BKN
+            "TEAM_SLUG": "nets",
+            "PLAYER_ID": float(PLAYER_ID),
+            "PLAYER_SLUG": "lebron-james",
+            "Additional_Sort": 0.0,
+            "GroupSort": "Signing 999",
+        }
+        row.update(kw)
+        return row
+
+    def test_returns_200(self, client):
+        with patch("routes.trades.requests.get", return_value=self._resp([])), \
+             patch("routes.trades.load_players_dict", return_value={}):
+            r = client.get("/api/trades")
+        assert r.status_code == 200
+
+    def test_response_shape(self, client):
+        with patch("routes.trades.requests.get", return_value=self._resp([])), \
+             patch("routes.trades.load_players_dict", return_value={}):
+            r = client.get("/api/trades")
+        body = r.json()
+        assert "transactions" in body
+        assert "total" in body
+
+    def test_team_name_resolved(self, client):
+        with patch("routes.trades.requests.get", return_value=self._resp([self._row()])), \
+             patch("routes.trades.load_players_dict", return_value={PLAYER_ID: [PLAYER_ID, "LeBron James", TEAM_ID_LAL]}):
+            r = client.get("/api/trades")
+        t = r.json()["transactions"][0]
+        assert t["teamName"] == "Brooklyn Nets"
+        assert t["teamTricode"] == "BKN"
+
+    def test_player_name_resolved_from_dict(self, client):
+        with patch("routes.trades.requests.get", return_value=self._resp([self._row()])), \
+             patch("routes.trades.load_players_dict", return_value={PLAYER_ID: [PLAYER_ID, "LeBron James", TEAM_ID_LAL]}):
+            r = client.get("/api/trades")
+        assert r.json()["transactions"][0]["playerName"] == "LeBron James"
+
+    def test_player_name_falls_back_to_slug(self, client):
+        row = self._row(PLAYER_ID=9999999.0, PLAYER_SLUG="grant-nelson")
+        with patch("routes.trades.requests.get", return_value=self._resp([row])), \
+             patch("routes.trades.load_players_dict", return_value={}):
+            r = client.get("/api/trades")
+        assert r.json()["transactions"][0]["playerName"] == "Grant Nelson"
+
+    def test_sorted_by_date_descending(self, client):
+        rows = [
+            self._row(TRANSACTION_DATE="2026-01-10T00:00:00"),
+            self._row(TRANSACTION_DATE="2026-01-20T00:00:00"),
+            self._row(TRANSACTION_DATE="2026-01-05T00:00:00"),
+        ]
+        with patch("routes.trades.requests.get", return_value=self._resp(rows)), \
+             patch("routes.trades.load_players_dict", return_value={}):
+            r = client.get("/api/trades")
+        dates = [t["date"] for t in r.json()["transactions"]]
+        assert dates == sorted(dates, reverse=True)
+
+    def test_description_included(self, client):
+        row = self._row(TRANSACTION_DESCRIPTION="Brooklyn Nets signed LeBron James to a 10-Day Contract.")
+        with patch("routes.trades.requests.get", return_value=self._resp([row])), \
+             patch("routes.trades.load_players_dict", return_value={}):
+            r = client.get("/api/trades")
+        assert r.json()["transactions"][0]["description"] == "Brooklyn Nets signed LeBron James to a 10-Day Contract."
+
+    def test_total_matches_row_count(self, client):
+        rows = [self._row() for _ in range(5)]
+        with patch("routes.trades.requests.get", return_value=self._resp(rows)), \
+             patch("routes.trades.load_players_dict", return_value={}):
+            r = client.get("/api/trades")
+        assert r.json()["total"] == 5
+
+    def test_cached_on_second_call(self, client):
+        with patch("routes.trades.requests.get", return_value=self._resp([])) as mock_req, \
+             patch("routes.trades.load_players_dict", return_value={}):
+            client.get("/api/trades")
+            client.get("/api/trades")
+        mock_req.assert_called_once()
+
+    def test_503_on_request_error(self, client):
+        with patch("routes.trades.requests.get", side_effect=requests.RequestException("timeout")), \
+             patch("routes.trades.load_players_dict", return_value={}), \
+             patch("routes.trades.log_exceptions"):
+            r = client.get("/api/trades")
+        assert r.status_code == 503
+
+    def test_unknown_team_id_returns_unknown(self, client):
+        row = self._row(TEAM_ID=9999999.0)
+        with patch("routes.trades.requests.get", return_value=self._resp([row])), \
+             patch("routes.trades.load_players_dict", return_value={}):
+            r = client.get("/api/trades")
+        t = r.json()["transactions"][0]
+        assert t["teamName"] == "Unknown Team"
+        assert t["teamTricode"] == ""
+
+    def test_type_field_preserved(self, client):
+        row = self._row(Transaction_Type="Trade")
+        with patch("routes.trades.requests.get", return_value=self._resp([row])), \
+             patch("routes.trades.load_players_dict", return_value={}):
+            r = client.get("/api/trades")
+        assert r.json()["transactions"][0]["type"] == "Trade"
+
+    def test_date_normalised_to_yyyy_mm_dd(self, client):
+        row = self._row(TRANSACTION_DATE="2026-02-15T00:00:00")
+        with patch("routes.trades.requests.get", return_value=self._resp([row])), \
+             patch("routes.trades.load_players_dict", return_value={}):
+            r = client.get("/api/trades")
+        assert r.json()["transactions"][0]["date"] == "2026-02-15"

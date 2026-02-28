@@ -1,6 +1,6 @@
-"""Unit tests for helpers/common.py — SimpleCache."""
+"""Unit tests for helpers/common.py — SimpleCache and helpers/logger.py."""
 import time
-
+from unittest.mock import patch
 
 from helpers.common import SimpleCache
 
@@ -123,3 +123,19 @@ class TestSimpleCache:
         time.sleep(1.1)
         assert self.cache.get("short") is None
         assert self.cache.get("long") == "here"
+
+
+class TestLogExceptions:
+    def test_calls_logger_exception(self):
+        from helpers.logger import log_exceptions
+        err = ValueError("boom")
+        with patch("helpers.logger.logger") as mock_log:
+            log_exceptions(err)
+        mock_log.exception.assert_called_once()
+        assert mock_log.exception.call_args[0][0] is err
+
+    def test_accepts_any_exception_type(self):
+        from helpers.logger import log_exceptions
+        with patch("helpers.logger.logger"):
+            log_exceptions(RuntimeError("runtime"))
+            log_exceptions(KeyError("key"))

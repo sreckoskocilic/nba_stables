@@ -18,6 +18,7 @@
 - **Playoffs** - Current playoff picture with projected seedings
 - **Standings** - Conference standings with W/L, streak, home/away splits
 - **Injury Report** - Current NBA injury data sourced from CBS Sports
+- **Trades & Player Movement** - Latest NBA transactions (trades, signings, waivers) with 6-month history and color-coded contract highlights
 
 ## Tech Stack
 
@@ -72,6 +73,7 @@ docker-compose --profile dev up -d --build
 | GET | `/api/playoffs` | Playoff picture with projected seedings |
 | GET | `/api/doubledoubles` | DD/TD tracker (`?days_offset=0-7`) |
 | GET | `/api/injuries` | CBS Sports injury report |
+| GET | `/api/trades` | Player movement — trades, signings, waivers (all-season, resolved team & player names) |
 
 ### Players
 
