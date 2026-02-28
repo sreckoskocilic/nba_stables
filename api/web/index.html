@@ -140,11 +140,6 @@
             background-clip: text;
         }
 
-        .header-date {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
         /* Navigation */
         nav {
             background: var(--bg-secondary);
@@ -252,13 +247,24 @@
             padding: 12px;
         }
 
+        .game-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .game-local-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
         .game-status {
             display: inline-block;
             padding: 3px 8px;
             border-radius: 20px;
             font-size: 0.65rem;
             font-weight: 600;
-            margin-bottom: 8px;
             text-transform: uppercase;
         }
 
@@ -266,6 +272,7 @@
             background: #ef4444;
             color: white;
             animation: pulse 2s infinite;
+            will-change: opacity;
         }
 
         .game-status.final {
@@ -409,6 +416,21 @@
             font-weight: 600;
         }
 
+        .stat-elite {
+            color: #f59e0b;
+            font-weight: 700;
+        }
+
+        .stat-great {
+            color: #4ade80;
+            font-weight: 600;
+        }
+
+        .stat-good {
+            color: #38bdf8;
+            font-weight: 500;
+        }
+
         /* Leaders Section */
         .leaders-grid {
             display: grid;
@@ -525,8 +547,13 @@
             border-bottom: 1px solid var(--border);
         }
 
-        .search-result-item:hover {
+        .search-result-item:hover,
+        .search-result-item.active {
             background: var(--bg-hover);
+        }
+
+        .search-result-item.active {
+            border-left: 2px solid var(--accent);
         }
 
         .search-result-item:last-child {
@@ -818,7 +845,6 @@
                     <div class="logo-icon">&#127936;</div>
                     <h1>NBA Stables</h1>
                 </div>
-                <div class="header-date" id="currentDate">Loading...</div>
             </div>
         </div>
     </header>
@@ -833,6 +859,7 @@
                 <button class="nav-tab" data-section="standings">Standings</button>
                 <button class="nav-tab" data-section="injuries">Injuries</button>
                 <button class="nav-tab" data-section="lastngames">Last N Games</button>
+                <button class="nav-tab" data-section="playoffs">Playoffs</button>
                 <button class="nav-tab" data-section="download">App</button>
                 <a href="/about" class="nav-tab" style="text-decoration: none;">About</a>
             </div>
@@ -974,6 +1001,21 @@
                 </div>
             </section>
 
+            <!-- Playoffs Section -->
+            <section id="playoffs" class="section">
+                <div class="section-title">
+                    Playoff Bracket
+                    <button class="refresh-btn" onclick="loadPlayoffs()">&#8635; Refresh</button>
+                </div>
+                <div style="display:flex; gap:8px; margin-bottom:20px;">
+                    <button id="playoffEastBtn" class="nav-tab active" onclick="showConference('east')">Eastern Conference</button>
+                    <button id="playoffWestBtn" class="nav-tab" onclick="showConference('west')">Western Conference</button>
+                </div>
+                <div id="playoffsContent">
+                    <div class="loading"><div class="spinner"></div> Loading bracket...</div>
+                </div>
+            </section>
+
             <!-- App Section -->
             <section id="download" class="section">
                 <div class="section-title">NBA Stables App</div>
@@ -996,853 +1038,7 @@
         </div>
     </main>
 
-    <script>
-        const API_BASE = '';
-        let trackedPlayerIds = [];
-        let currentBoxscoreOffset = 0;
-        let currentLeadersOffset = 0;
-
-        // Navigation
-        document.querySelectorAll('.nav-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-
-                tab.classList.add('active');
-                document.getElementById(tab.dataset.section).classList.add('active');
-
-                // Load data when switching tabs
-                switch(tab.dataset.section) {
-                    case 'scoreboard': loadScoreboard(); break;
-                    case 'boxscores': loadBoxscores(); break;
-                    case 'leaders': loadLeaders(); break;
-                    case 'standings': loadStandings(); break;
-                    case 'injuries': loadInjuries(); break;
-                }
-            });
-        });
-
-        // Date selectors
-        document.querySelectorAll('#boxscores .date-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('#boxscores .date-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentBoxscoreOffset = parseInt(btn.dataset.offset);
-                loadBoxscores();
-            });
-        });
-
-        document.querySelectorAll('#leadersDateSelector .date-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('#leadersDateSelector .date-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentLeadersOffset = parseInt(btn.dataset.offset);
-                loadLeaders();
-            });
-        });
-
-        // Load Scoreboard
-        async function loadScoreboard() {
-            const container = document.getElementById('scoreboardContent');
-            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading games...</div>';
-
-            try {
-                const res = await fetch(`${API_BASE}/api/scoreboard`);
-                const data = await res.json();
-
-                document.getElementById('currentDate').textContent = data.date;
-                document.getElementById('gamesCount').textContent = `${data.games.length} Games`;
-
-                if (data.games.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">&#127944;</div>
-                            <div class="empty-state-title">No Games Today</div>
-                            <p>Check back later for live games</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                const score = (v) => (v == null || v === 'null') ? '-' : v;
-                const hasLeader = (leader) => leader && leader.name && leader.name !== 'null';
-
-                container.innerHTML = data.games.map(game => `
-                    <div class="card game-card">
-                        <span class="game-status ${game.status.toLowerCase().includes('final') ? 'final' : 'live'}">${game.status}</span>
-                        <div class="teams-container">
-                            <div class="team-row">
-                                <div class="team-info">
-                                    <span class="team-tricode">${game.homeTeam.tricode}</span>
-                                    <span class="team-name">${game.homeTeam.name}</span>
-                                </div>
-                                <span class="team-score">${score(game.homeTeam.score)}</span>
-                            </div>
-                            <div class="team-row">
-                                <div class="team-info">
-                                    <span class="team-tricode">${game.awayTeam.tricode}</span>
-                                    <span class="team-name">${game.awayTeam.name}</span>
-                                </div>
-                                <span class="team-score">${score(game.awayTeam.score)}</span>
-                            </div>
-                        </div>
-                        ${hasLeader(game.homeTeam.leader) || hasLeader(game.awayTeam.leader) ? `
-                        <div class="leader-section">
-                            <div class="leader-title">Top Performers</div>
-                            ${hasLeader(game.homeTeam.leader) ? `
-                            <div class="leader-row">
-                                <span class="leader-name">${game.homeTeam.leader.name}</span>
-                                <div class="leader-stats">
-                                    <div class="stat"><div class="stat-value">${score(game.homeTeam.leader.points)}</div><div class="stat-label">PTS</div></div>
-                                    <div class="stat"><div class="stat-value">${score(game.homeTeam.leader.rebounds)}</div><div class="stat-label">REB</div></div>
-                                    <div class="stat"><div class="stat-value">${score(game.homeTeam.leader.assists)}</div><div class="stat-label">AST</div></div>
-                                </div>
-                            </div>` : ''}
-                            ${hasLeader(game.awayTeam.leader) ? `
-                            <div class="leader-row">
-                                <span class="leader-name">${game.awayTeam.leader.name}</span>
-                                <div class="leader-stats">
-                                    <div class="stat"><div class="stat-value">${score(game.awayTeam.leader.points)}</div><div class="stat-label">PTS</div></div>
-                                    <div class="stat"><div class="stat-value">${score(game.awayTeam.leader.rebounds)}</div><div class="stat-label">REB</div></div>
-                                    <div class="stat"><div class="stat-value">${score(game.awayTeam.leader.assists)}</div><div class="stat-label">AST</div></div>
-                                </div>
-                            </div>` : ''}
-                        </div>` : ''}
-                    </div>
-                `).join('');
-            } catch (error) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#9888;</div>
-                        <div class="empty-state-title">Error Loading Games</div>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        // Load Box Scores
-        async function loadBoxscores() {
-            const container = document.getElementById('boxscoresContent');
-            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading box scores...</div>';
-
-            try {
-                const res = await fetch(`${API_BASE}/api/boxscores?days_offset=${currentBoxscoreOffset}`);
-                const data = await res.json();
-
-                if (data.boxscores.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">&#128202;</div>
-                            <div class="empty-state-title">No Box Scores Available</div>
-                            <p>No completed games for ${data.date}</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                const isMobile = window.innerWidth <= 768;
-                container.innerHTML = data.boxscores.map(game => {
-                    if (isMobile) {
-                        return `
-                    <div class="card boxscore-card" style="margin-bottom: 16px; cursor: pointer;" onclick="toggleGameDetails('${game.gameId}', this)">
-                        ${game.teams.map(team => `
-                        <div style="padding: 12px; ${game.teams.indexOf(team) === 0 ? 'border-bottom: 1px solid var(--border);' : ''}">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                <span style="font-weight: 600; font-size: 0.95rem;">${team.name}</span>
-                                <span style="font-size: 1.3rem; font-weight: 700; color: var(--accent);">${team.score}</span>
-                            </div>
-                            <div style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.7rem; color: var(--text-secondary);">
-                                <span>FG ${(team.stats.fgPct * 100).toFixed(0)}%</span>
-                                <span>3P ${(team.stats.threePtPct * 100).toFixed(0)}%</span>
-                                <span>FT ${(team.stats.ftPct * 100).toFixed(0)}%</span>
-                                <span>REB ${team.stats.rebounds}</span>
-                                <span>AST ${team.stats.assists}</span>
-                                <span>TO ${team.stats.turnovers}</span>
-                            </div>
-                            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 6px;">
-                                ${team.leader.name} <span style="color: var(--accent);">${team.leader.points}/${team.leader.rebounds}/${team.leader.assists}</span>
-                            </div>
-                        </div>
-                        `).join('')}
-                        <div style="text-align: center; padding: 8px; color: var(--text-secondary); font-size: 0.75rem; border-top: 1px solid var(--border);">
-                            Tap for player details ▼
-                        </div>
-                        <div class="game-details" id="details-${game.gameId}" style="display: none;"></div>
-                    </div>`;
-                    } else {
-                        return `
-                    <div class="card boxscore-card" style="margin-bottom: 20px; cursor: pointer;" onclick="toggleGameDetails('${game.gameId}', this)">
-                        <table class="boxscore-table">
-                            <thead>
-                                <tr>
-                                    <th>Team</th>
-                                    <th>Score</th>
-                                    <th>FG</th>
-                                    <th>FG%</th>
-                                    <th>3PT</th>
-                                    <th>3P%</th>
-                                    <th>FT</th>
-                                    <th>FT%</th>
-                                    <th>REB</th>
-                                    <th>AST</th>
-                                    <th>STL</th>
-                                    <th>BLK</th>
-                                    <th>TO</th>
-                                    <th>Leader  |PTS|REB|AST|</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${game.teams.map(team => `
-                                    <tr>
-                                        <td>${team.name}</td>
-                                        <td class="highlight">${team.score}</td>
-                                        <td>${team.stats.fg}</td>
-                                        <td>${(team.stats.fgPct * 100).toFixed(1)}%</td>
-                                        <td>${team.stats.threePt}</td>
-                                        <td>${(team.stats.threePtPct * 100).toFixed(1)}%</td>
-                                        <td>${team.stats.ft}</td>
-                                        <td>${(team.stats.ftPct * 100).toFixed(1)}%</td>
-                                        <td>${team.stats.rebounds}</td>
-                                        <td>${team.stats.assists}</td>
-                                        <td>${team.stats.steals}</td>
-                                        <td>${team.stats.blocks}</td>
-                                        <td>${team.stats.turnovers}</td>
-                                        <td>${team.leader.name}  |${team.leader.points}|${team.leader.rebounds}|${team.leader.assists}|</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                        <div style="text-align: center; padding: 8px; color: var(--text-secondary); font-size: 0.8rem;">
-                            Click to see player details ▼
-                        </div>
-                        <div class="game-details" id="details-${game.gameId}" style="display: none;"></div>
-                    </div>`;
-                    }
-                }).join('');
-            } catch (error) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#9888;</div>
-                        <div class="empty-state-title">Error Loading Box Scores</div>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        // Load Leaders
-        async function loadLeaders() {
-            const container = document.getElementById('leadersContent');
-            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading leaders...</div>';
-
-            try {
-                const res = await fetch(`${API_BASE}/api/leaders?days_offset=${currentLeadersOffset}`);
-                const data = await res.json();
-
-                const categories = Object.values(data.leaders);
-
-                if (categories.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">&#127942;</div>
-                            <div class="empty-state-title">No Stats Available</div>
-                            <p>No completed games for ${data.date}</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                container.innerHTML = categories.map(cat => `
-                    <div class="card leader-card">
-                        <div class="leader-card-header">
-                            <span class="leader-category">${cat.label}</span>
-                            <span class="leader-value">${cat.value}</span>
-                        </div>
-                        <div class="leader-players">
-                            ${cat.players.map(p => `
-                                <div class="leader-player">
-                                    <span class="leader-player-name">${p.name}</span>
-                                    <span class="leader-player-team">${p.team}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `).join('');
-            } catch (error) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#9888;</div>
-                        <div class="empty-state-title">Error Loading Leaders</div>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        // Reusable player search setup
-        function initPlayerSearch(inputId, resultsId, onSelect) {
-            const input = document.getElementById(inputId);
-            const results = document.getElementById(resultsId);
-            let timeout;
-
-            input.addEventListener('input', () => {
-                clearTimeout(timeout);
-                const query = input.value.trim();
-                if (query.length < 2) { results.classList.remove('show'); return; }
-                timeout = setTimeout(async () => {
-                    try {
-                        const res = await fetch(`${API_BASE}/api/players/search?q=${encodeURIComponent(query)}`);
-                        if (!res.ok) throw new Error('Search failed');
-                        const data = await res.json();
-                        results.innerHTML = data.players.length === 0
-                            ? '<div class="search-result-item">No players found</div>'
-                            : data.players.map(p => `
-                                <div class="search-result-item" data-id="${p.id}" data-name="${p.name}">
-                                    <span>${p.name}</span>
-                                    <span style="color: var(--text-secondary); font-size: 0.85rem;">ID: ${p.id}</span>
-                                </div>
-                            `).join('');
-                        results.classList.add('show');
-                    } catch (err) {
-                        results.innerHTML = '<div class="search-result-item">Error searching</div>';
-                        results.classList.add('show');
-                    }
-                }, 300);
-            });
-
-            results.addEventListener('click', (e) => {
-                const item = e.target.closest('.search-result-item');
-                if (item && item.dataset.id) {
-                    onSelect(parseInt(item.dataset.id), item.dataset.name);
-                    input.value = '';
-                    results.classList.remove('show');
-                }
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!input.contains(e.target) && !results.contains(e.target)) {
-                    results.classList.remove('show');
-                }
-            });
-        }
-
-        // Player Tracker search
-        initPlayerSearch('playerSearch', 'searchResults', (id, name) => {
-            addTrackedPlayer(id, name);
-        });
-
-        function addTrackedPlayer(id, name) {
-            if (trackedPlayerIds.find(p => p.id === id)) return;
-
-            trackedPlayerIds.push({ id, name });
-            updateTrackedPlayersUI();
-        }
-
-        function removeTrackedPlayer(id) {
-            trackedPlayerIds = trackedPlayerIds.filter(p => p.id !== id);
-            updateTrackedPlayersUI();
-        }
-
-        function updateTrackedPlayersUI() {
-            const container = document.getElementById('trackedPlayers');
-            const trackBtn = document.getElementById('trackBtn');
-
-            container.innerHTML = trackedPlayerIds.map(p => `
-                <div class="player-chip">
-                    <span>${p.name}</span>
-                    <button class="player-chip-remove" onclick="removeTrackedPlayer(${p.id})">&times;</button>
-                </div>
-            `).join('');
-
-            trackBtn.disabled = trackedPlayerIds.length === 0;
-        }
-
-        async function loadTrackedStats() {
-            if (trackedPlayerIds.length === 0) return;
-
-            const container = document.getElementById('trackerContent');
-            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading player stats...</div>';
-
-            try {
-                const ids = trackedPlayerIds.map(p => p.id).join(',');
-                const res = await fetch(`${API_BASE}/api/players/stats?ids=${ids}`);
-                const data = await res.json();
-
-                if (data.players.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">&#128564;</div>
-                            <div class="empty-state-title">No Active Games</div>
-                            <p>Selected players don't have games in progress today</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                container.innerHTML = `
-                    <div class="card" style="overflow-x: auto;">
-                        <table class="player-stats-table">
-                            <thead>
-                                <tr>
-                                    <th>Player</th>
-                                    <th>Team</th>
-                                    <th>MIN</th>
-                                    <th>PTS</th>
-                                    <th>3PT</th>
-                                    <th>REB</th>
-                                    <th>AST</th>
-                                    <th>BLK</th>
-                                    <th>STL</th>
-                                    <th>TO</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data.players.map(p => `
-                                    <tr>
-                                        <td><strong>${p.name}</strong></td>
-                                        <td>${p.team}</td>
-                                        <td>${p.minutes}</td>
-                                        <td class="${p.points > 0 ? 'highlight' : ''}">${p.points}</td>
-                                        <td>${p.threePointers}</td>
-                                        <td class="${p.rebounds > 0 ? 'highlight' : ''}">${p.rebounds}</td>
-                                        <td class="${p.assists > 0 ? 'highlight' : ''}">${p.assists}</td>
-                                        <td>${p.blocks}</td>
-                                        <td>${p.steals}</td>
-                                        <td>${p.turnovers}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            } catch (error) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#9888;</div>
-                        <div class="empty-state-title">Error Loading Stats</div>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        // Toggle Game Details (Player Stats)
-        async function toggleGameDetails(gameId, cardElement) {
-            const detailsDiv = document.getElementById(`details-${gameId}`);
-
-            if (detailsDiv.style.display === 'block') {
-                detailsDiv.style.display = 'none';
-                return;
-            }
-
-            detailsDiv.innerHTML = '<div class="loading" style="padding: 20px;"><div class="spinner"></div> Loading player stats...</div>';
-            detailsDiv.style.display = 'block';
-
-            try {
-                const res = await fetch(`${API_BASE}/api/games/${gameId}/players`);
-                const data = await res.json();
-
-                detailsDiv.innerHTML = data.teams.map(team => {
-                    const activePlayers = team.players.filter(p => p.minutes !== '0:00' && p.minutes !== '0' && p.minutes !== 0);
-                    return `
-                    <div style="padding: 8px; border-top: 1px solid var(--border);">
-                        <h4 style="margin-bottom: 6px; color: var(--accent); font-size: 0.75rem;">${team.name} - ${team.score}</h4>
-                        <table class="boxscore-table" style="font-size: 0.72rem;">
-                            <thead>
-                                <tr>
-                                    <th style="text-align: left;">Player</th>
-                                    <th>MIN</th>
-                                    <th>PTS</th>
-                                    <th>REB</th>
-                                    <th>AST</th>
-                                    <th>FG</th>
-                                    <th>3PT</th>
-                                    <th>FT</th>
-                                    <th>STL</th>
-                                    <th>BLK</th>
-                                    <th>TO</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${activePlayers.map(p => `
-                                    <tr>
-                                        <td style="text-align: left; white-space: nowrap;">${p.name}</td>
-                                        <td>${p.minutes}</td>
-                                        <td class="${p.points >= 20 ? 'highlight' : ''}">${p.points}</td>
-                                        <td class="${p.rebounds >= 10 ? 'highlight' : ''}">${p.rebounds}</td>
-                                        <td class="${p.assists >= 10 ? 'highlight' : ''}">${p.assists}</td>
-                                        <td>${p.fg}</td>
-                                        <td>${p.threePt}</td>
-                                        <td>${p.ft}</td>
-                                        <td>${p.steals}</td>
-                                        <td>${p.blocks}</td>
-                                        <td>${p.turnovers}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>`;
-                }).join('');
-            } catch (error) {
-                detailsDiv.innerHTML = `<div style="padding: 20px; color: var(--text-secondary);">Error loading player stats: ${error.message}</div>`;
-            }
-        }
-
-        // Load Standings
-        async function loadStandings() {
-            const container = document.getElementById('standingsContent');
-            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading standings...</div>';
-
-            try {
-                const res = await fetch(`${API_BASE}/api/standings`);
-                const data = await res.json();
-
-                const renderConference = (teams, name) => `
-                    <div class="card" style="overflow-x: auto;">
-                        <h3 style="padding: 15px 20px; background: var(--bg-secondary); margin: 0;">${name} Conference</h3>
-                        <table class="boxscore-table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th style="text-align: left;">Team</th>
-                                    <th>W</th>
-                                    <th>L</th>
-                                    <th>PCT</th>
-                                    <th>GB</th>
-                                    <th>Streak</th>
-                                    <th>L10</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${teams.map((team, i) => `
-                                    <tr style="${i < 6 ? 'background: rgba(74, 222, 128, 0.05);' : i < 10 ? 'background: rgba(255, 107, 53, 0.05);' : ''}">
-                                        <td style="text-align: center; font-weight: 600;">${team.rank}</td>
-                                        <td style="text-align: left; font-weight: 500;">${team.name}</td>
-                                        <td class="highlight">${team.wins}</td>
-                                        <td>${team.losses}</td>
-                                        <td>${(team.winPct * 100).toFixed(1)}%</td>
-                                        <td>${team.gamesBack}</td>
-                                        <td>${team.streak}</td>
-                                        <td>${team.last10}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-
-                container.innerHTML = renderConference(data.east, 'Eastern') + renderConference(data.west, 'Western');
-            } catch (error) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#9888;</div>
-                        <div class="empty-state-title">Error Loading Standings</div>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        // Load Injuries
-        let injuriesData = null;
-        let injuriesView = 'list';
-
-        function setInjuriesView(view) {
-            injuriesView = view;
-            document.getElementById('injuriesListBtn').classList.toggle('active', view === 'list');
-            document.getElementById('injuriesGroupBtn').classList.toggle('active', view === 'grouped');
-            if (injuriesData) {
-                renderInjuries();
-            }
-        }
-
-        function renderInjuries() {
-            const container = document.getElementById('injuriesContent');
-            const data = injuriesData;
-
-            if (injuriesView === 'list') {
-                // Flat list of all players - compact 2-column newspaper style
-                const allPlayers = [];
-                data.injuries.forEach(team => {
-                    team.players.forEach(p => {
-                        allPlayers.push({ ...p, team: team.team });
-                    });
-                });
-
-                // Split into 4 columns (newspaper style)
-                const quarter = Math.ceil(allPlayers.length / 4);
-                const cols = [
-                    allPlayers.slice(0, quarter),
-                    allPlayers.slice(quarter, quarter * 2),
-                    allPlayers.slice(quarter * 2, quarter * 3),
-                    allPlayers.slice(quarter * 3)
-                ];
-
-                const renderPlayer = (p) => {
-                    const st = p.status.toLowerCase();
-                    // Determine short status first
-                    let shortStatus = 'GTD';
-                    if (st.includes('out for') || st === 'suspension') {
-                        shortStatus = 'OUT';
-                    } else if (st.includes('expected') || st.includes('return')) {
-                        shortStatus = p.status.match(/Jan \d+|Feb \d+|Mar \d+|Apr \d+|May \d+/i)?.[0] || 'TBD';
-                    } else if (st === 'day-to-day' || st === 'game time decision') {
-                        shortStatus = 'GTD';  // Unified: both DTD and GTD show as GTD
-                    } else if (st === 'out') {
-                        shortStatus = 'OUT';
-                    }
-                    // Colors: OUT=red, dates=yellow, GTD=green
-                    const statusColor = (shortStatus === 'OUT') ? '#ef4444' :
-                                       (shortStatus !== 'GTD') ? '#f59e0b' : '#4ade80';
-                    // Map team names to 3-letter codes
-                    const teamCodes = {
-                        'hawks': 'ATL', 'celtics': 'BOS', 'nets': 'BKN', 'hornets': 'CHA', 'bulls': 'CHI',
-                        'cavaliers': 'CLE', 'mavericks': 'DAL', 'nuggets': 'DEN', 'pistons': 'DET', 'warriors': 'GSW',
-                        'rockets': 'HOU', 'pacers': 'IND', 'clippers': 'LAC', 'lakers': 'LAL', 'grizzlies': 'MEM',
-                        'heat': 'MIA', 'bucks': 'MIL', 'timberwolves': 'MIN', 'pelicans': 'NOP', 'knicks': 'NYK',
-                        'thunder': 'OKC', 'magic': 'ORL', '76ers': 'PHI', 'suns': 'PHX', 'trail blazers': 'POR',
-                        'kings': 'SAC', 'spurs': 'SAS', 'raptors': 'TOR', 'jazz': 'UTA', 'wizards': 'WAS',
-                        'atlanta': 'ATL', 'boston': 'BOS', 'brooklyn': 'BKN', 'charlotte': 'CHA', 'chicago': 'CHI',
-                        'cleveland': 'CLE', 'dallas': 'DAL', 'denver': 'DEN', 'detroit': 'DET', 'golden st.': 'GSW',
-                        'houston': 'HOU', 'indiana': 'IND', 'l.a. clippers': 'LAC', 'l.a. lakers': 'LAL', 'memphis': 'MEM',
-                        'miami': 'MIA', 'milwaukee': 'MIL', 'minnesota': 'MIN', 'new orleans': 'NOP', 'new york': 'NYK',
-                        'oklahoma city': 'OKC', 'orlando': 'ORL', 'philadelphia': 'PHI', 'phoenix': 'PHX', 'portland': 'POR',
-                        'sacramento': 'SAC', 'san antonio': 'SAS', 'toronto': 'TOR', 'utah': 'UTA', 'washington': 'WAS'
-                    };
-                    const teamLower = p.team.toLowerCase();
-                    const shortTeam = teamCodes[teamLower] || Object.entries(teamCodes).find(([k]) => teamLower.includes(k))?.[1] || p.team.substring(0, 3).toUpperCase();
-                    return `<div style="display: flex; justify-content: space-between; padding: 3px 6px; border-bottom: 1px solid var(--border); font-size: 10px;">
-                        <span style="flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</span>
-                        <span style="width: 30px; color: var(--text-secondary); text-align: center;">${shortTeam}</span>
-                        <span style="width: 45px; text-align: right; color: ${statusColor}; font-weight: 600;">${shortStatus}</span>
-                    </div>`;
-                };
-
-                const renderColumn = (players) => `
-                    <div class="card" style="padding: 0; overflow: hidden;">
-                        <div style="padding: 4px 6px; background: var(--bg-secondary); font-size: 9px; color: var(--text-secondary); display: flex; justify-content: space-between;">
-                            <span style="flex: 1;">Player</span>
-                            <span style="width: 30px; text-align: center;">Team</span>
-                            <span style="width: 45px; text-align: right;">Status</span>
-                        </div>
-                        ${players.map(renderPlayer).join('')}
-                    </div>
-                `;
-
-                container.innerHTML = `
-                    <p style="color: var(--text-secondary); margin-bottom: 10px; font-size: 0.75rem;">
-                        ${allPlayers.length} injured | GTD=Game Time Decision | OUT=Season | Date=Return
-                    </p>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 10px;">
-                        ${cols.map(renderColumn).join('')}
-                    </div>
-                `;
-            } else {
-                // Grouped by team
-                container.innerHTML = `
-                    <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
-                        Last updated: ${data.lastUpdated} | Source: ${data.source}
-                    </p>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(450px, 100%), 1fr)); gap: 20px;">
-                        ${data.injuries.map(team => `
-                            <div class="card" style="overflow: hidden;">
-                                <div style="padding: 15px 20px; background: var(--bg-secondary); font-weight: 600; border-bottom: 1px solid var(--border);">
-                                    ${team.team}
-                                    <span style="color: var(--text-secondary); font-weight: normal; font-size: 0.85rem; margin-left: 10px;">${team.players.length} player${team.players.length !== 1 ? 's' : ''}</span>
-                                </div>
-                                <table class="boxscore-table" style="font-size: 0.92rem;">
-                                    <thead>
-                                        <tr>
-                                            <th style="text-align: left;">Player</th>
-                                            <th>Updated</th>
-                                            <th>Injury</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${team.players.map(p => `
-                                            <tr>
-                                                <td style="text-align: left; font-weight: 500;">${p.name}</td>
-                                                <td style="color: var(--text-secondary); font-size: 0.8rem;">${p.updated}</td>
-                                                <td>${p.injury}</td>
-                                                <td style="color: ${(p.status.toLowerCase().includes('out') || p.status.toLowerCase() === 'suspension') ? '#ef4444' : (p.status.toLowerCase().includes('day-to-day') || p.status.toLowerCase().includes('expected')) ? '#f59e0b' : 'var(--success)'}; font-weight: 500;">${p.status}</td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-            }
-        }
-
-        async function loadInjuries() {
-            const container = document.getElementById('injuriesContent');
-            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading injury report...</div>';
-
-            try {
-                const res = await fetch(`${API_BASE}/api/injuries`);
-                const data = await res.json();
-
-                if (!res.ok) {
-                    throw new Error(data.detail || 'Failed to load injuries');
-                }
-
-                if (!data.injuries || data.injuries.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">&#128170;</div>
-                            <div class="empty-state-title">No Injuries Reported</div>
-                            <p>All players are healthy!</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                injuriesData = data;
-                renderInjuries();
-            } catch (error) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#9888;</div>
-                        <div class="empty-state-title">Error Loading Injuries</div>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        // Last N Games
-        let lastNSelectedPlayer = null;
-        let lastNGamesCount = 5;
-
-        document.querySelectorAll('#lastngames .date-btn[data-n]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('#lastngames .date-btn[data-n]').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                lastNGamesCount = parseInt(btn.dataset.n);
-            });
-        });
-
-        // Last N Games search
-        initPlayerSearch('lastNSearch', 'lastNSearchResults', (id, name) => {
-            lastNSelectedPlayer = { id, name };
-            document.getElementById('lastNPlayerChip').innerHTML = `
-                <div class="player-chip">
-                    <span>${name}</span>
-                    <button class="player-chip-remove" onclick="lastNSelectedPlayer=null; document.getElementById('lastNPlayerChip').innerHTML=''; document.getElementById('lastNBtn').disabled=true;">&times;</button>
-                </div>
-            `;
-            document.getElementById('lastNBtn').disabled = false;
-        });
-
-        async function loadLastNGames() {
-            if (!lastNSelectedPlayer) return;
-            const container = document.getElementById('lastNContent');
-            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading game log...</div>';
-
-            try {
-                const res = await fetch(`${API_BASE}/api/players/${lastNSelectedPlayer.id}/last-n-games?n=${lastNGamesCount}`);
-                const data = await res.json();
-
-                if (!data.games || data.games.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">&#128564;</div>
-                            <div class="empty-state-title">No Games Found</div>
-                            <p>No recent game data available for ${data.playerName}</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                const avgOf = (key) => {
-                    const played = data.games.filter(g => !g.dnp);
-                    if (!played.length) return '-';
-                    const sum = played.reduce((acc, g) => acc + (g[key] || 0), 0);
-                    return (sum / played.length).toFixed(1);
-                };
-
-                container.innerHTML = `
-                    <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 0.85rem;">
-                        ${data.games.filter(g => !g.dnp).length} games played of ${data.games.length} shown
-                    </div>
-                    <div class="card" style="overflow-x: auto;">
-                        <table class="player-stats-table">
-                            <thead>
-                                <tr>
-                                    <th style="text-align: left;">Matchup</th>
-                                    <th>MIN</th>
-                                    <th>PTS</th>
-                                    <th>FG</th>
-                                    <th>3P</th>
-                                    <th>FT</th>
-                                    <th>REB</th>
-                                    <th>AST</th>
-                                    <th>BLK</th>
-                                    <th>STL</th>
-                                    <th>PF</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data.games.map(g => g.dnp ? `
-                                    <tr style="opacity: 0.5;">
-                                        <td style="text-align: left;">${g.matchup}</td>
-                                        <td colspan="10" style="text-align: center; color: var(--text-secondary); font-style: italic;">DNP</td>
-                                    </tr>
-                                ` : `
-                                    <tr>
-                                        <td style="text-align: left; white-space: nowrap;">${g.matchup}</td>
-                                        <td>${g.minutes}</td>
-                                        <td class="${g.points >= 20 ? 'highlight' : ''}">${g.points}</td>
-                                        <td>${g.fg}</td>
-                                        <td>${g.threePointers}</td>
-                                        <td>${g.ft}</td>
-                                        <td class="${g.rebounds >= 10 ? 'highlight' : ''}">${g.rebounds}</td>
-                                        <td class="${g.assists >= 10 ? 'highlight' : ''}">${g.assists}</td>
-                                        <td>${g.blocks}</td>
-                                        <td>${g.steals}</td>
-                                        <td>${g.fouls}</td>
-                                    </tr>
-                                `).join('')}
-                                <tr style="border-top: 2px solid var(--accent); background: var(--bg-secondary); font-weight: 600;">
-                                    <td style="text-align: left; color: var(--text-secondary);">AVG</td>
-                                    <td>-</td>
-                                    <td class="highlight">${avgOf('points')}</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                    <td>${avgOf('rebounds')}</td>
-                                    <td>${avgOf('assists')}</td>
-                                    <td>${avgOf('blocks')}</td>
-                                    <td>${avgOf('steals')}</td>
-                                    <td>-</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            } catch (error) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#9888;</div>
-                        <div class="empty-state-title">Error Loading Stats</div>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/static/sw.js');
-        }
-
-        // Initial load
-        loadScoreboard();
-    </script>
+    <script>const API_BASE="";let trackedPlayerIds=[],currentBoxscoreOffset=0,currentLeadersOffset=0;const _abortControllers={};function _fetchWithAbort(t,e,s={},a=15e3){_abortControllers[t]&&_abortControllers[t].abort();const n=new AbortController;_abortControllers[t]=n;const i=setTimeout(()=>n.abort(),a);return fetch(e,{...s,signal:n.signal}).finally(()=>clearTimeout(i))}const TEAM_TZ={ATL:"America/New_York",BOS:"America/New_York",BKN:"America/New_York",CHA:"America/New_York",CHI:"America/Chicago",CLE:"America/New_York",DAL:"America/Chicago",DEN:"America/Denver",DET:"America/Detroit",GSW:"America/Los_Angeles",HOU:"America/Chicago",IND:"America/Indiana/Indianapolis",LAC:"America/Los_Angeles",LAL:"America/Los_Angeles",MEM:"America/Chicago",MIA:"America/New_York",MIL:"America/Chicago",MIN:"America/Chicago",NOP:"America/Chicago",NYK:"America/New_York",OKC:"America/Chicago",ORL:"America/New_York",PHI:"America/New_York",PHX:"America/Phoenix",POR:"America/Los_Angeles",SAC:"America/Los_Angeles",SAS:"America/Chicago",TOR:"America/Toronto",UTA:"America/Denver",WAS:"America/New_York"};function homeTeamLocalTime(t){const e=TEAM_TZ[t];return e?(new Date).toLocaleTimeString("en-US",{timeZone:e,hour:"2-digit",minute:"2-digit"}):""}function isGameLive(t){return/^(Q[1-4]|OT|Halftime|End of)/i.test(t.trim())}const STAT_TIERS={points:[30,20,15],rebounds:[15,10,7],assists:[15,10,7],steals:[4,3,2],blocks:[4,3,2]};function statClass(t,e){const s=STAT_TIERS[t];return!s||e<=0?"":e>=s[0]?"stat-elite":e>=s[1]?"stat-great":e>=s[2]?"stat-good":""}function _dateLabel(t){const e=new Date;return e.setDate(e.getDate()-t),e.toLocaleDateString("en-US",{month:"short",day:"numeric"})}function _loadDateLabels(){fetch("/api/dates").then(t=>t.json()).then(t=>{const e=t=>{const e=new Date(t);return isNaN(e)?t:e.toLocaleDateString("en-US",{month:"short",day:"numeric"})};_boxscoreDateBtns.forEach(s=>{const a=t.dates[parseInt(s.dataset.offset)];a&&(s.textContent=e(a))}),_leaderDateBtns.forEach(s=>{const a=t.dates[parseInt(s.dataset.offset)];a&&(s.textContent=e(a))})}).catch(()=>{})}const _TEAM_CODES={hawks:"ATL",celtics:"BOS",nets:"BKN",hornets:"CHA",bulls:"CHI",cavaliers:"CLE",mavericks:"DAL",nuggets:"DEN",pistons:"DET",warriors:"GSW",rockets:"HOU",pacers:"IND",clippers:"LAC",lakers:"LAL",grizzlies:"MEM",heat:"MIA",bucks:"MIL",timberwolves:"MIN",pelicans:"NOP",knicks:"NYK",thunder:"OKC",magic:"ORL","76ers":"PHI",suns:"PHX","trail blazers":"POR",kings:"SAC",spurs:"SAS",raptors:"TOR",jazz:"UTA",wizards:"WAS",atlanta:"ATL",boston:"BOS",brooklyn:"BKN",charlotte:"CHA",chicago:"CHI",cleveland:"CLE",dallas:"DAL",denver:"DEN",detroit:"DET","golden st.":"GSW",houston:"HOU",indiana:"IND","l.a. clippers":"LAC","l.a. lakers":"LAL",memphis:"MEM",miami:"MIA",milwaukee:"MIL",minnesota:"MIN","new orleans":"NOP","new york":"NYK","oklahoma city":"OKC",orlando:"ORL",philadelphia:"PHI",phoenix:"PHX",portland:"POR",sacramento:"SAC","san antonio":"SAS",toronto:"TOR",utah:"UTA",washington:"WAS"},_RETURN_DATE_RE=/Jan \d+|Feb \d+|Mar \d+|Apr \d+|May \d+/i,_navTabs=Array.from(document.querySelectorAll(".nav-tab[data-section]")),_sections=Array.from(document.querySelectorAll(".section"));document.querySelectorAll(".nav-tab").forEach(t=>{t.addEventListener("click",()=>{if(t.dataset.section)switch(_navTabs.forEach(t=>t.classList.remove("active")),_sections.forEach(t=>t.classList.remove("active")),t.classList.add("active"),document.getElementById(t.dataset.section).classList.add("active"),t.dataset.section){case"scoreboard":loadScoreboard();break;case"boxscores":loadBoxscores();break;case"leaders":loadLeaders();break;case"standings":loadStandings();break;case"injuries":loadInjuries();break;case"playoffs":loadPlayoffs()}})});const _boxscoreDateBtns=Array.from(document.querySelectorAll("#boxscores .date-btn"));_boxscoreDateBtns.forEach(t=>{t.textContent=_dateLabel(parseInt(t.dataset.offset)),t.addEventListener("click",()=>{_boxscoreDateBtns.forEach(t=>t.classList.remove("active")),t.classList.add("active"),currentBoxscoreOffset=parseInt(t.dataset.offset),loadBoxscores()})});const _leaderDateBtns=Array.from(document.querySelectorAll("#leadersDateSelector .date-btn"));async function loadScoreboard(){const t=document.getElementById("scoreboardContent");t.innerHTML='<div class="loading"><div class="spinner"></div> Loading games...</div>';try{const e=await _fetchWithAbort("scoreboard","/api/scoreboard"),s=await e.json();if(document.getElementById("gamesCount").textContent=`${s.games.length} Games`,0===s.games.length)return void(t.innerHTML='\n                        <div class="empty-state">\n                            <div class="empty-state-icon">&#127944;</div>\n                            <div class="empty-state-title">No Games Today</div>\n                            <p>Check back later for live games</p>\n                        </div>\n                    ');const a=t=>null==t||"null"===t?"-":t,n=t=>t&&t.name&&"null"!==t.name;t.innerHTML=s.games.map(t=>`\n                    <div class="card game-card">\n                        <div class="game-card-header">\n                            <span class="game-status ${t.status.toLowerCase().includes("final")?"final":"live"}">${t.status}</span>\n                            ${isGameLive(t.status)?`<span class="game-local-time">${homeTeamLocalTime(t.homeTeam.tricode)}</span>`:""}\n                        </div>\n                        <div class="teams-container">\n                            <div class="team-row">\n                                <div class="team-info">\n                                    <span class="team-tricode">${t.homeTeam.tricode}</span>\n                                    <span class="team-name">${t.homeTeam.name}</span>\n                                </div>\n                                <span class="team-score">${a(t.homeTeam.score)}</span>\n                            </div>\n                            <div class="team-row">\n                                <div class="team-info">\n                                    <span class="team-tricode">${t.awayTeam.tricode}</span>\n                                    <span class="team-name">${t.awayTeam.name}</span>\n                                </div>\n                                <span class="team-score">${a(t.awayTeam.score)}</span>\n                            </div>\n                        </div>\n                        ${n(t.homeTeam.leader)||n(t.awayTeam.leader)?`\n                        <div class="leader-section">\n                            <div class="leader-title">Top Performers</div>\n                            ${n(t.homeTeam.leader)?`\n                            <div class="leader-row">\n                                <span class="leader-name">${t.homeTeam.leader.name}</span>\n                                <div class="leader-stats">\n                                    <div class="stat"><div class="stat-value">${a(t.homeTeam.leader.points)}</div><div class="stat-label">PTS</div></div>\n                                    <div class="stat"><div class="stat-value">${a(t.homeTeam.leader.rebounds)}</div><div class="stat-label">REB</div></div>\n                                    <div class="stat"><div class="stat-value">${a(t.homeTeam.leader.assists)}</div><div class="stat-label">AST</div></div>\n                                </div>\n                            </div>`:""}\n                            ${n(t.awayTeam.leader)?`\n                            <div class="leader-row">\n                                <span class="leader-name">${t.awayTeam.leader.name}</span>\n                                <div class="leader-stats">\n                                    <div class="stat"><div class="stat-value">${a(t.awayTeam.leader.points)}</div><div class="stat-label">PTS</div></div>\n                                    <div class="stat"><div class="stat-value">${a(t.awayTeam.leader.rebounds)}</div><div class="stat-label">REB</div></div>\n                                    <div class="stat"><div class="stat-value">${a(t.awayTeam.leader.assists)}</div><div class="stat-label">AST</div></div>\n                                </div>\n                            </div>`:""}\n                        </div>`:""}\n                    </div>\n                `).join("")}catch(e){t.innerHTML=`\n                    <div class="empty-state">\n                        <div class="empty-state-icon">&#9888;</div>\n                        <div class="empty-state-title">Error Loading Games</div>\n                        <p>${e.message}</p>\n                    </div>\n                `}}async function loadBoxscores(){const t=document.getElementById("boxscoresContent");t.innerHTML='<div class="loading"><div class="spinner"></div> Loading box scores...</div>';try{const e=await _fetchWithAbort("boxscores",`/api/boxscores?days_offset=${currentBoxscoreOffset}`),s=await e.json();if(0===s.boxscores.length)return void(t.innerHTML=`\n                        <div class="empty-state">\n                            <div class="empty-state-icon">&#128202;</div>\n                            <div class="empty-state-title">No Box Scores Available</div>\n                            <p>No completed games for ${s.date}</p>\n                        </div>\n                    `);const a=window.innerWidth<=768;t.innerHTML=s.boxscores.map(t=>a?`\n                    <div class="card boxscore-card" style="margin-bottom: 16px; cursor: pointer;" onclick="toggleGameDetails('${t.gameId}', this)">\n                        ${t.teams.map(e=>`\n                        <div style="padding: 12px; ${0===t.teams.indexOf(e)?"border-bottom: 1px solid var(--border);":""}">\n                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">\n                                <span style="font-weight: 600; font-size: 0.95rem;">${e.name}</span>\n                                <span style="font-size: 1.3rem; font-weight: 700; color: var(--accent);">${e.score}</span>\n                            </div>\n                            <div style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.7rem; color: var(--text-secondary);">\n                                <span>FG ${(100*e.stats.fgPct).toFixed(0)}%</span>\n                                <span>3P ${(100*e.stats.threePtPct).toFixed(0)}%</span>\n                                <span>FT ${(100*e.stats.ftPct).toFixed(0)}%</span>\n                                <span>REB ${e.stats.rebounds}</span>\n                                <span>AST ${e.stats.assists}</span>\n                                <span>TO ${e.stats.turnovers}</span>\n                            </div>\n                            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 6px;">\n                                ${e.leader.name} <span style="color: var(--accent);">${e.leader.points}/${e.leader.rebounds}/${e.leader.assists}</span>\n                            </div>\n                        </div>\n                        `).join("")}\n                        <div style="text-align: center; padding: 8px; color: var(--text-secondary); font-size: 0.75rem; border-top: 1px solid var(--border);">\n                            Tap for player details ▼\n                        </div>\n                        <div class="game-details" id="details-${t.gameId}" style="display: none;"></div>\n                    </div>`:`\n                    <div class="card boxscore-card" style="margin-bottom: 20px; cursor: pointer;" onclick="toggleGameDetails('${t.gameId}', this)">\n                        <table class="boxscore-table">\n                            <thead>\n                                <tr>\n                                    <th>Team</th>\n                                    <th>Score</th>\n                                    <th>FG</th>\n                                    <th>FG%</th>\n                                    <th>3PT</th>\n                                    <th>3P%</th>\n                                    <th>FT</th>\n                                    <th>FT%</th>\n                                    <th>REB</th>\n                                    <th>AST</th>\n                                    <th>STL</th>\n                                    <th>BLK</th>\n                                    <th>TO</th>\n                                    <th>Leader  |PTS|REB|AST|</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                ${t.teams.map(t=>`\n                                    <tr>\n                                        <td>${t.name}</td>\n                                        <td class="highlight">${t.score}</td>\n                                        <td>${t.stats.fg}</td>\n                                        <td>${(100*t.stats.fgPct).toFixed(1)}%</td>\n                                        <td>${t.stats.threePt}</td>\n                                        <td>${(100*t.stats.threePtPct).toFixed(1)}%</td>\n                                        <td>${t.stats.ft}</td>\n                                        <td>${(100*t.stats.ftPct).toFixed(1)}%</td>\n                                        <td>${t.stats.rebounds}</td>\n                                        <td>${t.stats.assists}</td>\n                                        <td>${t.stats.steals}</td>\n                                        <td>${t.stats.blocks}</td>\n                                        <td>${t.stats.turnovers}</td>\n                                        <td>${t.leader.name}  |${t.leader.points}|${t.leader.rebounds}|${t.leader.assists}|</td>\n                                    </tr>\n                                `).join("")}\n                            </tbody>\n                        </table>\n                        <div style="text-align: center; padding: 8px; color: var(--text-secondary); font-size: 0.8rem;">\n                            Click to see player details ▼\n                        </div>\n                        <div class="game-details" id="details-${t.gameId}" style="display: none;"></div>\n                    </div>`).join("")}catch(e){t.innerHTML=`\n                    <div class="empty-state">\n                        <div class="empty-state-icon">&#9888;</div>\n                        <div class="empty-state-title">Error Loading Box Scores</div>\n                        <p>${e.message}</p>\n                    </div>\n                `}}async function loadLeaders(){const t=document.getElementById("leadersContent");t.innerHTML='<div class="loading"><div class="spinner"></div> Loading leaders...</div>';try{const e=await _fetchWithAbort("leaders",`/api/leaders?days_offset=${currentLeadersOffset}`),s=await e.json(),a=Object.values(s.leaders);if(0===a.length)return void(t.innerHTML=`\n                        <div class="empty-state">\n                            <div class="empty-state-icon">&#127942;</div>\n                            <div class="empty-state-title">No Stats Available</div>\n                            <p>No completed games for ${s.date}</p>\n                        </div>\n                    `);t.innerHTML=a.map(t=>`\n                    <div class="card leader-card">\n                        <div class="leader-card-header">\n                            <span class="leader-category">${t.label}</span>\n                            <span class="leader-value">${t.value}</span>\n                        </div>\n                        <div class="leader-players">\n                            ${t.players.map(t=>`\n                                <div class="leader-player">\n                                    <span class="leader-player-name">${t.name}</span>\n                                    <span class="leader-player-team">${t.team}</span>\n                                </div>\n                            `).join("")}\n                        </div>\n                    </div>\n                `).join("")}catch(e){t.innerHTML=`\n                    <div class="empty-state">\n                        <div class="empty-state-icon">&#9888;</div>\n                        <div class="empty-state-title">Error Loading Leaders</div>\n                        <p>${e.message}</p>\n                    </div>\n                `}}function initPlayerSearch(t,e,s,a){const n=document.getElementById(t),i=document.getElementById(e);let l,r=-1;function o(){return Array.from(i.querySelectorAll(".search-result-item[data-id]"))}function d(t){t&&t.dataset.id&&(s(parseInt(t.dataset.id),t.dataset.name),n.value="",i.classList.remove("show"),r=-1)}n.addEventListener("keydown",t=>{const e=i.classList.contains("show");if("ArrowDown"===t.key||"ArrowUp"===t.key){if(t.preventDefault(),!e)return;const s=o();!function(t,e){e.forEach(t=>t.classList.remove("active")),r=t<0||t>=e.length?-1:t,r>=0&&(e[r].classList.add("active"),e[r].scrollIntoView({block:"nearest"}))}("ArrowDown"===t.key?Math.min(r+1,s.length-1):Math.max(r-1,0),s)}else if("Enter"===t.key){if(t.preventDefault(),e){const t=o();d(r>=0?t[r]:t[0])}else if(a){const t=document.getElementById(a);t&&!t.disabled&&t.click()}}else"Escape"===t.key&&(i.classList.remove("show"),r=-1)}),n.addEventListener("input",()=>{r=-1,clearTimeout(l);const e=n.value.trim();e.length<2?i.classList.remove("show"):l=setTimeout(async()=>{try{const s=await _fetchWithAbort("search_"+t,`/api/players/search?q=${encodeURIComponent(e)}`);if(!s.ok)throw new Error("Search failed");const a=await s.json();i.innerHTML=0===a.players.length?'<div class="search-result-item">No players found</div>':a.players.map(t=>`\n                                <div class="search-result-item" data-id="${t.id}" data-name="${t.name}">\n                                    <span>${t.name}</span>\n                                    <span style="color: var(--text-secondary); font-size: 0.85rem;">ID: ${t.id}</span>\n                                </div>\n                            `).join(""),i.classList.add("show")}catch(t){i.innerHTML='<div class="search-result-item">Error searching</div>',i.classList.add("show")}},300)}),i.addEventListener("click",t=>{d(t.target.closest(".search-result-item"))}),document.addEventListener("click",t=>{n.contains(t.target)||i.contains(t.target)||(i.classList.remove("show"),r=-1)})}function addTrackedPlayer(t,e){trackedPlayerIds.find(e=>e.id===t)||(trackedPlayerIds.push({id:t,name:e}),updateTrackedPlayersUI())}function removeTrackedPlayer(t){trackedPlayerIds=trackedPlayerIds.filter(e=>e.id!==t),updateTrackedPlayersUI()}function updateTrackedPlayersUI(){const t=document.getElementById("trackedPlayers"),e=document.getElementById("trackBtn");t.innerHTML=trackedPlayerIds.map(t=>`\n                <div class="player-chip">\n                    <span>${t.name}</span>\n                    <button class="player-chip-remove" onclick="removeTrackedPlayer(${t.id})">&times;</button>\n                </div>\n            `).join(""),e.disabled=0===trackedPlayerIds.length}async function loadTrackedStats(){if(0===trackedPlayerIds.length)return;const t=document.getElementById("trackerContent");t.innerHTML='<div class="loading"><div class="spinner"></div> Loading player stats...</div>';try{const e=trackedPlayerIds.map(t=>t.id).join(","),s=await _fetchWithAbort("trackedStats",`/api/players/stats?ids=${e}`),a=await s.json();if(0===a.players.length)return void(t.innerHTML='\n                        <div class="empty-state">\n                            <div class="empty-state-icon">&#128564;</div>\n                            <div class="empty-state-title">No Active Games</div>\n                            <p>Selected players don\'t have games in progress today</p>\n                        </div>\n                    ');t.innerHTML=`\n                    <div class="card" style="overflow-x: auto;">\n                        <table class="player-stats-table">\n                            <thead>\n                                <tr>\n                                    <th>Player</th>\n                                    <th>Team</th>\n                                    <th>MIN</th>\n                                    <th>PTS</th>\n                                    <th>3PT</th>\n                                    <th>REB</th>\n                                    <th>AST</th>\n                                    <th>BLK</th>\n                                    <th>STL</th>\n                                    <th>TO</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                ${a.players.map(t=>`\n                                    <tr>\n                                        <td><strong>${t.name}</strong></td>\n                                        <td>${t.team}</td>\n                                        <td>${t.minutes}</td>\n                                        <td class="${statClass("points",t.points)}">${t.points}</td>\n                                        <td>${t.threePointers}</td>\n                                        <td class="${statClass("rebounds",t.rebounds)}">${t.rebounds}</td>\n                                        <td class="${statClass("assists",t.assists)}">${t.assists}</td>\n                                        <td class="${statClass("blocks",t.blocks)}">${t.blocks}</td>\n                                        <td class="${statClass("steals",t.steals)}">${t.steals}</td>\n                                        <td>${t.turnovers}</td>\n                                    </tr>\n                                `).join("")}\n                            </tbody>\n                        </table>\n                    </div>\n                `}catch(e){t.innerHTML=`\n                    <div class="empty-state">\n                        <div class="empty-state-icon">&#9888;</div>\n                        <div class="empty-state-title">Error Loading Stats</div>\n                        <p>${e.message}</p>\n                    </div>\n                `}}async function toggleGameDetails(t,e){const s=document.getElementById(`details-${t}`);if("block"!==s.style.display){s.innerHTML='<div class="loading" style="padding: 20px;"><div class="spinner"></div> Loading player stats...</div>',s.style.display="block";try{const e=await fetch(`/api/games/${t}/players`),a=await e.json();s.innerHTML=a.teams.map(t=>{const e=t.players.filter(t=>"0:00"!==t.minutes&&"0"!==t.minutes&&0!==t.minutes);return`\n                    <div style="padding: 8px; border-top: 1px solid var(--border);">\n                        <h4 style="margin-bottom: 6px; color: var(--accent); font-size: 0.75rem;">${t.name} - ${t.score}</h4>\n                        <table class="boxscore-table" style="font-size: 0.72rem;">\n                            <thead>\n                                <tr>\n                                    <th style="text-align: left;">Player</th>\n                                    <th>MIN</th>\n                                    <th>PTS</th>\n                                    <th>REB</th>\n                                    <th>AST</th>\n                                    <th>FG</th>\n                                    <th>3PT</th>\n                                    <th>FT</th>\n                                    <th>STL</th>\n                                    <th>BLK</th>\n                                    <th>TO</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                ${e.map(t=>`\n                                    <tr>\n                                        <td style="text-align: left; white-space: nowrap;">${t.name}</td>\n                                        <td>${t.minutes}</td>\n                                        <td class="${statClass("points",t.points)}">${t.points}</td>\n                                        <td class="${statClass("rebounds",t.rebounds)}">${t.rebounds}</td>\n                                        <td class="${statClass("assists",t.assists)}">${t.assists}</td>\n                                        <td>${t.fg}</td>\n                                        <td>${t.threePt}</td>\n                                        <td>${t.ft}</td>\n                                        <td class="${statClass("steals",t.steals)}">${t.steals}</td>\n                                        <td class="${statClass("blocks",t.blocks)}">${t.blocks}</td>\n                                        <td>${t.turnovers}</td>\n                                    </tr>\n                                `).join("")}\n                            </tbody>\n                        </table>\n                    </div>`}).join("")}catch(t){s.innerHTML=`<div style="padding: 20px; color: var(--text-secondary);">Error loading player stats: ${t.message}</div>`}}else s.style.display="none"}async function loadStandings(){const t=document.getElementById("standingsContent");t.innerHTML='<div class="loading"><div class="spinner"></div> Loading standings...</div>';try{const e=await _fetchWithAbort("standings","/api/standings"),s=await e.json(),a=(t,e)=>`\n                    <div class="card" style="overflow-x: auto;">\n                        <h3 style="padding: 15px 20px; background: var(--bg-secondary); margin: 0;">${e} Conference</h3>\n                        <table class="boxscore-table">\n                            <thead>\n                                <tr>\n                                    <th>#</th>\n                                    <th style="text-align: left;">Team</th>\n                                    <th>W</th>\n                                    <th>L</th>\n                                    <th>PCT</th>\n                                    <th>GB</th>\n                                    <th>Streak</th>\n                                    <th>L10</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                ${t.map((t,e)=>`\n                                    <tr style="${e<6?"background: rgba(74, 222, 128, 0.05);":e<10?"background: rgba(255, 107, 53, 0.05);":""}">\n                                        <td style="text-align: center; font-weight: 600;">${t.rank}</td>\n                                        <td style="text-align: left; font-weight: 500;">${t.name}</td>\n                                        <td class="highlight">${t.wins}</td>\n                                        <td>${t.losses}</td>\n                                        <td>${(100*t.winPct).toFixed(1)}%</td>\n                                        <td>${t.gamesBack}</td>\n                                        <td>${t.streak}</td>\n                                        <td>${t.last10}</td>\n                                    </tr>\n                                `).join("")}\n                            </tbody>\n                        </table>\n                    </div>\n                `;t.innerHTML=a(s.east,"Eastern")+a(s.west,"Western")}catch(e){t.innerHTML=`\n                    <div class="empty-state">\n                        <div class="empty-state-icon">&#9888;</div>\n                        <div class="empty-state-title">Error Loading Standings</div>\n                        <p>${e.message}</p>\n                    </div>\n                `}}_leaderDateBtns.forEach(t=>{t.textContent=_dateLabel(parseInt(t.dataset.offset)),t.addEventListener("click",()=>{_leaderDateBtns.forEach(t=>t.classList.remove("active")),t.classList.add("active"),currentLeadersOffset=parseInt(t.dataset.offset),loadLeaders()})}),_loadDateLabels(),initPlayerSearch("playerSearch","searchResults",(t,e)=>{addTrackedPlayer(t,e)},"trackBtn");let injuriesData=null,injuriesView="list";function setInjuriesView(t){injuriesView=t,document.getElementById("injuriesListBtn").classList.toggle("active","list"===t),document.getElementById("injuriesGroupBtn").classList.toggle("active","grouped"===t),injuriesData&&renderInjuries()}function renderInjuries(){const t=document.getElementById("injuriesContent"),e=injuriesData;if("list"===injuriesView){const s=[];e.injuries.forEach(t=>{t.players.forEach(e=>{s.push({name:e.name,status:e.status,team:t.team})})});const a=Math.ceil(s.length/4),n=[s.slice(0,a),s.slice(a,2*a),s.slice(2*a,3*a),s.slice(3*a)],i=t=>{const e=t.status.toLowerCase();let s="GTD";e.includes("out for")||"suspension"===e?s="OUT":e.includes("expected")||e.includes("return")?s=t.status.match(_RETURN_DATE_RE)?.[0]||"TBD":"day-to-day"===e||"game time decision"===e?s="GTD":"out"===e&&(s="OUT");const a="OUT"===s?"#ef4444":"GTD"!==s?"#f59e0b":"#4ade80",n=t.team.toLowerCase(),i=_TEAM_CODES[n]||Object.entries(_TEAM_CODES).find(([t])=>n.includes(t))?.[1]||t.team.substring(0,3).toUpperCase();return`<div style="display: flex; justify-content: space-between; padding: 3px 6px; border-bottom: 1px solid var(--border); font-size: 10px;">\n                        <span style="flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.name}</span>\n                        <span style="width: 30px; color: var(--text-secondary); text-align: center;">${i}</span>\n                        <span style="width: 45px; text-align: right; color: ${a}; font-weight: 600;">${s}</span>\n                    </div>`},l=t=>`\n                    <div class="card" style="padding: 0; overflow: hidden;">\n                        <div style="padding: 4px 6px; background: var(--bg-secondary); font-size: 9px; color: var(--text-secondary); display: flex; justify-content: space-between;">\n                            <span style="flex: 1;">Player</span>\n                            <span style="width: 30px; text-align: center;">Team</span>\n                            <span style="width: 45px; text-align: right;">Status</span>\n                        </div>\n                        ${t.map(i).join("")}\n                    </div>\n                `;t.innerHTML=`\n                    <p style="color: var(--text-secondary); margin-bottom: 10px; font-size: 0.75rem;">\n                        ${s.length} injured | GTD=Game Time Decision | OUT=Season | Date=Return\n                    </p>\n                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 10px;">\n                        ${n.map(l).join("")}\n                    </div>\n                `}else t.innerHTML=`\n                    <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">\n                        Last updated: ${e.lastUpdated} | Source: ${e.source}\n                    </p>\n                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(450px, 100%), 1fr)); gap: 20px;">\n                        ${e.injuries.map(t=>`\n                            <div class="card" style="overflow: hidden;">\n                                <div style="padding: 15px 20px; background: var(--bg-secondary); font-weight: 600; border-bottom: 1px solid var(--border);">\n                                    ${t.team}\n                                    <span style="color: var(--text-secondary); font-weight: normal; font-size: 0.85rem; margin-left: 10px;">${t.players.length} player${1!==t.players.length?"s":""}</span>\n                                </div>\n                                <table class="boxscore-table" style="font-size: 0.92rem;">\n                                    <thead>\n                                        <tr>\n                                            <th style="text-align: left;">Player</th>\n                                            <th>Updated</th>\n                                            <th>Injury</th>\n                                            <th>Status</th>\n                                        </tr>\n                                    </thead>\n                                    <tbody>\n                                        ${t.players.map(t=>`\n                                            <tr>\n                                                <td style="text-align: left; font-weight: 500;">${t.name}</td>\n                                                <td style="color: var(--text-secondary); font-size: 0.8rem;">${t.updated}</td>\n                                                <td>${t.injury}</td>\n                                                <td style="color: ${t.status.toLowerCase().includes("out")||"suspension"===t.status.toLowerCase()?"#ef4444":t.status.toLowerCase().includes("day-to-day")||t.status.toLowerCase().includes("expected")?"#f59e0b":"var(--success)"}; font-weight: 500;">${t.status}</td>\n                                            </tr>\n                                        `).join("")}\n                                    </tbody>\n                                </table>\n                            </div>\n                        `).join("")}\n                    </div>\n                `}async function loadInjuries(){const t=document.getElementById("injuriesContent");t.innerHTML='<div class="loading"><div class="spinner"></div> Loading injury report...</div>';try{const e=await _fetchWithAbort("injuries","/api/injuries"),s=await e.json();if(!e.ok)throw new Error(s.detail||"Failed to load injuries");if(!s.injuries||0===s.injuries.length)return void(t.innerHTML='\n                        <div class="empty-state">\n                            <div class="empty-state-icon">&#128170;</div>\n                            <div class="empty-state-title">No Injuries Reported</div>\n                            <p>All players are healthy!</p>\n                        </div>\n                    ');injuriesData=s,renderInjuries()}catch(e){t.innerHTML=`\n                    <div class="empty-state">\n                        <div class="empty-state-icon">&#9888;</div>\n                        <div class="empty-state-title">Error Loading Injuries</div>\n                        <p>${e.message}</p>\n                    </div>\n                `}}let lastNSelectedPlayer=null,lastNGamesCount=5;const _lastNDateBtns=Array.from(document.querySelectorAll("#lastngames .date-btn[data-n]"));async function loadLastNGames(){if(!lastNSelectedPlayer)return;const t=document.getElementById("lastNContent");t.innerHTML='<div class="loading"><div class="spinner"></div> Loading game log...</div>';try{const[e,s]=await Promise.all([_fetchWithAbort("lastNGames",`/api/players/${lastNSelectedPlayer.id}/last-n-games?n=${lastNGamesCount}`),_fetchWithAbort("lastNSeasonAvg",`/api/players/${lastNSelectedPlayer.id}/season-avg`)]),a=await e.json(),n=s.ok?await s.json():null;if(!a.games||0===a.games.length)return void(t.innerHTML=`\n                        <div class="empty-state">\n                            <div class="empty-state-icon">&#128564;</div>\n                            <div class="empty-state-title">No Games Found</div>\n                            <p>No recent game data available for ${a.playerName}</p>\n                        </div>\n                    `);t.innerHTML=`\n                    <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 0.85rem;">\n                        ${a.games.filter(t=>!t.dnp).length} games played of ${a.games.length} shown\n                    </div>\n                    <div class="card" style="overflow-x: auto;">\n                        <table class="player-stats-table">\n                            <thead>\n                                <tr>\n                                    <th style="text-align: left;">Matchup</th>\n                                    <th>MIN</th>\n                                    <th>PTS</th>\n                                    <th>FG</th>\n                                    <th>3P</th>\n                                    <th>FT</th>\n                                    <th>REB</th>\n                                    <th>AST</th>\n                                    <th>BLK</th>\n                                    <th>STL</th>\n                                    <th>PF</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                ${a.games.map(t=>t.dnp?`\n                                    <tr style="opacity: 0.5;">\n                                        <td style="text-align: left;">${t.matchup}</td>\n                                        <td colspan="10" style="text-align: center; color: var(--text-secondary); font-style: italic;">DNP</td>\n                                    </tr>\n                                `:`\n                                    <tr>\n                                        <td style="text-align: left; white-space: nowrap;">${t.matchup}</td>\n                                        <td>${t.minutes}</td>\n                                        <td class="${statClass("points",t.points)}">${t.points}</td>\n                                        <td>${t.fg}</td>\n                                        <td>${t.threePointers}</td>\n                                        <td>${t.ft}</td>\n                                        <td class="${statClass("rebounds",t.rebounds)}">${t.rebounds}</td>\n                                        <td class="${statClass("assists",t.assists)}">${t.assists}</td>\n                                        <td class="${statClass("blocks",t.blocks)}">${t.blocks}</td>\n                                        <td class="${statClass("steals",t.steals)}">${t.steals}</td>\n                                        <td>${t.fouls}</td>\n                                    </tr>\n                                `).join("")}\n                                ${n?`\n                                <tr style="border-top: 2px solid var(--accent); background: var(--bg-secondary); font-weight: 600;">\n                                    <td style="text-align: left; white-space: nowrap;">\n                                        <span style="color: var(--accent); font-size: 0.75rem;">${n.season}</span>\n                                        <span style="color: var(--text-secondary); font-size: 0.7rem; margin-left: 4px;">(${n.gp} games)</span>\n                                    </td>\n                                    <td style="color: var(--text-secondary);">${n.minutes}</td>\n                                    <td class="highlight">${n.points}</td>\n                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${n.fgPct.toFixed(2)}%</td>\n                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${n.fg3Pct.toFixed(2)}%</td>\n                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${n.ftPct.toFixed(2)}%</td>\n                                    <td>${n.rebounds}</td>\n                                    <td>${n.assists}</td>\n                                    <td>${n.blocks}</td>\n                                    <td>${n.steals}</td>\n                                    <td style="color: var(--text-secondary);">${n.fouls}</td>\n                                </tr>`:""}\n                            </tbody>\n                        </table>\n                    </div>\n                `}catch(e){t.innerHTML=`\n                    <div class="empty-state">\n                        <div class="empty-state-icon">&#9888;</div>\n                        <div class="empty-state-title">Error Loading Stats</div>\n                        <p>${e.message}</p>\n                    </div>\n                `}}_lastNDateBtns.forEach(t=>{t.addEventListener("click",()=>{_lastNDateBtns.forEach(t=>t.classList.remove("active")),t.classList.add("active"),lastNGamesCount=parseInt(t.dataset.n)})}),initPlayerSearch("lastNSearch","lastNSearchResults",(t,e)=>{lastNSelectedPlayer={id:t,name:e},document.getElementById("lastNPlayerChip").innerHTML=`\n                <div class="player-chip">\n                    <span>${e}</span>\n                    <button class="player-chip-remove" onclick="lastNSelectedPlayer=null; document.getElementById('lastNPlayerChip').innerHTML=''; document.getElementById('lastNBtn').disabled=true;">&times;</button>\n                </div>\n            `,document.getElementById("lastNBtn").disabled=!1},"lastNBtn");let playoffsData=null,activeConference="east";async function loadPlayoffs(){const t=document.getElementById("playoffsContent");t.innerHTML='<div class="loading"><div class="spinner"></div> Loading bracket...</div>';try{const t=await _fetchWithAbort("playoffs","/api/playoffs");playoffsData=await t.json(),showConference(activeConference)}catch(e){t.innerHTML=`<div class="empty-state"><div class="empty-state-icon">&#9888;</div><div class="empty-state-title">Error Loading Bracket</div><p>${e.message}</p></div>`}}function showConference(t){if(!playoffsData)return;activeConference=t,document.getElementById("playoffEastBtn").classList.toggle("active","east"===t),document.getElementById("playoffWestBtn").classList.toggle("active","west"===t);const e=document.getElementById("playoffsContent");e.innerHTML="";drawBracket("east"===t?playoffsData.east:playoffsData.west,"east"===t?"Eastern Conference":"Western Conference",e)}function drawBracket(t,e,s){const a=220,n=38,i=20,l=16,r=[t[0],t[7],t[3],t[4],t[2],t[5],t[1],t[6]],o=t.slice(6,10),d=788,c=1.44,m=window.devicePixelRatio||1,p=document.createElement("canvas");p.width=1134.72*m,p.height=673.92*m,p.style.cssText="max-width:100%; display:block; margin-bottom:24px; width:1134.72px; height:673.92px;";const v=p.getContext("2d");v.scale(c*m,c*m);const h="#1a1a24",y="#2a2a3a",f="#ffffff",g="#a0a0b0",u="#ff6b35",b="#f59e0b",T="#3a3a4a";function $(t,e,s,i){v.fillStyle=i?"#22222e":h,x(v,t,e,a,n,5),v.fill(),v.strokeStyle=i?u:y,v.lineWidth=i?1.5:1,x(v,t,e,a,n,5),v.stroke();const l=s.rank<=6?"#4ade80":b;v.fillStyle=l+"22",x(v,t+6,e+8,22,22,3),v.fill(),v.font="bold 10px Inter, sans-serif",v.fillStyle=l,v.textAlign="center",v.fillText(s.rank,t+17,e+23),v.font="500 11px Inter, sans-serif",v.fillStyle=f,v.textAlign="left";let r=s.name;for(v.font="11px Inter, sans-serif";v.measureText(r).width>140&&r.length>4;)r=r.slice(0,-1);r!==s.name&&(r+="…"),v.fillText(r,t+34,e+23),v.font="10px Inter, sans-serif",v.fillStyle=g,v.textAlign="right",v.fillText(`${s.wins}-${s.losses}`,t+a-6,e+23)}function x(t,e,s,a,n,i){t.beginPath(),t.moveTo(e+i,s),t.lineTo(e+a-i,s),t.quadraticCurveTo(e+a,s,e+a,s+i),t.lineTo(e+a,s+n-i),t.quadraticCurveTo(e+a,s+n,e+a-i,s+n),t.lineTo(e+i,s+n),t.quadraticCurveTo(e,s+n,e,s+n-i),t.lineTo(e,s+i),t.quadraticCurveTo(e,s,e+i,s),t.closePath()}function L(t){return i+46*t}v.fillStyle="#12121a",v.fillRect(0,0,d,468);for(let t=0;t<8;t++){const e=r[t];if(!e)continue;const s=L(t);$(l,s,e,!1)}const w=284,A=552;v.strokeStyle=T,v.lineWidth=1.5;const k=[];[[0,1],[2,3],[4,5],[6,7]].forEach(([t,e],s)=>{const a=L(t)+19,n=L(e)+19,i=260,l=(a+n)/2;v.beginPath(),v.moveTo(236,a),v.lineTo(i,a),v.stroke(),v.beginPath(),v.moveTo(236,n),v.lineTo(i,n),v.stroke(),v.beginPath(),v.moveTo(i,a),v.lineTo(i,n),v.stroke(),v.beginPath(),v.moveTo(i,l),v.lineTo(w,l),v.stroke(),k.push(l-19)}),k.forEach((t,e)=>{v.fillStyle=h,x(v,w,t,a,n,5),v.fill(),v.strokeStyle=y,v.lineWidth=1,x(v,w,t,a,n,5),v.stroke(),v.font="10px Inter, sans-serif",v.fillStyle=g,v.textAlign="center",v.fillText("Semifinal",394,t+19+4)});const S=[];[[0,1],[2,3]].forEach(([t,e],s)=>{const a=k[t]+19,n=k[e]+19,i=528,l=(a+n)/2;v.strokeStyle=T,v.lineWidth=1.5,v.beginPath(),v.moveTo(504,a),v.lineTo(i,a),v.stroke(),v.beginPath(),v.moveTo(504,n),v.lineTo(i,n),v.stroke(),v.beginPath(),v.moveTo(i,a),v.lineTo(i,n),v.stroke(),v.beginPath(),v.moveTo(i,l),v.lineTo(A,l),v.stroke(),S.push(l-19)}),S.forEach(t=>{v.fillStyle=h,x(v,A,t,a,n,5),v.fill(),v.strokeStyle=u,v.lineWidth=1,x(v,A,t,a,n,5),v.stroke(),v.font="bold 10px Inter, sans-serif",v.fillStyle=u,v.textAlign="center",v.fillText("Conf. Finals",662,t+19+4)}),v.font="bold 10px Inter, sans-serif",v.fillStyle=g,v.textAlign="center",v.fillText("FIRST ROUND",126,8),v.fillText("SEMIFINALS",394,8),v.fillText("CONF. FINALS",662,8);v.font="bold 10px Inter, sans-serif",v.fillStyle=b,v.textAlign="left",v.fillText("PLAY-IN TOURNAMENT (Seeds 7-10)",l,414);const E=183;o.forEach((t,e)=>{const s=l+191*e,a=422;v.fillStyle=h,x(v,s,a,E,n,5),v.fill(),v.strokeStyle=b+"66",v.lineWidth=1,x(v,s,a,E,n,5),v.stroke(),v.font="bold 10px Inter, sans-serif",v.fillStyle=b,v.textAlign="center",v.fillText(t.rank,s+14,445);let i=t.name;v.font="10px Inter, sans-serif";for(;v.measureText(i).width>139&&i.length>4;)i=i.slice(0,-1);i!==t.name&&(i+="…"),v.fillStyle=f,v.textAlign="left",v.fillText(i,s+24,445),v.fillStyle=g,v.textAlign="right",v.fillText(`${t.wins}-${t.losses}`,s+E-5,445)}),s.appendChild(p)}"serviceWorker"in navigator&&navigator.serviceWorker.register("/static/sw.js"),loadScoreboard();</script>
     <script defer src="/t/a.js" data-website-id="b68bfbcf-f86b-4e65-9257-bda61e465ddb"></script>
 </body>
 </html>

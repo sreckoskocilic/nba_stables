@@ -19,6 +19,11 @@ from nba_api.stats.endpoints import boxscoreadvancedv3, leaguestandings
 
 router = APIRouter()
 
+@router.get("/api/dates")
+def get_date_labels():
+    """Return display dates for day offsets 0-7 so the frontend can label date buttons accurately"""
+    return {"dates": [get_display_date(i) for i in range(8)]}
+
 @router.get("/api/boxscores")
 def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
     """Get detailed box scores for games"""
@@ -340,6 +345,70 @@ def get_player_advanced_stats(
     except ValueError as err:
         log_exceptions(err)
         raise HTTPException(status_code=400, detail="Invalid player IDs format")
+    except Exception as e:
+        log_exceptions(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/playoffs")
+def get_playoff_picture():
+    """Get current playoff picture with projected final records"""
+    cached = cache.get("playoffs")
+    if cached:
+        return cached
+
+    try:
+        standings = leaguestandings.LeagueStandings(proxy=STATS_PROXY).get_dict()
+        teams = standings["resultSets"][0]["rowSet"]
+
+        TOTAL_GAMES = 82
+        east = []
+        west = []
+
+        for team in teams:
+            win_pct = team[14] if team[14] is not None else 0
+            wins = team[12] or 0
+            losses = team[13] or 0
+            rank = team[7] or 0
+            games_played = wins + losses
+            games_remaining = max(0, TOTAL_GAMES - games_played)
+            projected_wins = round(wins + games_remaining * win_pct)
+            projected_losses = TOTAL_GAMES - projected_wins
+
+            if rank <= 6:
+                status = "in"
+            elif rank <= 10:
+                status = "play-in"
+            else:
+                status = "out"
+
+            team_data = {
+                "rank": rank,
+                "name": f"{team[3]} {team[4]}",
+                "tricode": (team[3] or "")[:3].upper(),
+                "wins": wins,
+                "losses": losses,
+                "winPct": round(win_pct, 3) if win_pct else 0,
+                "gamesBack": team[37] if team[37] is not None else "-",
+                "streak": team[36] or "-",
+                "last10": team[19] or "0-0",
+                "gamesRemaining": games_remaining,
+                "projectedWins": projected_wins,
+                "projectedLosses": projected_losses,
+                "status": status,
+            }
+
+            if team[5] == "East":
+                east.append(team_data)
+            else:
+                west.append(team_data)
+
+        east.sort(key=lambda x: x["rank"] or 99)
+        west.sort(key=lambda x: x["rank"] or 99)
+
+        result = {"east": east, "west": west}
+        cache.set("playoffs", result, CACHE_TTL["standings"])
+        return result
     except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
