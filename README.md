@@ -13,8 +13,6 @@
 - **Daily Leaders** - Top performers per stat category across all games
 - **Player Tracker** - Search and track specific players with live stats and advanced metrics
 - **Last N Games** - Per-player performance over the last N games (up to 15)
-- **Season Averages** - Current season averages for any player
-- **Double/Triple Doubles** - Automatic detection and dedicated tracking endpoint
 - **Playoffs** - Current playoff picture with projected seedings
 - **Standings** - Conference standings with W/L, streak, home/away splits
 - **Injury Report** - Current NBA injury data sourced from CBS Sports
@@ -52,6 +50,26 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 Open http://localhost:8000
 
+### Running Tests
+
+```bash
+# Run all tests
+python -m pytest
+
+# Run with verbose output
+python -m pytest -v
+
+# Run with coverage report
+python -m pytest --cov=api --cov-report=term-missing
+
+# Run a specific test file
+python -m pytest tests/test_helpers_stats.py
+
+# Run a specific test class or test
+python -m pytest tests/test_integration.py::TestInjuries
+python -m pytest tests/test_integration.py::TestInjuries::test_returns_data_from_file
+```
+
 ### Docker
 
 ```bash
@@ -64,17 +82,15 @@ docker-compose --profile dev up -d --build
 
 | Stat | Full Name | Description |
 |------|-----------|-------------|
-| **PT** | Points | Total points scored |
-| **3P** | Three-Pointers | Made/Attempted three-point field goals |
-| **RB** | Rebounds | Total rebounds (offensive + defensive) |
-| **AS** | Assists | Passes leading directly to a made basket |
-| **BL** | Blocks | Shots blocked |
-| **ST** | Steals | Turnovers forced by taking the ball |
-| **TO** | Turnovers | Times the player lost possession |
-| **TIME** | Minutes Played | Time on court (MM:SS) |
-| **TS%** | True Shooting % | Scoring efficiency including free throws |
-| **eFG%** | Effective FG% | Adjusts for 3-pointers being worth more |
-| **+/-** | Plus/Minus | Point differential while player is on court |
+| **MIN** | Minutes Played | Time on court (MM:SS) |
+| **PTS** | Points | Total points scored |
+| **FG** | Field Goals | Made/Attempted field goals |
+| **3PT** | Three-Pointers | Made/Attempted three-point field goals |
+| **FT** | Free Throws | Made/Attempted free throws |
+| **REB** | Rebounds | Total rebounds (offensive + defensive) |
+| **AST** | Assists | Passes leading directly to a made basket |
+| **BLK** | Blocks | Shots blocked |
+| **STL** | Steals | Turnovers forced by taking the ball |
 
 ### Team Stats (Box Score)
 
@@ -82,14 +98,12 @@ docker-compose --profile dev up -d --build
 |------|-----------|-------------|
 | **FG** | Field Goals | Made/Attempted (excludes free throws) |
 | **FG%** | Field Goal % | Shooting percentage |
-| **3P** | Three-Pointers | Made/Attempted from beyond the arc |
+| **3PT** | Three-Pointers | Made/Attempted from beyond the arc |
 | **3P%** | Three-Point % | Three-point shooting percentage |
 | **FT** | Free Throws | Made/Attempted free throws |
 | **FT%** | Free Throw % | Free throw shooting percentage |
-| **RB** | Rebounds | Total team rebounds |
-| **ORB** | Offensive Rebounds | Rebounds of own team's missed shots |
+| **REB** | Rebounds | Total team rebounds |
 | **AST** | Assists | Total team assists |
-| **ST** | Steals | Total team steals |
-| **BL** | Blocks | Total team blocks |
-| **TO** | Turnovers | Total team turnovers |
-| **PF** | Personal Fouls | Total team fouls committed |
+| **STL** | Steals | Total team steals |
+| **BLK** | Blocks | Total team blocks |
+| **TOV** | Turnovers | Total team turnovers |

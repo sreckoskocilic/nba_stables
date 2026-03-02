@@ -21,3 +21,11 @@ venv/
 
 #logs
 logs/
+
+# Unit test / coverage reports
+coverage/
+.coverage
+.coverage.*
+htmlcov/
+.nyc_output/
+*.cover
