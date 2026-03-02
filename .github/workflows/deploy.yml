@@ -4,7 +4,6 @@ on:
   push:
     paths-ignore:
       - "api/static/*.json"
-      - "api/static/trades.log"
       - ".github/workflows/**"
     branches: [main]
 

@@ -91,7 +91,7 @@ def get_trades():
 
         transactions.sort(key=lambda x: x["date"], reverse=True)
         result = {"transactions": transactions, "total": len(transactions)}
-        cache.set("trades", result, CACHE_TTL["standings"])  # 1 hour cache
+        cache.set("trades", result, CACHE_TTL["trades"])  # 1 hour cache
         return result
     except requests.RequestException as e:
         log_exceptions(e)

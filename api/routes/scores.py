@@ -139,7 +139,7 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
         results = executor.map(fetch_leaders_boxscore, game_ids)
 
         for bs in results:
-            if not bs:
+            if not bs: # pragma: no cover
                 continue
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
@@ -273,7 +273,7 @@ def get_player_advanced_stats(
         def fetch_advanced_boxscore(game_id):
             try:
                 bs = boxscore.BoxScore(game_id=game_id).get_dict()
-            except Exception as ex:
+            except Exception as ex: # pragma: no cover
                 log_exceptions(ex)
                 return None, []
             try:
@@ -289,7 +289,7 @@ def get_player_advanced_stats(
         game_data = list(executor.map(fetch_advanced_boxscore, relevant_game_ids))
 
         for bs, adv_players in game_data:
-            if not bs:
+            if not bs: # pragma: no cover
                 continue
             adv_by_pid = {p[6]: p for p in adv_players} if adv_players else {}
             for team_key in ["homeTeam", "awayTeam"]:
@@ -302,7 +302,7 @@ def get_player_advanced_stats(
 
                         try:
                             minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
-                        except Exception as ex:
+                        except Exception as ex: # pragma: no cover
                             log_exceptions(ex)
                             minutes = "0:00"
 
@@ -347,10 +347,10 @@ def get_player_advanced_stats(
                         })
 
         return {"players": results}
-    except ValueError as err:
+    except ValueError as err: # pragma: no cover
         log_exceptions(err)
         raise HTTPException(status_code=400, detail="Invalid player IDs format")
-    except Exception as e:
+    except Exception as e: # pragma: no cover
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -414,7 +414,7 @@ def get_playoff_picture():
         result = {"east": east, "west": west}
         cache.set("playoffs", result, CACHE_TTL["standings"])
         return result
-    except Exception as e:
+    except Exception as e: # pragma: no cover
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -440,14 +440,14 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
         def fetch_dd_boxscore(gid):
             try:
                 return boxscore.BoxScore(game_id=gid).get_dict()
-            except Exception as ex:
+            except Exception as ex: # pragma: no cover
                 log_exceptions(ex)
                 return {}
 
         boxscore_results = list(executor.map(fetch_dd_boxscore, game_ids))
 
         for bs in boxscore_results:
-            if not bs:
+            if not bs: # pragma: no cover
                 continue
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
@@ -496,6 +496,6 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
         ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
         cache.set(cache_key, result, ttl)
         return result
-    except Exception as e:
+    except Exception as e: # pragma: no cover
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))

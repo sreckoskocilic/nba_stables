@@ -1,16 +1,11 @@
 import json
 import os
-import sys
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv3
 
 PLAYERS_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "players_with_teamid.json"
-)
-
-TRADES_LOG_FILE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "trades.log"
 )
 
 def get_games_list(days_offset: int = 1):
@@ -29,17 +24,10 @@ def get_games_list(days_offset: int = 1):
 
 def update_players():
     date_offset = 1
-    now = datetime.now()
-
-    log_file = open(TRADES_LOG_FILE, "w")
-    sys.stdout = log_file
 
     with open(PLAYERS_FILE, "r") as file:
         players_with_teamid = json.load(file)
 
-    changes = 0
-    changed_players = []
-    off_date = (now + timedelta(days=-date_offset)).strftime("%d-%m-%Y")
     for game in get_games_list(date_offset):
         try:
             bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(game_id=game)
@@ -52,19 +40,8 @@ def update_players():
                 if player[12] == "":
                     if p[2] != player[1]:
                         p[2] = player[1]
-                        changes += 1
-                        changed_players.append(player)
     with open(PLAYERS_FILE, "w") as ffile:
         json.dump(players_with_teamid, ffile, indent=4)
-
-    if changes > 0:
-        print(f"Date: {off_date} Changes: {changes}")
-        for player in changed_players:
-            print(player)
-    else:
-        print(f"Date: {off_date}")
-
-    log_file.close()
 
 
 if __name__ == "__main__":

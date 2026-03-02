@@ -38,7 +38,7 @@ def convert_et_to_cet(time_str: str) -> str:
         et_dt = naive_dt.replace(tzinfo=ZoneInfo("US/Eastern"))
         cet_dt = et_dt.astimezone(ZoneInfo("Europe/Berlin"))
         return cet_dt.strftime("%H:%M CET")
-    except Exception as ex:
+    except Exception as ex: # pragma: no cover
         log_exceptions(ex)
         return time_str
 

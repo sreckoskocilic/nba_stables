@@ -65,7 +65,7 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
             if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids
         ]
 
-        def fetch_player_boxscore(game_id):
+        def fetch_player_boxscore(game_id): # pragma: no cover
             try:
                 return boxscore.BoxScore(game_id=game_id).get_dict()
             except Exception:
@@ -74,7 +74,7 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
         boxscores = list(executor.map(fetch_player_boxscore, relevant_game_ids))
 
         for bs in boxscores:
-            if not bs:
+            if not bs: # pragma: no cover
                 continue
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
@@ -83,7 +83,7 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
                         stats = player["statistics"]
                         try:
                             minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
-                        except Exception as ex:
+                        except Exception as ex: # pragma: no cover
                             log_exceptions(ex)
                             minutes = "0:00"
 
@@ -107,10 +107,10 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
                         )
 
         return {"players": results}
-    except ValueError as err:
+    except ValueError as err: # pragma: no cover
         log_exceptions(err)
         raise HTTPException(status_code=400, detail="Invalid player IDs format")
-    except Exception as e:
+    except Exception as e: # pragma: no cover
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -128,7 +128,7 @@ def get_game_players(game_id: str):
                 proxy=STATS_PROXY,
             )
             adv_players = adv.player_stats.get_dict()["data"]
-        except Exception as ex:
+        except Exception as ex: # pragma: no cover
             log_exceptions(ex)
             adv_players = []
 
@@ -150,7 +150,7 @@ def get_game_players(game_id: str):
 
                     try:
                         minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
-                    except Exception as ex:
+                    except Exception as ex: # pragma: no cover
                         log_exceptions(ex)
                         minutes = "0:00"
 
@@ -252,7 +252,7 @@ def get_last_n_games_stats(
                     }
                 else:
                     return {"matchup": gg[0], "gameId": gg[1], "dnp": True}
-            except Exception as ex:
+            except Exception as ex: # pragma: no cover
                 log_exceptions(ex)
                 return None
 

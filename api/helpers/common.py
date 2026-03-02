@@ -4,7 +4,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, Optional
 
-
 CACHE_TTL = {
     "scoreboard": 30,  # 30 seconds - live scores change frequently
     "boxscores": 60,  # 1 minute
@@ -13,6 +12,7 @@ CACHE_TTL = {
     "player_stats": 30,  # 30 seconds
     "historical": 86400,  # 24 hours - days_offset >= 2 never changes
     "injuries": 7200,  # 2 hours - injury reports don't change often, avoid rate limits
+    "trades": 12 * 3600 # 12 hours
 }
 
 # Simple in-memory cache
