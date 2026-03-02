@@ -42,21 +42,21 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
     """Get live stats for specific players"""
 
     try:
-        players_ids = []
+        players_ids = set()
         for pid in ids.split(","):
             if pid.strip().isdigit():
-                players_ids.append(int(pid.strip()))
+                players_ids.add(int(pid.strip()))
 
         if not players_ids:
             return {"players": []}
         players_dict = load_players_dict()
 
         # Get team IDs for requested players
-        team_ids = []
+        team_ids = set()
         for pid in players_ids:
             player = players_dict.get(pid)
-            if player and player[2] and player[2] not in team_ids:
-                team_ids.append(player[2])
+            if player and player[2]:
+                team_ids.add(player[2])
 
         results = []
         relevant_game_ids = [
@@ -232,8 +232,8 @@ def get_last_n_games_stats(
                 csp = boxscoretraditionalv3.BoxScoreTraditionalV3(
                     game_id=gg[1], proxy=STATS_PROXY
                 )
-                player_stats = csp.player_stats.get_dict()["data"]
-                ss = next((x for x in player_stats if x[6] == player_id), None)
+                player_stats_dict = {x[6]: x for x in csp.player_stats.get_dict()["data"]}
+                ss = player_stats_dict.get(player_id)
                 if ss is not None and ss[14] != "":
                     return {
                         "matchup": gg[0],
@@ -257,7 +257,7 @@ def get_last_n_games_stats(
                 return None
 
         futures = [executor.submit(fetch_game_stats, gg) for gg in game_rows]
-        games = [r for f in futures for r in [f.result()] if r is not None]
+        games = [r for r in (f.result() for f in futures) if r is not None]
 
         result = {
             "playerId": player_id,

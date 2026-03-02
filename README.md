@@ -58,34 +58,6 @@ Open http://localhost:8000
 docker-compose --profile dev up -d --build
 ```
 
-## API Endpoints
-
-### NBA Stats
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/dates` | Date labels for day offset buttons (0–7) |
-| GET | `/api/scoreboard` | Live scores with leading scorers |
-| GET | `/api/boxscores` | Box scores (`?days_offset=0-7`) |
-| GET | `/api/leaders` | Daily stat leaders (`?days_offset=0-7`) |
-| GET | `/api/standings` | East/West conference standings |
-| GET | `/api/playoffs` | Playoff picture with projected seedings |
-| GET | `/api/doubledoubles` | DD/TD tracker (`?days_offset=0-7`) |
-| GET | `/api/injuries` | CBS Sports injury report |
-| GET | `/api/trades` | Player movement — trades, signings, waivers (all-season, resolved team & player names) |
-
-### Players
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/players/search?q={query}` | Search players by name |
-| GET | `/api/players/stats?ids={ids}` | Live stats for specific players |
-| GET | `/api/players/advanced?ids={ids}` | Advanced stats (TS%, eFG%, +/-, DD/TD) |
-| GET | `/api/players/{id}/last-n-games` | Last N games stats (default 5, max 15) |
-| GET | `/api/players/{id}/season-avg` | Current season averages |
-| GET | `/api/games/{game_id}/players` | All player stats for a game |
-
 ## Statistics Reference
 
 ### Player Stats

@@ -3,7 +3,6 @@ NBA Stables REST API
 FastAPI backend for live NBA statistics
 """
 
-import json
 import logging.config
 import os
 
@@ -13,8 +12,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from helpers.common import CACHE_TTL, cache
+from helpers.common import cache
 from helpers.stats import get_display_date
+from routes.injuries import router as injuries_router
 from routes.players import router as players_router
 from routes.scores import router
 from routes.trades import router as trades_router
@@ -43,8 +43,8 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.include_router(router)
 app.include_router(players_router)
 app.include_router(trades_router)
+app.include_router(injuries_router)
 
-CBS_INJURIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static/cbs_injuries.json")
 LOG_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log_config.yml")
 with open(LOG_CONFIG_FILE, 'r') as f:
     logging.config.dictConfig(yaml.safe_load(f.read()))
@@ -57,26 +57,6 @@ if not os.path.exists("../logs"): # pragma: no cover
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "date": get_display_date(0)}
-
-
-@app.get("/api/injuries")
-def get_injuries():
-    """Get NBA injury report from CBS Sports"""
-    cached = cache.get("injuries")
-    if cached:
-        return cached
-
-    if not os.path.exists(CBS_INJURIES_FILE):
-        raise HTTPException(status_code=503, detail="CBS injuries data not available")
-    try:
-        with open(CBS_INJURIES_FILE, "r", encoding="utf-8") as f:
-            result = json.load(f)
-        cache.set("injuries", result, CACHE_TTL["injuries"])
-        return result
-    except Exception as e: # pragma: no cover
-        from helpers.logger import log_exceptions
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Serve web files

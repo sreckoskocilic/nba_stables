@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -22,8 +23,6 @@ def get_display_date(days_offset: int = 0) -> str:
 
 def convert_et_to_cet(time_str: str) -> str:
     """Convert NBA game time from US/Eastern to CET (e.g. '7:00 pm ET' -> '23:00 CET')"""
-    import re
-
     try:
         m = re.match(r"(\d{1,2}):(\d{2})\s*(am|pm)", time_str.strip(), re.IGNORECASE)
         if not m:
@@ -83,7 +82,7 @@ def load_players_dict(): # pragma: no cover
 
 def get_games_list(days_offset: int = 1):
     """Get list of game IDs for a given date offset"""
-    g_dict = []
+    g_set = set()
     target_date = date.today() - timedelta(days=days_offset)
     try:
         sb = scoreboardv3.ScoreboardV3(
@@ -93,11 +92,11 @@ def get_games_list(days_offset: int = 1):
         games = sb.game_header.get_dict()
         for g in games["data"]:
             if g[2] > 1:
-                g_dict.append(g[0])
+                g_set.add(g[0])
     except Exception as ex:
         log_exceptions(ex)
         pass
-    return list(set(g_dict))
+    return list(g_set)
 
 
 def get_games_leaders_list(days_offset: int = 1):
@@ -143,11 +142,12 @@ def fetch_single_boxscore(game_id, leaders_data):
 
         team_stats = bs_stats.team_stats.get_dict()["data"]
         game_box = {"gameId": game_id, "teams": []}
+        leaders_by_team = {ld[4]: ld for ld in leaders_data if len(ld) > 4}
 
         for i, team in enumerate(team_stats):
             leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
             team_id = team[1]  # TEAM_ID from boxscore
-            ld = next((leader for leader in leaders_data if len(leader) > 4 and leader[4] == team_id), None)
+            ld = leaders_by_team.get(team_id)
             if ld:
                 leader = {
                     "name": ld[0],

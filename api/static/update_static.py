@@ -10,16 +10,16 @@ PLAYERS_FILE = os.path.join(
 
 def get_games_list(days_offset: int = 1):
     """Get list of game IDs for a given date offset"""
-    g_dict = []
+    g_set = set()
     target_date = date.today() - timedelta(days=days_offset)
     try:
         sb = scoreboardv3.ScoreboardV3(game_date=target_date.strftime("%Y-%m-%d"))
         games = sb.game_header.get_dict()
         for g in games["data"]:
-            g_dict.append(g[0])
+            g_set.add(g[0])
     except Exception:
         pass
-    return list(set(g_dict))
+    return list(g_set)
 
 
 def update_players():
@@ -28,6 +28,8 @@ def update_players():
     with open(PLAYERS_FILE, "r") as file:
         players_with_teamid = json.load(file)
 
+    players_dict = {p[0]: p for p in players_with_teamid}
+
     for game in get_games_list(date_offset):
         try:
             bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(game_id=game)
@@ -35,7 +37,7 @@ def update_players():
             continue
 
         for player in bs_stats.player_stats.get_dict()["data"]:
-            p = next((x for x in players_with_teamid if x[0] == player[6]), None)
+            p = players_dict.get(player[6])
             if p is not None:
                 if player[12] == "":
                     if p[2] != player[1]:

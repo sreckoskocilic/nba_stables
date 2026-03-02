@@ -171,14 +171,13 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
         ]
 
         leaders = {}
-        for key, label in categories:
-            if all_players:
+        if all_players:
+            for key, label in categories:
                 max_val = max(p[key] for p in all_players)
-                top_players = [p for p in all_players if p[key] == max_val]
                 leaders[key] = {
                     "label": label,
                     "value": max_val,
-                    "players": [{"name": p["name"], "team": p["team"]} for p in top_players],
+                    "players": [{"name": p["name"], "team": p["team"]} for p in all_players if p[key] == max_val],
                 }
 
         result = {"leaders": leaders, "date": get_display_date(days_offset)}
@@ -248,20 +247,20 @@ def get_player_advanced_stats(
 ):
     """Get advanced stats for players including plus/minus, efficiency metrics"""
     try:
-        player_ids = []
+        player_ids = set()
         for pid in ids.split(","):
             try:
-                player_ids.append(int(pid.strip()))
+                player_ids.add(int(pid.strip()))
             except ValueError:
                 continue
         players_dict = load_players_dict()
 
         # Get team IDs for requested players
-        team_ids = []
+        team_ids = set()
         for pid in player_ids:
             player = players_dict.get(pid)
-            if player and player[2] and player[2] not in team_ids:
-                team_ids.append(player[2])
+            if player and player[2]:
+                team_ids.add(player[2])
 
         results = []
         relevant_game_ids = [
@@ -470,8 +469,9 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
                             "blk": blk,
                         }
                         double_digit_cats = [k for k, v in categories.items() if v >= 10]
+                        n_cats = len(double_digit_cats)
 
-                        if len(double_digit_cats) >= 2:
+                        if n_cats >= 2:
                             player_data = {
                                 "name": fix_encoding(player["name"]),
                                 "team": tricode,
@@ -483,7 +483,7 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
                                 "categories": double_digit_cats,
                             }
 
-                            if len(double_digit_cats) >= 3:
+                            if n_cats >= 3:
                                 triple_doubles.append(player_data)
                             else:
                                 double_doubles.append(player_data)

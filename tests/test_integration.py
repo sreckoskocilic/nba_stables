@@ -254,7 +254,7 @@ class TestInjuries:
             json.dump(INJURY_PAYLOAD, f)
             tmp = f.name
         try:
-            with patch("main.CBS_INJURIES_FILE", tmp):
+            with patch("routes.injuries.CBS_INJURIES_FILE", tmp):
                 r = client.get("/api/injuries")
             assert r.status_code == 200
             assert r.json()["injuries"][0]["team"] == "Los Angeles Lakers"
@@ -266,7 +266,7 @@ class TestInjuries:
             json.dump(INJURY_PAYLOAD, f)
             tmp = f.name
         try:
-            with patch("main.CBS_INJURIES_FILE", tmp):
+            with patch("routes.injuries.CBS_INJURIES_FILE", tmp):
                 r1 = client.get("/api/injuries")
                 r2 = client.get("/api/injuries")
             assert r1.json() == r2.json()
