@@ -1,8 +1,10 @@
 """Unit tests for helpers/stats.py pure functions."""
+
 from datetime import date, datetime as real_datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-
+import pytest
+from helpers.common import cache
 from helpers.stats import (
     convert_et_to_cet,
     fetch_single_boxscore,
@@ -14,9 +16,18 @@ from helpers.stats import (
     reformat_player_minutes,
 )
 
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    cache.clear()
+    yield
+    cache.clear()
+
+
 # ---------------------------------------------------------------------------
 # reformat_player_minutes
 # ---------------------------------------------------------------------------
+
 
 class TestReformatPlayerMinutes:
     def test_exact_minutes(self):
@@ -56,6 +67,7 @@ class TestReformatPlayerMinutes:
 # ---------------------------------------------------------------------------
 # fix_encoding
 # ---------------------------------------------------------------------------
+
 
 class TestFixEncoding:
     def test_plain_ascii_unchanged(self):
@@ -99,6 +111,7 @@ class TestFixEncoding:
 # get_date_str
 # ---------------------------------------------------------------------------
 
+
 class TestGetDateStr:
     def test_today_format(self):
         result = get_date_str(0)
@@ -132,6 +145,7 @@ class TestGetDateStr:
 # ---------------------------------------------------------------------------
 # get_display_date
 # ---------------------------------------------------------------------------
+
 
 class TestGetDisplayDate:
     def test_today_format(self):
@@ -169,6 +183,7 @@ WINTER_NOW = real_datetime(2026, 1, 15, 12, 0, 0)
 def _cet(time_str):
     """Call convert_et_to_cet with datetime.now() pinned to a winter date."""
     import helpers.stats as _stats_mod
+
     with patch.object(_stats_mod, "datetime") as mock_dt:
         mock_dt.now.return_value = WINTER_NOW
         return convert_et_to_cet(time_str)
@@ -191,6 +206,7 @@ class TestConvertETtoCET:
     def test_valid_output_format(self):
         # Must match HH:MM CET
         import re
+
         result = _cet("7:00 pm")
         assert re.match(r"\d{2}:\d{2} CET", result)
 
@@ -231,6 +247,7 @@ class TestConvertETtoCET:
 # Helpers for API-backed functions
 # ---------------------------------------------------------------------------
 
+
 def _game_row(game_id, status):
     """Minimal game_header row: g[0]=game_id, g[2]=status."""
     row = [None] * 10
@@ -251,11 +268,28 @@ def _leader_row(game_id, team_id, player_name, pts, reb, ast):
     return row
 
 
-def _team_row(team_id, city, name, score,
-              fgm=30, fga=80, fg_pct=0.375,
-              tpm=10, tpa=30, tp_pct=0.333,
-              ftm=15, fta=20, ft_pct=0.75,
-              off_reb=10, reb=40, ast=20, stl=7, blk=3, to=10, fouls=18):
+def _team_row(
+    team_id,
+    city,
+    name,
+    score,
+    fgm=30,
+    fga=80,
+    fg_pct=0.375,
+    tpm=10,
+    tpa=30,
+    tp_pct=0.333,
+    ftm=15,
+    fta=20,
+    ft_pct=0.75,
+    off_reb=10,
+    reb=40,
+    ast=20,
+    stl=7,
+    blk=3,
+    to=10,
+    fouls=18,
+):
     """boxscore team_stats row matching the column indices used in stats.py.
 
     Length 26 so that row[-2] == row[24] == score.
@@ -280,7 +314,7 @@ def _team_row(team_id, city, name, score,
     row[21] = blk
     row[22] = to
     row[23] = fouls
-    row[24] = score   # team[-2]
+    row[24] = score  # team[-2]
     return row
 
 
@@ -295,6 +329,7 @@ def _scoreboard_mock(games_data, leaders_data=None):
 # ---------------------------------------------------------------------------
 # get_games_list
 # ---------------------------------------------------------------------------
+
 
 class TestGetGamesList:
     def _call(self, games_data, days_offset=1):
@@ -315,7 +350,9 @@ class TestGetGamesList:
         assert result == []
 
     def test_mixed_statuses(self):
-        result = self._call([_game_row("001", 2), _game_row("002", 1), _game_row("003", 3)])
+        result = self._call(
+            [_game_row("001", 2), _game_row("002", 1), _game_row("003", 3)]
+        )
         assert sorted(result) == ["001", "003"]
 
     def test_deduplicates_game_ids(self):
@@ -326,7 +363,9 @@ class TestGetGamesList:
         assert self._call([]) == []
 
     def test_returns_empty_on_api_exception(self):
-        with patch("helpers.stats.scoreboardv3.ScoreboardV3", side_effect=Exception("network")):
+        with patch(
+            "helpers.stats.scoreboardv3.ScoreboardV3", side_effect=Exception("network")
+        ):
             with patch("helpers.stats.log_exceptions"):
                 assert get_games_list(1) == []
 
@@ -338,6 +377,7 @@ class TestGetGamesList:
 # ---------------------------------------------------------------------------
 # get_games_leaders_list
 # ---------------------------------------------------------------------------
+
 
 class TestGetGamesLeadersList:
     def _call(self, games_data, leaders_data, days_offset=1):
@@ -386,7 +426,9 @@ class TestGetGamesLeadersList:
         assert result["001"][0][0] == original
 
     def test_returns_empty_dict_on_api_exception(self):
-        with patch("helpers.stats.scoreboardv3.ScoreboardV3", side_effect=Exception("timeout")):
+        with patch(
+            "helpers.stats.scoreboardv3.ScoreboardV3", side_effect=Exception("timeout")
+        ):
             with patch("helpers.stats.log_exceptions"):
                 assert get_games_leaders_list(1) == {}
 
@@ -399,17 +441,52 @@ class TestGetGamesLeadersList:
 # fetch_single_boxscore
 # ---------------------------------------------------------------------------
 
+
 class TestFetchSingleBoxscore:
-    _TEAM_A = _team_row(101, "Los Angeles", "Lakers", 110,
-                        fgm=40, fga=85, fg_pct=0.471,
-                        tpm=12, tpa=35, tp_pct=0.343,
-                        ftm=18, fta=22, ft_pct=0.818,
-                        off_reb=8, reb=42, ast=25, stl=9, blk=5, to=11, fouls=20)
-    _TEAM_B = _team_row(202, "Golden State", "Warriors", 105,
-                        fgm=38, fga=88, fg_pct=0.432,
-                        tpm=14, tpa=40, tp_pct=0.350,
-                        ftm=15, fta=18, ft_pct=0.833,
-                        off_reb=7, reb=38, ast=22, stl=8, blk=4, to=13, fouls=19)
+    _TEAM_A = _team_row(
+        101,
+        "Los Angeles",
+        "Lakers",
+        110,
+        fgm=40,
+        fga=85,
+        fg_pct=0.471,
+        tpm=12,
+        tpa=35,
+        tp_pct=0.343,
+        ftm=18,
+        fta=22,
+        ft_pct=0.818,
+        off_reb=8,
+        reb=42,
+        ast=25,
+        stl=9,
+        blk=5,
+        to=11,
+        fouls=20,
+    )
+    _TEAM_B = _team_row(
+        202,
+        "Golden State",
+        "Warriors",
+        105,
+        fgm=38,
+        fga=88,
+        fg_pct=0.432,
+        tpm=14,
+        tpa=40,
+        tp_pct=0.350,
+        ftm=15,
+        fta=18,
+        ft_pct=0.833,
+        off_reb=7,
+        reb=38,
+        ast=22,
+        stl=8,
+        blk=4,
+        to=13,
+        fouls=19,
+    )
 
     def _mock_bs(self, teams_data):
         bs = MagicMock()
@@ -418,7 +495,9 @@ class TestFetchSingleBoxscore:
 
     def _call(self, leaders_data=None):
         bs = self._mock_bs([self._TEAM_A, self._TEAM_B])
-        with patch("helpers.stats.boxscoretraditionalv3.BoxScoreTraditionalV3", return_value=bs):
+        with patch(
+            "helpers.stats.boxscoretraditionalv3.BoxScoreTraditionalV3", return_value=bs
+        ):
             return fetch_single_boxscore("0022300001", leaders_data or [])
 
     def test_returns_game_id(self):
@@ -470,13 +549,20 @@ class TestFetchSingleBoxscore:
     def test_leader_matched_by_team_id(self):
         leaders = [["LeBron James", 35, 8, 7, 101]]
         result = self._call(leaders_data=leaders)
-        laker_team = next(t for t in result["teams"] if t["name"] == "Los Angeles Lakers")
+        laker_team = next(
+            t for t in result["teams"] if t["name"] == "Los Angeles Lakers"
+        )
         assert laker_team["leader"]["name"] == "LeBron James"
         assert laker_team["leader"]["points"] == 35
 
     def test_leader_not_matched_uses_defaults(self):
         result = self._call(leaders_data=[])
-        assert result["teams"][0]["leader"] == {"name": "", "points": 0, "rebounds": 0, "assists": 0}
+        assert result["teams"][0]["leader"] == {
+            "name": "",
+            "points": 0,
+            "rebounds": 0,
+            "assists": 0,
+        }
 
     def test_leader_with_insufficient_length_skipped(self):
         # len(leader) <= 4 should be ignored
@@ -485,7 +571,9 @@ class TestFetchSingleBoxscore:
         assert result["teams"][0]["leader"]["name"] == ""
 
     def test_returns_empty_dict_on_exception(self):
-        with patch("helpers.stats.boxscoretraditionalv3.BoxScoreTraditionalV3",
-                   side_effect=Exception("API error")):
+        with patch(
+            "helpers.stats.boxscoretraditionalv3.BoxScoreTraditionalV3",
+            side_effect=Exception("API error"),
+        ):
             result = fetch_single_boxscore("0022300001", [])
         assert result == {}

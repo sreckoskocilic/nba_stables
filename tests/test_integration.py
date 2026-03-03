@@ -1,4 +1,5 @@
 """Integration tests for the NBA Stables FastAPI application."""
+
 import json
 import os
 import tempfile
@@ -14,7 +15,7 @@ from main import app
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
 GAME_ID = "0022301234"
-PLAYER_ID = 2544          # LeBron James
+PLAYER_ID = 2544  # LeBron James
 TEAM_ID_LAL = 1610612747
 TEAM_ID_BOS = 1610612738
 
@@ -26,6 +27,7 @@ FAKE_PLAYERS = [
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def client():
@@ -44,21 +46,38 @@ def clear_cache():
 # Mock data builders
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def make_live_game(**kw):
     game = {
         "gameId": GAME_ID,
         "gameStatusText": "7:30 pm ET",
         "homeTeam": {
-            "teamCity": "Los Angeles", "teamName": "Lakers",
-            "teamTricode": "LAL", "teamId": TEAM_ID_LAL, "score": 0,
+            "teamCity": "Los Angeles",
+            "teamName": "Lakers",
+            "teamTricode": "LAL",
+            "teamId": TEAM_ID_LAL,
+            "score": 0,
         },
         "awayTeam": {
-            "teamCity": "Boston", "teamName": "Celtics",
-            "teamTricode": "BOS", "teamId": TEAM_ID_BOS, "score": 0,
+            "teamCity": "Boston",
+            "teamName": "Celtics",
+            "teamTricode": "BOS",
+            "teamId": TEAM_ID_BOS,
+            "score": 0,
         },
         "gameLeaders": {
-            "homeLeaders": {"name": "LeBron James", "points": 28, "rebounds": 8, "assists": 6},
-            "awayLeaders": {"name": "Jayson Tatum", "points": 32, "rebounds": 9, "assists": 4},
+            "homeLeaders": {
+                "name": "LeBron James",
+                "points": 28,
+                "rebounds": 8,
+                "assists": 6,
+            },
+            "awayLeaders": {
+                "name": "Jayson Tatum",
+                "points": 32,
+                "rebounds": 9,
+                "assists": 4,
+            },
         },
     }
     game.update(kw)
@@ -67,13 +86,23 @@ def make_live_game(**kw):
 
 def make_live_player_stats(**kw):
     stats = {
-        "points": 28, "reboundsTotal": 8, "assists": 6,
-        "steals": 1, "blocks": 0, "turnovers": 2,
-        "fieldGoalsMade": 11, "fieldGoalsAttempted": 20,
-        "threePointersMade": 2, "threePointersAttempted": 5,
-        "freeThrowsMade": 4, "freeThrowsAttempted": 4,
-        "reboundsOffensive": 1, "reboundsDefensive": 7,
-        "foulsPersonal": 2, "minutes": "PT28M00.00S", "plusMinusPoints": 8,
+        "points": 28,
+        "reboundsTotal": 8,
+        "assists": 6,
+        "steals": 1,
+        "blocks": 0,
+        "turnovers": 2,
+        "fieldGoalsMade": 11,
+        "fieldGoalsAttempted": 20,
+        "threePointersMade": 2,
+        "threePointersAttempted": 5,
+        "freeThrowsMade": 4,
+        "freeThrowsAttempted": 4,
+        "reboundsOffensive": 1,
+        "reboundsDefensive": 7,
+        "foulsPersonal": 2,
+        "minutes": "PT28M00.00S",
+        "plusMinusPoints": 8,
     }
     stats.update(kw)
     return stats
@@ -81,7 +110,9 @@ def make_live_player_stats(**kw):
 
 def make_live_player(person_id=PLAYER_ID, name="LeBron James", **stats_kw):
     return {
-        "personId": person_id, "name": name, "status": "ACTIVE",
+        "personId": person_id,
+        "name": name,
+        "status": "ACTIVE",
         "statistics": make_live_player_stats(**stats_kw),
     }
 
@@ -91,13 +122,19 @@ def make_live_boxscore(game_id=GAME_ID, status="Q2 5:32"):
         "game": {
             "gameStatusText": status,
             "homeTeam": {
-                "teamCity": "Los Angeles", "teamName": "Lakers",
-                "teamTricode": "LAL", "teamId": TEAM_ID_LAL, "score": 56,
+                "teamCity": "Los Angeles",
+                "teamName": "Lakers",
+                "teamTricode": "LAL",
+                "teamId": TEAM_ID_LAL,
+                "score": 56,
                 "players": [make_live_player()],
             },
             "awayTeam": {
-                "teamCity": "Boston", "teamName": "Celtics",
-                "teamTricode": "BOS", "teamId": TEAM_ID_BOS, "score": 48,
+                "teamCity": "Boston",
+                "teamName": "Celtics",
+                "teamTricode": "BOS",
+                "teamId": TEAM_ID_BOS,
+                "score": 48,
                 "players": [make_live_player(person_id=1629029, name="Jayson Tatum")],
             },
         }
@@ -145,50 +182,74 @@ def make_boxscore_team_row(team_id, city, name, score=100):
     row[21] = 3
     row[22] = 10
     row[23] = 15
-    row[24] = score   # row[-2]
+    row[24] = score  # row[-2]
     return row
 
 
 def make_player_stats_row(person_id=PLAYER_ID, minutes="28:00"):
     """Build a BoxScoreTraditionalV3 player_stats row."""
     row = [None] * 33
-    row[6]  = person_id
-    row[14] = minutes    # non-empty → player played
-    row[15] = 11   # FGM
-    row[16] = 20   # FGA
-    row[18] = 2    # 3PM
-    row[19] = 5    # 3PA
-    row[21] = 4    # FTM
-    row[22] = 4    # FTA
-    row[26] = 8    # REB
-    row[27] = 6    # AST
-    row[28] = 0    # BLK
-    row[29] = 1    # STL
-    row[31] = 2    # PF
-    row[32] = 28   # PTS
+    row[6] = person_id
+    row[14] = minutes  # non-empty → player played
+    row[15] = 11  # FGM
+    row[16] = 20  # FGA
+    row[18] = 2  # 3PM
+    row[19] = 5  # 3PA
+    row[21] = 4  # FTM
+    row[22] = 4  # FTA
+    row[26] = 8  # REB
+    row[27] = 6  # AST
+    row[28] = 0  # BLK
+    row[29] = 1  # STL
+    row[31] = 2  # PF
+    row[32] = 28  # PTS
     return row
 
 
 CAREER_HEADERS = [
-    "PLAYER_ID", "SEASON_ID", "LEAGUE_ID", "TEAM_ID", "TEAM_ABBREVIATION",
-    "PLAYER_AGE", "GP", "GS", "MIN", "FGM", "FGA", "FG_PCT",
-    "FG3M", "FG3A", "FG3_PCT", "FTM", "FTA", "FT_PCT",
-    "OREB", "DREB", "REB", "AST", "STL", "BLK", "TOV", "PF", "PTS",
+    "PLAYER_ID",
+    "SEASON_ID",
+    "LEAGUE_ID",
+    "TEAM_ID",
+    "TEAM_ABBREVIATION",
+    "PLAYER_AGE",
+    "GP",
+    "GS",
+    "MIN",
+    "FGM",
+    "FGA",
+    "FG_PCT",
+    "FG3M",
+    "FG3A",
+    "FG3_PCT",
+    "FTM",
+    "FTA",
+    "FT_PCT",
+    "OREB",
+    "DREB",
+    "REB",
+    "AST",
+    "STL",
+    "BLK",
+    "TOV",
+    "PF",
+    "PTS",
 ]
+
 
 def make_career_row(gp=60):
     h = {k: i for i, k in enumerate(CAREER_HEADERS)}
     row = [None] * len(CAREER_HEADERS)
     row[h["SEASON_ID"]] = "2024-25"
-    row[h["GP"]]  = gp
+    row[h["GP"]] = gp
     row[h["MIN"]] = 1800.0
-    row[h["PTS"]] = 1680.0   # 28.0 ppg
-    row[h["REB"]] = 480.0    # 8.0 rpg
-    row[h["AST"]] = 360.0    # 6.0 apg
+    row[h["PTS"]] = 1680.0  # 28.0 ppg
+    row[h["REB"]] = 480.0  # 8.0 rpg
+    row[h["AST"]] = 360.0  # 6.0 apg
     row[h["STL"]] = 60.0
     row[h["BLK"]] = 36.0
     row[h["TOV"]] = 120.0
-    row[h["PF"]]  = 90.0
+    row[h["PF"]] = 90.0
     row[h["FGM"]] = 660.0
     row[h["FGA"]] = 1200.0
     row[h["FG_PCT"]] = 0.55
@@ -205,6 +266,7 @@ def make_career_row(gp=60):
 # /api/health
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestHealth:
     def test_returns_200(self, client):
         assert client.get("/api/health").status_code == 200
@@ -218,6 +280,7 @@ class TestHealth:
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/dates
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestDates:
     def test_returns_200(self, client):
@@ -236,12 +299,23 @@ class TestDates:
 # ─────────────────────────────────────────────────────────────────────────────
 
 INJURY_PAYLOAD = {
-    "injuries": [{"team": "Los Angeles Lakers", "players": [
-        {"name": "LeBron James", "injury": "Foot", "status": "Day-To-Day", "updated": "Today"},
-    ]}],
+    "injuries": [
+        {
+            "team": "Los Angeles Lakers",
+            "players": [
+                {
+                    "name": "LeBron James",
+                    "injury": "Foot",
+                    "status": "Day-To-Day",
+                    "updated": "Today",
+                },
+            ],
+        }
+    ],
     "lastUpdated": "2025-02-28",
     "source": "CBS Sports",
 }
+
 
 class TestInjuries:
     def test_503_when_file_missing(self, client):
@@ -278,20 +352,19 @@ class TestInjuries:
 # /api/scoreboard
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestScoreboard:
-    def _sb(self, games):
-        m = MagicMock()
-        m.games.data = games
-        return m
 
+class TestScoreboard:
     def test_empty_games(self, client):
-        with patch("routes.scores.scoreboard.ScoreBoard", return_value=self._sb([])):
+        with patch("routes.scores.get_cached_scoreboard", return_value=[]):
             r = client.get("/api/scoreboard")
         assert r.status_code == 200
         assert r.json()["games"] == []
 
     def test_game_shape(self, client):
-        with patch("routes.scores.scoreboard.ScoreBoard", return_value=self._sb([make_live_game(gameStatusText="Final")])):
+        with patch(
+            "routes.scores.get_cached_scoreboard",
+            return_value=[make_live_game(gameStatusText="Final")],
+        ):
             r = client.get("/api/scoreboard")
         g = r.json()["games"][0]
         assert g["homeTeam"]["tricode"] == "LAL"
@@ -299,25 +372,30 @@ class TestScoreboard:
         assert g["status"] == "Final"
 
     def test_et_time_converted(self, client):
-        with patch("routes.scores.scoreboard.ScoreBoard", return_value=self._sb([make_live_game()])):
+        with patch(
+            "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
+        ):
             r = client.get("/api/scoreboard")
         # "7:30 pm ET" should be converted; original format ends with " ET"
         assert not r.json()["games"][0]["status"].endswith(" ET")
 
     def test_has_date(self, client):
-        with patch("routes.scores.scoreboard.ScoreBoard", return_value=self._sb([])):
+        with patch("routes.scores.get_cached_scoreboard", return_value=[]):
             r = client.get("/api/scoreboard")
         assert "date" in r.json()
 
     def test_leader_stats_present(self, client):
-        with patch("routes.scores.scoreboard.ScoreBoard", return_value=self._sb([make_live_game(gameStatusText="Final")])):
+        with patch(
+            "routes.scores.get_cached_scoreboard",
+            return_value=[make_live_game(gameStatusText="Final")],
+        ):
             r = client.get("/api/scoreboard")
         home = r.json()["games"][0]["homeTeam"]
         assert home["leader"]["points"] == 28
         assert home["leader"]["rebounds"] == 8
 
     def test_cached_on_second_call(self, client):
-        with patch("routes.scores.scoreboard.ScoreBoard", return_value=self._sb([])) as mock:
+        with patch("routes.scores.get_cached_scoreboard", return_value=[]) as mock:
             client.get("/api/scoreboard")
             client.get("/api/scoreboard")
         mock.assert_called_once()
@@ -330,18 +408,59 @@ class TestScoreboard:
 _BOXSCORE_RESULT = {
     "gameId": GAME_ID,
     "teams": [
-        {"name": "Los Angeles Lakers", "score": 110, "stats": {
-            "fg": "40/80", "fgPct": 0.5, "threePt": "10/25", "threePtPct": 0.4,
-            "ft": "15/20", "ftPct": 0.75, "rebounds": 35, "offRebounds": 5,
-            "assists": 20, "steals": 5, "blocks": 3, "turnovers": 10, "fouls": 15,
-        }, "leader": {"name": "LeBron James", "points": 28, "rebounds": 8, "assists": 6}},
-        {"name": "Boston Celtics", "score": 105, "stats": {
-            "fg": "40/80", "fgPct": 0.5, "threePt": "10/25", "threePtPct": 0.4,
-            "ft": "15/20", "ftPct": 0.75, "rebounds": 35, "offRebounds": 5,
-            "assists": 20, "steals": 5, "blocks": 3, "turnovers": 10, "fouls": 15,
-        }, "leader": {"name": "Jayson Tatum", "points": 32, "rebounds": 9, "assists": 4}},
+        {
+            "name": "Los Angeles Lakers",
+            "score": 110,
+            "stats": {
+                "fg": "40/80",
+                "fgPct": 0.5,
+                "threePt": "10/25",
+                "threePtPct": 0.4,
+                "ft": "15/20",
+                "ftPct": 0.75,
+                "rebounds": 35,
+                "offRebounds": 5,
+                "assists": 20,
+                "steals": 5,
+                "blocks": 3,
+                "turnovers": 10,
+                "fouls": 15,
+            },
+            "leader": {
+                "name": "LeBron James",
+                "points": 28,
+                "rebounds": 8,
+                "assists": 6,
+            },
+        },
+        {
+            "name": "Boston Celtics",
+            "score": 105,
+            "stats": {
+                "fg": "40/80",
+                "fgPct": 0.5,
+                "threePt": "10/25",
+                "threePtPct": 0.4,
+                "ft": "15/20",
+                "ftPct": 0.75,
+                "rebounds": 35,
+                "offRebounds": 5,
+                "assists": 20,
+                "steals": 5,
+                "blocks": 3,
+                "turnovers": 10,
+                "fouls": 15,
+            },
+            "leader": {
+                "name": "Jayson Tatum",
+                "points": 32,
+                "rebounds": 9,
+                "assists": 4,
+            },
+        },
     ],
 }
+
 
 class TestBoxscores:
     def test_no_games(self, client):
@@ -352,8 +471,10 @@ class TestBoxscores:
 
     def test_returns_team_data(self, client):
         leaders = {GAME_ID: [["LeBron James", 28, 8, 6, TEAM_ID_LAL]]}
-        with patch("routes.scores.get_games_leaders_list", return_value=leaders), \
-             patch("routes.scores.fetch_single_boxscore", return_value=_BOXSCORE_RESULT):
+        with (
+            patch("routes.scores.get_games_leaders_list", return_value=leaders),
+            patch("routes.scores.fetch_single_boxscore", return_value=_BOXSCORE_RESULT),
+        ):
             r = client.get("/api/boxscores?days_offset=1")
         assert r.status_code == 200
         teams = r.json()["boxscores"][0]["teams"]
@@ -378,22 +499,47 @@ class TestBoxscores:
 # /api/leaders
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestLeaders:
-    def _bs(self):
-        m = MagicMock()
-        m.get_dict.return_value = {"game": {
-            "homeTeam": {"teamTricode": "LAL", "players": [{
-                "status": "ACTIVE", "name": "LeBron James",
-                "statistics": {"points": 35, "reboundsTotal": 10, "assists": 8,
-                               "blocks": 2, "steals": 3, "threePointersMade": 4},
-            }]},
-            "awayTeam": {"teamTricode": "BOS", "players": [{
-                "status": "ACTIVE", "name": "Jayson Tatum",
-                "statistics": {"points": 30, "reboundsTotal": 8, "assists": 5,
-                               "blocks": 1, "steals": 2, "threePointersMade": 3},
-            }]},
-        }}
-        return m
+    def _bs_dict(self):
+        return {
+            "game": {
+                "homeTeam": {
+                    "teamTricode": "LAL",
+                    "players": [
+                        {
+                            "status": "ACTIVE",
+                            "name": "LeBron James",
+                            "statistics": {
+                                "points": 35,
+                                "reboundsTotal": 10,
+                                "assists": 8,
+                                "blocks": 2,
+                                "steals": 3,
+                                "threePointersMade": 4,
+                            },
+                        }
+                    ],
+                },
+                "awayTeam": {
+                    "teamTricode": "BOS",
+                    "players": [
+                        {
+                            "status": "ACTIVE",
+                            "name": "Jayson Tatum",
+                            "statistics": {
+                                "points": 30,
+                                "reboundsTotal": 8,
+                                "assists": 5,
+                                "blocks": 1,
+                                "steals": 2,
+                                "threePointersMade": 3,
+                            },
+                        }
+                    ],
+                },
+            }
+        }
 
     def test_no_games_returns_empty(self, client):
         with patch("routes.scores.get_games_list", return_value=[]):
@@ -402,18 +548,33 @@ class TestLeaders:
         assert r.json()["leaders"] == {}
 
     def test_points_leader_computed(self, client):
-        with patch("routes.scores.get_games_list", return_value=[GAME_ID]), \
-             patch("routes.scores.boxscore.BoxScore", return_value=self._bs()):
+        with (
+            patch("routes.scores.get_games_list", return_value=[GAME_ID]),
+            patch(
+                "routes.scores.get_cached_live_boxscore", return_value=self._bs_dict()
+            ),
+        ):
             r = client.get("/api/leaders?days_offset=1")
         leaders = r.json()["leaders"]
         assert leaders["points"]["value"] == 35
         assert leaders["points"]["players"][0]["name"] == "LeBron James"
 
     def test_all_categories_present(self, client):
-        with patch("routes.scores.get_games_list", return_value=[GAME_ID]), \
-             patch("routes.scores.boxscore.BoxScore", return_value=self._bs()):
+        with (
+            patch("routes.scores.get_games_list", return_value=[GAME_ID]),
+            patch(
+                "routes.scores.get_cached_live_boxscore", return_value=self._bs_dict()
+            ),
+        ):
             r = client.get("/api/leaders?days_offset=1")
-        for cat in ("points", "rebounds", "assists", "blocks", "steals", "threePointers"):
+        for cat in (
+            "points",
+            "rebounds",
+            "assists",
+            "blocks",
+            "steals",
+            "threePointers",
+        ):
             assert cat in r.json()["leaders"]
 
     def test_offset_too_large_rejected(self, client):
@@ -429,6 +590,7 @@ class TestLeaders:
 # /api/standings
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestStandings:
     def _mock(self, rows):
         m = MagicMock()
@@ -437,7 +599,7 @@ class TestStandings:
 
     def test_east_and_west_split(self, client):
         rows = [
-            make_standings_row(1, "Boston",        "Celtics", "East", 50, 20),
+            make_standings_row(1, "Boston", "Celtics", "East", 50, 20),
             make_standings_row(1, "Oklahoma City", "Thunder", "West", 52, 18),
         ]
         with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
@@ -448,9 +610,9 @@ class TestStandings:
 
     def test_sorted_by_rank(self, client):
         rows = [
-            make_standings_row(3, "Philadelphia", "76ers",   "East", 30, 40),
-            make_standings_row(1, "Boston",        "Celtics", "East", 50, 20),
-            make_standings_row(2, "Milwaukee",     "Bucks",   "East", 42, 28),
+            make_standings_row(3, "Philadelphia", "76ers", "East", 30, 40),
+            make_standings_row(1, "Boston", "Celtics", "East", 50, 20),
+            make_standings_row(2, "Milwaukee", "Bucks", "East", 42, 28),
         ]
         with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
             r = client.get("/api/standings")
@@ -462,13 +624,23 @@ class TestStandings:
         with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
             r = client.get("/api/standings")
         team = r.json()["east"][0]
-        for key in ("rank", "name", "wins", "losses", "winPct", "gamesBack", "streak", "last10"):
+        for key in (
+            "rank",
+            "name",
+            "wins",
+            "losses",
+            "winPct",
+            "gamesBack",
+            "streak",
+            "last10",
+        ):
             assert key in team
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/players/search
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestPlayerSearch:
     def test_finds_player(self, client):
@@ -501,16 +673,22 @@ class TestPlayerSearch:
 # /api/players/stats
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestPlayerStats:
     def test_returns_live_stats(self, client):
-        mock_sb = MagicMock()
-        mock_sb.games.data = [make_live_game()]
-        mock_bs = MagicMock()
-        mock_bs.get_dict.return_value = make_live_boxscore()
-
-        with patch("routes.players.load_players_dict", return_value={p[0]: p for p in FAKE_PLAYERS}), \
-             patch("routes.players.scoreboard.ScoreBoard", return_value=mock_sb), \
-             patch("routes.players.boxscore.BoxScore", return_value=mock_bs):
+        with (
+            patch(
+                "routes.players.load_players_dict",
+                return_value={p[0]: p for p in FAKE_PLAYERS},
+            ),
+            patch(
+                "routes.players.get_cached_scoreboard", return_value=[make_live_game()]
+            ),
+            patch(
+                "routes.players.get_cached_live_boxscore",
+                return_value=make_live_boxscore(),
+            ),
+        ):
             r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
 
         assert r.status_code == 200
@@ -524,10 +702,13 @@ class TestPlayerStats:
         assert r.json()["players"] == []
 
     def test_player_not_in_game_returns_empty(self, client):
-        mock_sb = MagicMock()
-        mock_sb.games.data = []
-        with patch("routes.players.load_players_dict", return_value={p[0]: p for p in FAKE_PLAYERS}), \
-             patch("routes.players.scoreboard.ScoreBoard", return_value=mock_sb):
+        with (
+            patch(
+                "routes.players.load_players_dict",
+                return_value={p[0]: p for p in FAKE_PLAYERS},
+            ),
+            patch("routes.players.get_cached_scoreboard", return_value=[]),
+        ):
             r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
         assert r.json()["players"] == []
 
@@ -536,55 +717,47 @@ class TestPlayerStats:
 # /api/games/{game_id}/players
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestGamePlayers:
-    def _setup(self, bs_dict=None):
-        mock_bs = MagicMock()
-        mock_bs.get_dict.return_value = bs_dict or make_live_boxscore()
-        mock_adv = MagicMock()
-        mock_adv.player_stats.get_dict.return_value = {"data": []}
-        return mock_bs, mock_adv
 
+class TestGamePlayers:
     def test_returns_two_teams(self, client):
-        mock_bs, mock_adv = self._setup()
-        with patch("routes.players.boxscore.BoxScore", return_value=mock_bs), \
-             patch("routes.players.boxscoreadvancedv3.BoxScoreAdvancedV3", return_value=mock_adv):
+        with patch(
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
+        ):
             r = client.get(f"/api/games/{GAME_ID}/players")
         assert r.status_code == 200
         assert len(r.json()["teams"]) == 2
 
     def test_player_stats_present(self, client):
-        mock_bs, mock_adv = self._setup()
-        with patch("routes.players.boxscore.BoxScore", return_value=mock_bs), \
-             patch("routes.players.boxscoreadvancedv3.BoxScoreAdvancedV3", return_value=mock_adv):
+        with patch(
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
+        ):
             r = client.get(f"/api/games/{GAME_ID}/players")
         lal = next(t for t in r.json()["teams"] if t["tricode"] == "LAL")
         assert lal["players"][0]["points"] == 28
 
     def test_player_data_shape(self, client):
-        mock_bs, mock_adv = self._setup()
-        with patch("routes.players.boxscore.BoxScore", return_value=mock_bs), \
-             patch("routes.players.boxscoreadvancedv3.BoxScoreAdvancedV3", return_value=mock_adv):
+        with patch(
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
+        ):
             r = client.get(f"/api/games/{GAME_ID}/players")
         p = r.json()["teams"][0]["players"][0]
-        for key in ("name", "minutes", "points", "rebounds", "assists", "fg", "threePt", "ft"):
+        for key in (
+            "name",
+            "minutes",
+            "points",
+            "rebounds",
+            "assists",
+            "fg",
+            "threePt",
+            "ft",
+        ):
             assert key in p
-
-    def test_advanced_stats_fallback_when_unavailable(self, client):
-        mock_bs = MagicMock()
-        mock_bs.get_dict.return_value = make_live_boxscore()
-        mock_adv = MagicMock()
-        mock_adv.player_stats.get_dict.side_effect = None
-
-        with patch("routes.players.boxscore.BoxScore", return_value=mock_bs), \
-             patch("routes.players.boxscoreadvancedv3.BoxScoreAdvancedV3", return_value=mock_adv):
-            r = client.get(f"/api/games/{GAME_ID}/players")
-        assert r.status_code == 200
-        assert r.json()["teams"][0]["players"][0]["plusMinus"] == 8  # falls back to plusMinusPoints
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/players/{id}/last-n-games
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestLastNGames:
     def _cumestats(self):
@@ -602,9 +775,20 @@ class TestLastNGames:
         return m
 
     def test_returns_game_log(self, client):
-        with patch("routes.players.load_players_dict", return_value={p[0]: p for p in FAKE_PLAYERS}), \
-             patch("routes.players.cumestatsteamgames.CumeStatsTeamGames", return_value=self._cumestats()), \
-             patch("routes.players.boxscoretraditionalv3.BoxScoreTraditionalV3", return_value=self._trad_boxscore()):
+        with (
+            patch(
+                "routes.players.load_players_dict",
+                return_value={p[0]: p for p in FAKE_PLAYERS},
+            ),
+            patch(
+                "routes.players.cumestatsteamgames.CumeStatsTeamGames",
+                return_value=self._cumestats(),
+            ),
+            patch(
+                "routes.players.boxscoretraditionalv3.BoxScoreTraditionalV3",
+                return_value=self._trad_boxscore(),
+            ),
+        ):
             r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
         assert r.status_code == 200
         body = r.json()
@@ -618,14 +802,27 @@ class TestLastNGames:
         assert r.status_code == 404
 
     def test_n_out_of_range_rejected(self, client):
-        assert client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=99").status_code == 422
+        assert (
+            client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=99").status_code == 422
+        )
 
     def test_dnp_game_flagged(self, client):
         empty_bs = MagicMock()
         empty_bs.player_stats.get_dict.return_value = {"data": []}
-        with patch("routes.players.load_players_dict", return_value={p[0]: p for p in FAKE_PLAYERS}), \
-             patch("routes.players.cumestatsteamgames.CumeStatsTeamGames", return_value=self._cumestats()), \
-             patch("routes.players.boxscoretraditionalv3.BoxScoreTraditionalV3", return_value=empty_bs):
+        with (
+            patch(
+                "routes.players.load_players_dict",
+                return_value={p[0]: p for p in FAKE_PLAYERS},
+            ),
+            patch(
+                "routes.players.cumestatsteamgames.CumeStatsTeamGames",
+                return_value=self._cumestats(),
+            ),
+            patch(
+                "routes.players.boxscoretraditionalv3.BoxScoreTraditionalV3",
+                return_value=empty_bs,
+            ),
+        ):
             r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
         assert r.json()["games"][0]["dnp"] is True
 
@@ -633,6 +830,7 @@ class TestLastNGames:
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/players/{id}/season-avg
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestSeasonAvg:
     def _mock_career(self, rows=None):
@@ -644,7 +842,10 @@ class TestSeasonAvg:
         return m
 
     def test_returns_averages(self, client):
-        with patch("routes.players.playercareerstats.PlayerCareerStats", return_value=self._mock_career()):
+        with patch(
+            "routes.players.playercareerstats.PlayerCareerStats",
+            return_value=self._mock_career(),
+        ):
             r = client.get(f"/api/players/{PLAYER_ID}/season-avg")
         assert r.status_code == 200
         body = r.json()
@@ -653,13 +854,28 @@ class TestSeasonAvg:
         assert body["gp"] == 60
 
     def test_response_shape(self, client):
-        with patch("routes.players.playercareerstats.PlayerCareerStats", return_value=self._mock_career()):
+        with patch(
+            "routes.players.playercareerstats.PlayerCareerStats",
+            return_value=self._mock_career(),
+        ):
             r = client.get(f"/api/players/{PLAYER_ID}/season-avg")
-        for key in ("season", "gp", "points", "rebounds", "assists", "fgPct", "fg3Pct", "ftPct"):
+        for key in (
+            "season",
+            "gp",
+            "points",
+            "rebounds",
+            "assists",
+            "fgPct",
+            "fg3Pct",
+            "ftPct",
+        ):
             assert key in r.json()
 
     def test_no_data_returns_404(self, client):
-        with patch("routes.players.playercareerstats.PlayerCareerStats", return_value=self._mock_career(rows=[])):
+        with patch(
+            "routes.players.playercareerstats.PlayerCareerStats",
+            return_value=self._mock_career(rows=[]),
+        ):
             r = client.get(f"/api/players/{PLAYER_ID}/season-avg")
         assert r.status_code == 404
 
@@ -667,6 +883,7 @@ class TestSeasonAvg:
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/trades
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestTrades:
     def _resp(self, rows):
@@ -680,7 +897,7 @@ class TestTrades:
             "Transaction_Type": "Signing",
             "TRANSACTION_DATE": "2026-02-01T00:00:00",
             "TRANSACTION_DESCRIPTION": "Brooklyn Nets signed LeBron James to a 10-Day Contract.",
-            "TEAM_ID": 1610612751.0,   # BKN
+            "TEAM_ID": 1610612751.0,  # BKN
             "TEAM_SLUG": "nets",
             "PLAYER_ID": float(PLAYER_ID),
             "PLAYER_SLUG": "lebron-james",
@@ -691,37 +908,53 @@ class TestTrades:
         return row
 
     def test_returns_200(self, client):
-        with patch("routes.trades.requests.get", return_value=self._resp([])), \
-             patch("routes.trades.load_players_dict", return_value={}):
+        with (
+            patch("routes.trades.requests.get", return_value=self._resp([])),
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
             r = client.get("/api/trades")
         assert r.status_code == 200
 
     def test_response_shape(self, client):
-        with patch("routes.trades.requests.get", return_value=self._resp([])), \
-             patch("routes.trades.load_players_dict", return_value={}):
+        with (
+            patch("routes.trades.requests.get", return_value=self._resp([])),
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
             r = client.get("/api/trades")
         body = r.json()
         assert "transactions" in body
         assert "total" in body
 
     def test_team_name_resolved(self, client):
-        with patch("routes.trades.requests.get", return_value=self._resp([self._row()])), \
-             patch("routes.trades.load_players_dict", return_value={PLAYER_ID: [PLAYER_ID, "LeBron James", TEAM_ID_LAL]}):
+        with (
+            patch("routes.trades.requests.get", return_value=self._resp([self._row()])),
+            patch(
+                "routes.trades.load_players_dict",
+                return_value={PLAYER_ID: [PLAYER_ID, "LeBron James", TEAM_ID_LAL]},
+            ),
+        ):
             r = client.get("/api/trades")
         t = r.json()["transactions"][0]
         assert t["teamName"] == "Brooklyn Nets"
         assert t["teamTricode"] == "BKN"
 
     def test_player_name_resolved_from_dict(self, client):
-        with patch("routes.trades.requests.get", return_value=self._resp([self._row()])), \
-             patch("routes.trades.load_players_dict", return_value={PLAYER_ID: [PLAYER_ID, "LeBron James", TEAM_ID_LAL]}):
+        with (
+            patch("routes.trades.requests.get", return_value=self._resp([self._row()])),
+            patch(
+                "routes.trades.load_players_dict",
+                return_value={PLAYER_ID: [PLAYER_ID, "LeBron James", TEAM_ID_LAL]},
+            ),
+        ):
             r = client.get("/api/trades")
         assert r.json()["transactions"][0]["playerName"] == "LeBron James"
 
     def test_player_name_falls_back_to_slug(self, client):
         row = self._row(PLAYER_ID=9999999.0, PLAYER_SLUG="grant-nelson")
-        with patch("routes.trades.requests.get", return_value=self._resp([row])), \
-             patch("routes.trades.load_players_dict", return_value={}):
+        with (
+            patch("routes.trades.requests.get", return_value=self._resp([row])),
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
             r = client.get("/api/trades")
         assert r.json()["transactions"][0]["playerName"] == "Grant Nelson"
 
@@ -731,44 +964,66 @@ class TestTrades:
             self._row(TRANSACTION_DATE="2026-01-20T00:00:00"),
             self._row(TRANSACTION_DATE="2026-01-05T00:00:00"),
         ]
-        with patch("routes.trades.requests.get", return_value=self._resp(rows)), \
-             patch("routes.trades.load_players_dict", return_value={}):
+        with (
+            patch("routes.trades.requests.get", return_value=self._resp(rows)),
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
             r = client.get("/api/trades")
         dates = [t["date"] for t in r.json()["transactions"]]
         assert dates == sorted(dates, reverse=True)
 
     def test_description_included(self, client):
-        row = self._row(TRANSACTION_DESCRIPTION="Brooklyn Nets signed LeBron James to a 10-Day Contract.")
-        with patch("routes.trades.requests.get", return_value=self._resp([row])), \
-             patch("routes.trades.load_players_dict", return_value={}):
+        row = self._row(
+            TRANSACTION_DESCRIPTION="Brooklyn Nets signed LeBron James to a 10-Day Contract."
+        )
+        with (
+            patch("routes.trades.requests.get", return_value=self._resp([row])),
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
             r = client.get("/api/trades")
-        assert r.json()["transactions"][0]["description"] == "Brooklyn Nets signed LeBron James to a 10-Day Contract."
+        assert (
+            r.json()["transactions"][0]["description"]
+            == "Brooklyn Nets signed LeBron James to a 10-Day Contract."
+        )
 
     def test_total_matches_row_count(self, client):
         rows = [self._row() for _ in range(5)]
-        with patch("routes.trades.requests.get", return_value=self._resp(rows)), \
-             patch("routes.trades.load_players_dict", return_value={}):
+        with (
+            patch("routes.trades.requests.get", return_value=self._resp(rows)),
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
             r = client.get("/api/trades")
         assert r.json()["total"] == 5
 
     def test_cached_on_second_call(self, client):
-        with patch("routes.trades.requests.get", return_value=self._resp([])) as mock_req, \
-             patch("routes.trades.load_players_dict", return_value={}):
+        with (
+            patch(
+                "routes.trades.requests.get", return_value=self._resp([])
+            ) as mock_req,
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
             client.get("/api/trades")
             client.get("/api/trades")
         mock_req.assert_called_once()
 
     def test_503_on_request_error(self, client):
-        with patch("routes.trades.requests.get", side_effect=requests.RequestException("timeout")), \
-             patch("routes.trades.load_players_dict", return_value={}), \
-             patch("routes.trades.log_exceptions"):
+        with (
+            patch(
+                "routes.trades.requests.get",
+                side_effect=requests.RequestException("timeout"),
+            ),
+            patch("routes.trades.load_players_dict", return_value={}),
+            patch("routes.trades.log_exceptions"),
+        ):
             r = client.get("/api/trades")
         assert r.status_code == 503
 
     def test_unknown_team_id_returns_unknown(self, client):
         row = self._row(TEAM_ID=9999999.0)
-        with patch("routes.trades.requests.get", return_value=self._resp([row])), \
-             patch("routes.trades.load_players_dict", return_value={}):
+        with (
+            patch("routes.trades.requests.get", return_value=self._resp([row])),
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
             r = client.get("/api/trades")
         t = r.json()["transactions"][0]
         assert t["teamName"] == "Unknown Team"
@@ -776,14 +1031,18 @@ class TestTrades:
 
     def test_type_field_preserved(self, client):
         row = self._row(Transaction_Type="Trade")
-        with patch("routes.trades.requests.get", return_value=self._resp([row])), \
-             patch("routes.trades.load_players_dict", return_value={}):
+        with (
+            patch("routes.trades.requests.get", return_value=self._resp([row])),
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
             r = client.get("/api/trades")
         assert r.json()["transactions"][0]["type"] == "Trade"
 
     def test_date_normalised_to_yyyy_mm_dd(self, client):
         row = self._row(TRANSACTION_DATE="2026-02-15T00:00:00")
-        with patch("routes.trades.requests.get", return_value=self._resp([row])), \
-             patch("routes.trades.load_players_dict", return_value={}):
+        with (
+            patch("routes.trades.requests.get", return_value=self._resp([row])),
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
             r = client.get("/api/trades")
         assert r.json()["transactions"][0]["date"] == "2026-02-15"

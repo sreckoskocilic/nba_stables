@@ -1,4 +1,5 @@
 """Unit tests for helpers/common.py — SimpleCache and helpers/logger.py."""
+
 import time
 from unittest.mock import patch
 
@@ -60,7 +61,7 @@ class TestSimpleCache:
 
     def test_overwrite_extends_ttl(self):
         self.cache.set("key", "v", ttl_seconds=1)
-        self.cache.set("key", "v", ttl_seconds=60)   # refresh
+        self.cache.set("key", "v", ttl_seconds=60)  # refresh
         time.sleep(1.05)
         # Should still be alive because TTL was reset to 60
         assert self.cache.get("key") == "v"
@@ -77,7 +78,7 @@ class TestSimpleCache:
     def test_expired_entry_removed_from_cache(self):
         self.cache.set("key", "value", ttl_seconds=1)
         time.sleep(1.1)
-        self.cache.get("key")                         # triggers eviction
+        self.cache.get("key")  # triggers eviction
         assert "key" not in self.cache._cache
 
     def test_non_expired_entry_survives(self):
@@ -97,7 +98,7 @@ class TestSimpleCache:
         assert self.cache.get("k2") is None
 
     def test_clear_on_empty_cache_is_safe(self):
-        self.cache.clear()   # should not raise
+        self.cache.clear()  # should not raise
 
     def test_clear_then_set(self):
         self.cache.set("k", "old", ttl_seconds=60)
@@ -119,7 +120,7 @@ class TestSimpleCache:
 
     def test_expire_one_key_leaves_others(self):
         self.cache.set("short", "gone", ttl_seconds=1)
-        self.cache.set("long",  "here", ttl_seconds=60)
+        self.cache.set("long", "here", ttl_seconds=60)
         time.sleep(1.1)
         assert self.cache.get("short") is None
         assert self.cache.get("long") == "here"
@@ -128,6 +129,7 @@ class TestSimpleCache:
 class TestLogExceptions:
     def test_calls_logger_exception(self):
         from helpers.logger import log_exceptions
+
         err = ValueError("boom")
         with patch("helpers.logger.logger") as mock_log:
             log_exceptions(err)
@@ -136,6 +138,7 @@ class TestLogExceptions:
 
     def test_accepts_any_exception_type(self):
         from helpers.logger import log_exceptions
+
         with patch("helpers.logger.logger"):
             log_exceptions(RuntimeError("runtime"))
             log_exceptions(KeyError("key"))

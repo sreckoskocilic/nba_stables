@@ -9,6 +9,7 @@ CBS_INJURIES_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "cbs_injuries.json"
 )
 
+
 def scrape_cbs_injuries():
     """Scrape CBS Sports and save to JSON file"""
     url = "https://www.cbssports.com/nba/injuries/"
@@ -59,10 +60,11 @@ def scrape_cbs_injuries():
     result = {
         "injuries": injuries_by_team,
         "source": "CBS Sports",
-        "lastUpdated": datetime.now(timezone.utc).strftime('%B %d, %Y %H:%M UTC')
+        "lastUpdated": datetime.now(timezone.utc).strftime("%B %d, %Y %H:%M UTC"),
     }
     with open(CBS_INJURIES_FILE, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
+
 
 if __name__ == "__main__":
     scrape_cbs_injuries()

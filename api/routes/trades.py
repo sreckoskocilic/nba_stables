@@ -6,7 +6,9 @@ from helpers.stats import load_players_dict
 
 router = APIRouter()
 
-NBA_PLAYER_MOVEMENT_URL = "https://stats.nba.com/js/data/playermovement/NBA_Player_Movement.json"
+NBA_PLAYER_MOVEMENT_URL = (
+    "https://stats.nba.com/js/data/playermovement/NBA_Player_Movement.json"
+)
 
 _NBA_HEADERS = {
     "Accept": "application/json, text/plain, */*",
@@ -78,16 +80,22 @@ def get_trades():
             tricode, team_name = _TEAMS.get(team_id, ("", "Unknown Team"))
 
             player_row = players_dict.get(player_id)
-            player_name = player_row[1] if player_row else row.get("PLAYER_SLUG", "").replace("-", " ").title()
+            player_name = (
+                player_row[1]
+                if player_row
+                else row.get("PLAYER_SLUG", "").replace("-", " ").title()
+            )
 
-            transactions.append({
-                "date": date_key,
-                "teamTricode": tricode,
-                "teamName": team_name,
-                "playerName": player_name,
-                "type": row.get("Transaction_Type", ""),
-                "description": row.get("TRANSACTION_DESCRIPTION", ""),
-            })
+            transactions.append(
+                {
+                    "date": date_key,
+                    "teamTricode": tricode,
+                    "teamName": team_name,
+                    "playerName": player_name,
+                    "type": row.get("Transaction_Type", ""),
+                    "description": row.get("TRANSACTION_DESCRIPTION", ""),
+                }
+            )
 
         transactions.sort(key=lambda x: x["date"], reverse=True)
         result = {"transactions": transactions, "total": len(transactions)}
@@ -95,7 +103,9 @@ def get_trades():
         return result
     except requests.RequestException as e:
         log_exceptions(e)
-        raise HTTPException(status_code=503, detail="Failed to fetch player movement data")
-    except Exception as e: # pragma: no cover
+        raise HTTPException(
+            status_code=503, detail="Failed to fetch player movement data"
+        )
+    except Exception as e:  # pragma: no cover
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))

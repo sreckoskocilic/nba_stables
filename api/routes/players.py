@@ -3,14 +3,14 @@ from helpers.common import CACHE_TTL, STATS_PROXY, cache, executor
 from helpers.logger import log_exceptions
 from helpers.stats import (
     fix_encoding,
+    get_cached_live_boxscore,
+    get_cached_scoreboard,
     load_players_dict,
     load_players_file,
     reformat_player_minutes,
 )
 from isodate import parse_duration
-from nba_api.live.nba.endpoints import boxscore, scoreboard
 from nba_api.stats.endpoints import (
-    boxscoreadvancedv3,
     boxscoretraditionalv3,
     cumestatsteamgames,
     playercareerstats,
@@ -29,7 +29,9 @@ def search_players(q: str = Query(..., min_length=2)):
 
         for player in players:
             if query in player[1].lower():
-                results.append({"id": player[0], "name": player[1], "teamId": player[2]})
+                results.append(
+                    {"id": player[0], "name": player[1], "teamId": player[2]}
+                )
 
         return {"players": results[:20]}  # Limit to 20 results
     except Exception as e:
@@ -40,15 +42,20 @@ def search_players(q: str = Query(..., min_length=2)):
 @router.get("/api/players/stats")
 def get_player_stats(ids: str = Query(..., description="Comma-separated player IDs")):
     """Get live stats for specific players"""
+    players_ids = set()
+    for pid in ids.split(","):
+        if pid.strip().isdigit():
+            players_ids.add(int(pid.strip()))
+
+    if not players_ids:
+        return {"players": []}
+
+    cache_key = f"player_stats_{','.join(str(x) for x in sorted(players_ids))}"
+    cached = cache.get(cache_key)
+    if cached:  # pragma: no cover
+        return cached
 
     try:
-        players_ids = set()
-        for pid in ids.split(","):
-            if pid.strip().isdigit():
-                players_ids.add(int(pid.strip()))
-
-        if not players_ids:
-            return {"players": []}
         players_dict = load_players_dict()
 
         # Get team IDs for requested players
@@ -61,29 +68,35 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
         results = []
         relevant_game_ids = [
             game["gameId"]
-            for game in scoreboard.ScoreBoard().games.data
-            if game["homeTeam"]["teamId"] in team_ids or game["awayTeam"]["teamId"] in team_ids
+            for game in get_cached_scoreboard()
+            if game["homeTeam"]["teamId"] in team_ids
+            or game["awayTeam"]["teamId"] in team_ids
         ]
 
-        def fetch_player_boxscore(game_id): # pragma: no cover
+        def fetch_player_boxscore(game_id):  # pragma: no cover
             try:
-                return boxscore.BoxScore(game_id=game_id).get_dict()
+                return get_cached_live_boxscore(game_id)
             except Exception:
                 return None
 
         boxscores = list(executor.map(fetch_player_boxscore, relevant_game_ids))
 
         for bs in boxscores:
-            if not bs: # pragma: no cover
+            if not bs:  # pragma: no cover
                 continue
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
                 for player in team["players"]:
-                    if player["personId"] in players_ids and player["status"] == "ACTIVE":
+                    if (
+                        player["personId"] in players_ids
+                        and player["status"] == "ACTIVE"
+                    ):
                         stats = player["statistics"]
                         try:
-                            minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
-                        except Exception as ex: # pragma: no cover
+                            minutes = reformat_player_minutes(
+                                int(parse_duration(stats["minutes"]).total_seconds())
+                            )
+                        except Exception as ex:  # pragma: no cover
                             log_exceptions(ex)
                             minutes = "0:00"
 
@@ -94,10 +107,7 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
                                 "team": team["teamTricode"],
                                 "minutes": minutes,
                                 "points": stats["points"],
-                                "threePointers": "{}/{}".format(
-                                    stats["threePointersMade"],
-                                    stats["threePointersAttempted"],
-                                ),
+                                "threePointers": f"{stats['threePointersMade']}/{stats['threePointersAttempted']}",
                                 "rebounds": stats["reboundsTotal"],
                                 "assists": stats["assists"],
                                 "blocks": stats["blocks"],
@@ -106,11 +116,13 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
                             }
                         )
 
-        return {"players": results}
-    except ValueError as err: # pragma: no cover
+        result = {"players": results}
+        cache.set(cache_key, result, CACHE_TTL["player_stats"])
+        return result
+    except ValueError as err:  # pragma: no cover
         log_exceptions(err)
         raise HTTPException(status_code=400, detail="Invalid player IDs format")
-    except Exception as e: # pragma: no cover
+    except Exception as e:  # pragma: no cover
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -118,22 +130,15 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
 @router.get("/api/games/{game_id}/players")
 def get_game_players(game_id: str):
     """Get all player stats for a specific game with advanced metrics"""
-    try:
-        bs = boxscore.BoxScore(game_id=game_id).get_dict()
+    cache_key = f"game_players_{game_id}"
+    cached = cache.get(cache_key)
+    if cached:  # pragma: no cover
+        return cached
 
-        # Try to get advanced stats
-        try:
-            adv = boxscoreadvancedv3.BoxScoreAdvancedV3(
-                game_id=game_id,
-                proxy=STATS_PROXY,
-            )
-            adv_players = adv.player_stats.get_dict()["data"]
-        except Exception as ex: # pragma: no cover
-            log_exceptions(ex)
-            adv_players = []
+    try:
+        bs = get_cached_live_boxscore(game_id)
 
         teams = []
-        adv_by_pid = {p[6]: p for p in adv_players} if adv_players else {}
 
         for team_key in ["homeTeam", "awayTeam"]:
             team = bs["game"][team_key]
@@ -149,29 +154,25 @@ def get_game_players(game_id: str):
                     stats = player["statistics"]
 
                     try:
-                        minutes = reformat_player_minutes(int(parse_duration(stats["minutes"]).total_seconds()))
-                    except Exception as ex: # pragma: no cover
+                        minutes = reformat_player_minutes(
+                            int(parse_duration(stats["minutes"]).total_seconds())
+                        )
+                    except Exception as ex:  # pragma: no cover
                         log_exceptions(ex)
                         minutes = "0:00"
-
-                    # Find advanced stats
-                    adv_stat = adv_by_pid.get(player["personId"])
 
                     fgm = stats["fieldGoalsMade"]
                     fga = stats["fieldGoalsAttempted"]
                     tpm = stats["threePointersMade"]
-                    fta = stats["freeThrowsAttempted"]
                     ftm = stats["freeThrowsMade"]
-                    pts = stats["points"]
-
-                    ts_denom = 2 * (fga + 0.44 * fta)
+                    fta = stats["freeThrowsAttempted"]
 
                     team_data["players"].append(
                         {
                             "id": player["personId"],
                             "name": fix_encoding(player["name"]),
                             "minutes": minutes,
-                            "points": pts,
+                            "points": stats["points"],
                             "rebounds": stats["reboundsTotal"],
                             "offRebounds": stats["reboundsOffensive"],
                             "defRebounds": stats["reboundsDefensive"],
@@ -184,9 +185,6 @@ def get_game_players(game_id: str):
                             "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
                             "threePt": f"{tpm}/{stats['threePointersAttempted']}",
                             "ft": f"{ftm}/{fta}",
-                            "plusMinus": (adv_stat[14] if adv_stat else stats.get("plusMinusPoints", 0)),
-                            "efgPct": (round((fgm + 0.5 * tpm) / fga, 3) if fga > 0 else 0),
-                            "tsPct": round(pts / ts_denom, 3) if ts_denom > 0 else 0,
                         }
                     )
 
@@ -194,11 +192,15 @@ def get_game_players(game_id: str):
             team_data["players"].sort(key=lambda x: x["minutes"], reverse=True)
             teams.append(team_data)
 
-        return {
+        game_status = bs["game"]["gameStatusText"]
+        result = {
             "gameId": game_id,
-            "status": bs["game"]["gameStatusText"],
+            "status": game_status,
             "teams": teams,
         }
+        ttl = CACHE_TTL["historical"] if "Final" in game_status else 60
+        cache.set(cache_key, result, ttl)
+        return result
     except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -206,8 +208,8 @@ def get_game_players(game_id: str):
 
 @router.get("/api/players/{player_id}/last-n-games")
 def get_last_n_games_stats(
-        player_id: int,
-        n: int = Query(default=5, ge=1, le=15),
+    player_id: int,
+    n: int = Query(default=5, ge=1, le=15),
 ):
     """Get last N games stats for a specific player"""
     cache_key = f"last_n_games_{player_id}_{n}"
@@ -232,7 +234,9 @@ def get_last_n_games_stats(
                 csp = boxscoretraditionalv3.BoxScoreTraditionalV3(
                     game_id=gg[1], proxy=STATS_PROXY
                 )
-                player_stats_dict = {x[6]: x for x in csp.player_stats.get_dict()["data"]}
+                player_stats_dict = {
+                    x[6]: x for x in csp.player_stats.get_dict()["data"]
+                }
                 ss = player_stats_dict.get(player_id)
                 if ss is not None and ss[14] != "":
                     return {
@@ -252,12 +256,19 @@ def get_last_n_games_stats(
                     }
                 else:
                     return {"matchup": gg[0], "gameId": gg[1], "dnp": True}
-            except Exception as ex: # pragma: no cover
+            except Exception as ex:  # pragma: no cover
                 log_exceptions(ex)
                 return None
 
         futures = [executor.submit(fetch_game_stats, gg) for gg in game_rows]
-        games = [r for r in (f.result() for f in futures) if r is not None]
+
+        def _get_result(f):
+            try:
+                return f.result(timeout=30)
+            except TimeoutError:  # pragma: no cover
+                return None
+
+        games = [r for r in (_get_result(f) for f in futures) if r is not None]
 
         result = {
             "playerId": player_id,
@@ -282,7 +293,9 @@ def get_player_season_avg(player_id: int):
         return cached
 
     try:
-        career = playercareerstats.PlayerCareerStats(player_id=player_id, proxy=STATS_PROXY)
+        career = playercareerstats.PlayerCareerStats(
+            player_id=player_id, proxy=STATS_PROXY
+        )
         season_data = career.season_totals_regular_season.get_dict()
         headers = season_data["headers"]
         rows = season_data["data"]

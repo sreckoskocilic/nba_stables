@@ -7,7 +7,9 @@ from helpers.logger import log_exceptions
 
 router = APIRouter()
 
-CBS_INJURIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../static/cbs_injuries.json")
+CBS_INJURIES_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "../static/cbs_injuries.json"
+)
 
 
 @router.get("/api/injuries")
@@ -24,6 +26,6 @@ def get_injuries():
             result = json.load(f)
         cache.set("injuries", result, CACHE_TTL["injuries"])
         return result
-    except Exception as e: # pragma: no cover
+    except Exception as e:  # pragma: no cover
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))

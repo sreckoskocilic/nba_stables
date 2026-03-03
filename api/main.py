@@ -12,7 +12,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from helpers.common import cache
 from helpers.stats import get_display_date
 from routes.injuries import router as injuries_router
 from routes.players import router as players_router
@@ -45,11 +44,13 @@ app.include_router(players_router)
 app.include_router(trades_router)
 app.include_router(injuries_router)
 
-LOG_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log_config.yml")
-with open(LOG_CONFIG_FILE, 'r') as f:
+LOG_CONFIG_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "log_config.yml"
+)
+with open(LOG_CONFIG_FILE, "r") as f:
     logging.config.dictConfig(yaml.safe_load(f.read()))
 
-if not os.path.exists("../logs"): # pragma: no cover
+if not os.path.exists("../logs"):  # pragma: no cover
     os.makedirs("../logs")
 
 
@@ -66,7 +67,7 @@ if os.path.exists(static_dir):
 
 
 @app.get("/sitemap.xml")
-async def serve_sitemap(): # pragma: no cover
+async def serve_sitemap():  # pragma: no cover
     """Serve sitemap.xml"""
     sitemap_path = os.path.join(static_dir, "sitemap.xml")
     if os.path.exists(sitemap_path):
@@ -75,7 +76,7 @@ async def serve_sitemap(): # pragma: no cover
 
 
 @app.get("/")
-async def serve_frontend(): # pragma: no cover
+async def serve_frontend():  # pragma: no cover
     """Serve the frontend"""
     index_path = os.path.join(static_dir, "index.html")
     if os.path.exists(index_path):
@@ -84,4 +85,11 @@ async def serve_frontend(): # pragma: no cover
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, workers=4, reload=True, reload_includes="*.json")
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        workers=4,
+        reload=True,
+        reload_includes="*.json",
+    )

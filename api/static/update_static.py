@@ -8,6 +8,7 @@ PLAYERS_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "players_with_teamid.json"
 )
 
+
 def get_games_list(days_offset: int = 1):
     """Get list of game IDs for a given date offset"""
     g_set = set()

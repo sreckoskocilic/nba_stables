@@ -4,11 +4,23 @@ import re
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from helpers.common import STATS_PROXY
+from helpers.common import CACHE_TTL, STATS_PROXY, cache
 from helpers.logger import log_exceptions
-from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv3
+from nba_api.live.nba.endpoints import boxscore as live_boxscore
+from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
+from nba_api.stats.endpoints import (
+    boxscoreadvancedv3,
+    boxscoretraditionalv3,
+    scoreboardv3,
+)
 
-PLAYERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../static/players_with_teamid.json")
+PLAYERS_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "../static/players_with_teamid.json"
+)
+
+_TZ_ET = ZoneInfo("US/Eastern")
+_TZ_CET = ZoneInfo("Europe/Berlin")
+
 
 # Helper functions
 def get_date_str(days_offset: int = 0) -> str:
@@ -34,10 +46,10 @@ def convert_et_to_cet(time_str: str) -> str:
             hour = 0
         now = datetime.now()
         naive_dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        et_dt = naive_dt.replace(tzinfo=ZoneInfo("US/Eastern"))
-        cet_dt = et_dt.astimezone(ZoneInfo("Europe/Berlin"))
+        et_dt = naive_dt.replace(tzinfo=_TZ_ET)
+        cet_dt = et_dt.astimezone(_TZ_CET)
         return cet_dt.strftime("%H:%M CET")
-    except Exception as ex: # pragma: no cover
+    except Exception as ex:  # pragma: no cover
         log_exceptions(ex)
         return time_str
 
@@ -60,7 +72,8 @@ _players_cache = None
 _players_cache_mtime = 0
 _players_dict_cache = None
 
-def load_players_file(): # pragma: no cover
+
+def load_players_file():  # pragma: no cover
     global _players_cache, _players_cache_mtime, _players_dict_cache
     try:
         mtime = os.path.getmtime(PLAYERS_FILE)
@@ -74,40 +87,68 @@ def load_players_file(): # pragma: no cover
     return _players_cache
 
 
-def load_players_dict(): # pragma: no cover
+def load_players_dict():  # pragma: no cover
     """Return {player_id: player_row} dict for O(1) lookups."""
     load_players_file()
     return _players_dict_cache
 
 
+def get_cached_scoreboard():
+    """Return cached live ScoreBoard().games.data."""
+    cached = cache.get("raw_scoreboard")
+    if cached is not None:  # pragma: no cover
+        return cached
+    data = live_scoreboard.ScoreBoard().games.data
+    cache.set("raw_scoreboard", data, CACHE_TTL["scoreboard"])
+    return data
+
+
+def get_cached_live_boxscore(game_id):  # pragma: no cover
+    """Return a cached live BoxScore response dict for the given game_id."""
+    cache_key = f"raw_live_boxscore_{game_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    data = live_boxscore.BoxScore(game_id=game_id).get_dict()
+    cache.set(cache_key, data, 60)
+    return data
+
+
+def get_cached_scoreboard_v3(days_offset: int = 1):
+    """Return a cached ScoreboardV3 object for the given days_offset."""
+    cache_key = f"raw_scoreboard_v3_{days_offset}"
+    cached = cache.get(cache_key)
+    if cached is not None:  # pragma: no cover
+        return cached
+    target_date = date.today() - timedelta(days=days_offset)
+    sb = scoreboardv3.ScoreboardV3(
+        game_date=target_date.strftime("%Y-%m-%d"),
+        proxy=STATS_PROXY,
+    )
+    ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["scoreboard"]
+    cache.set(cache_key, sb, ttl)
+    return sb
+
+
 def get_games_list(days_offset: int = 1):
     """Get list of game IDs for a given date offset"""
     g_set = set()
-    target_date = date.today() - timedelta(days=days_offset)
     try:
-        sb = scoreboardv3.ScoreboardV3(
-            game_date=target_date.strftime("%Y-%m-%d"),
-            proxy=STATS_PROXY,
-        )
+        sb = get_cached_scoreboard_v3(days_offset)
         games = sb.game_header.get_dict()
         for g in games["data"]:
             if g[2] > 1:
                 g_set.add(g[0])
     except Exception as ex:
         log_exceptions(ex)
-        pass
     return list(g_set)
 
 
 def get_games_leaders_list(days_offset: int = 1):
     """Get games with their leaders"""
     g_dict = {}
-    target_date = date.today() - timedelta(days=days_offset)
     try:
-        sb = scoreboardv3.ScoreboardV3(
-            game_date=target_date.strftime("%Y-%m-%d"),
-            proxy=STATS_PROXY,
-        )
+        sb = get_cached_scoreboard_v3(days_offset)
         games = sb.game_header.get_dict()
         leaders = sb.game_leaders.get_dict()
 
@@ -128,17 +169,43 @@ def get_games_leaders_list(days_offset: int = 1):
                 g_dict[game_id].append([pts_player, pts, reb, ast, team_id])
     except Exception as ex:
         log_exceptions(ex)
-        pass
     return g_dict
+
+
+def get_cached_boxscore_v3(game_id):
+    """Return a cached BoxScoreTraditionalV3 response for the given game_id."""
+    cache_key = f"raw_boxscore_{game_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:  # pragma: no cover
+        return cached
+    bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(
+        game_id=game_id,
+        proxy=STATS_PROXY,
+    )
+    cache.set(cache_key, bs_stats, 60)
+    return bs_stats
+
+
+def get_cached_advanced_boxscore(game_id):
+    """Return cached BoxScoreAdvancedV3 player_stats data for the given game_id."""
+    cache_key = f"raw_adv_boxscore_{game_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:  # pragma: no cover
+        return cached
+    adv = boxscoreadvancedv3.BoxScoreAdvancedV3(
+        game_id=game_id,
+        proxy=STATS_PROXY,
+    )
+    data = adv.player_stats.get_dict()["data"]
+    cache.set(cache_key, data, 60)
+    return data
+
 
 def fetch_single_boxscore(game_id, leaders_data):
     """Fetch boxscore for a single game (for parallel execution)"""
     game_box = {}
     try:
-        bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(
-            game_id=game_id,
-            proxy=STATS_PROXY,
-        )
+        bs_stats = get_cached_boxscore_v3(game_id)
 
         team_stats = bs_stats.team_stats.get_dict()["data"]
         game_box = {"gameId": game_id, "teams": []}
@@ -158,14 +225,14 @@ def fetch_single_boxscore(game_id, leaders_data):
 
             game_box["teams"].append(
                 {
-                    "name": "{} {}".format(team[2], team[3]),
+                    "name": f"{team[2]} {team[3]}",
                     "score": team[-2],
                     "stats": {
-                        "fg": "{}/{}".format(team[7], team[8]),
+                        "fg": f"{team[7]}/{team[8]}",
                         "fgPct": team[9],
-                        "threePt": "{}/{}".format(team[10], team[11]),
+                        "threePt": f"{team[10]}/{team[11]}",
                         "threePtPct": team[12],
-                        "ft": "{}/{}".format(team[13], team[14]),
+                        "ft": f"{team[13]}/{team[14]}",
                         "ftPct": team[15],
                         "rebounds": team[18],
                         "offRebounds": team[16],
