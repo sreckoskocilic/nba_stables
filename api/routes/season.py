@@ -45,8 +45,8 @@ def get_season_doubles():
 
         dd_list.sort(key=lambda x: x["count"], reverse=True)
         td_list.sort(key=lambda x: x["count"], reverse=True)
-        dd_list = dd_list[:10]
-        td_list = td_list[:10]
+        dd_list = dd_list[:30]
+        td_list = td_list[:20]
 
         for i, p in enumerate(dd_list):
             p["rank"] = i + 1

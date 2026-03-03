@@ -593,7 +593,7 @@ class TestSeasonDoubles:
             _mock_league_dash(rows),
         ):
             r = client.get("/api/season/doubles")
-        assert len(r.json()["doubleDoubles"]) <= 10
+        assert len(r.json()["doubleDoubles"]) <= 30
 
     def test_zero_excluded(self, client):
         rows = [
