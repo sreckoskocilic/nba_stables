@@ -1,0 +1,5 @@
+coverage:
+  range: 80..90
+  round: down
+  precision: 2
+  require_ci_to_pass: yes
