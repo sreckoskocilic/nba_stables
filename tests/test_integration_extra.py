@@ -311,7 +311,6 @@ class TestPlayerAdvancedStats:
                 "routes.scores.get_cached_live_boxscore",
                 return_value=make_live_boxscore(),
             ),
-            patch("routes.scores.get_cached_advanced_boxscore", return_value=[]),
         ):
             r = client.get(f"/api/players/advanced?ids={PLAYER_ID}")
         assert r.status_code == 200
@@ -365,7 +364,6 @@ class TestPlayerAdvancedStats:
                 "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
             ),
             patch("routes.scores.get_cached_live_boxscore", return_value=bs),
-            patch("routes.scores.get_cached_advanced_boxscore", return_value=[]),
         ):
             r = client.get(f"/api/players/advanced?ids={PLAYER_ID}")
         assert r.json()["players"][0]["isDoubleDouble"] is True
@@ -409,7 +407,6 @@ class TestPlayerAdvancedStats:
                 "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
             ),
             patch("routes.scores.get_cached_live_boxscore", return_value=bs),
-            patch("routes.scores.get_cached_advanced_boxscore", return_value=[]),
         ):
             r = client.get(f"/api/players/advanced?ids={PLAYER_ID}")
         assert r.json()["players"][0]["isTripleDouble"] is True
