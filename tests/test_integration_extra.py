@@ -1,27 +1,22 @@
 """Additional integration tests to increase coverage of scores.py and players.py."""
 
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
-
 from unittest.mock import MagicMock, patch
 
 import pytest
+from conftest import (
+    FAKE_PLAYERS,
+    GAME_ID,
+    PLAYER_ID,
+    TEAM_ID_BOS,
+    TEAM_ID_LAL,
+    make_live_boxscore,
+    make_live_game,
+    make_live_player_stats,
+    make_standings_row,
+)
 from fastapi.testclient import TestClient
 from helpers.common import cache
 from main import app
-
-# ── shared constants ──────────────────────────────────────────────────────────
-GAME_ID = "0022301234"
-PLAYER_ID = 2544
-TEAM_ID_LAL = 1610612747
-TEAM_ID_BOS = 1610612738
-
-FAKE_PLAYERS = [
-    [PLAYER_ID, "LeBron James", TEAM_ID_LAL],
-    [1629029, "Jayson Tatum", TEAM_ID_BOS],
-]
 
 
 @pytest.fixture(scope="module")
@@ -35,127 +30,6 @@ def clear_cache():
     cache.clear()
     yield
     cache.clear()
-
-
-# ── helpers ───────────────────────────────────────────────────────────────────
-
-
-def make_live_game(**kw):
-    game = {
-        "gameId": GAME_ID,
-        "gameStatusText": "Final",
-        "homeTeam": {
-            "teamCity": "Los Angeles",
-            "teamName": "Lakers",
-            "teamTricode": "LAL",
-            "teamId": TEAM_ID_LAL,
-            "score": 110,
-        },
-        "awayTeam": {
-            "teamCity": "Boston",
-            "teamName": "Celtics",
-            "teamTricode": "BOS",
-            "teamId": TEAM_ID_BOS,
-            "score": 105,
-        },
-        "gameLeaders": {
-            "homeLeaders": {
-                "name": "LeBron James",
-                "points": 28,
-                "rebounds": 8,
-                "assists": 6,
-            },
-            "awayLeaders": {
-                "name": "Jayson Tatum",
-                "points": 32,
-                "rebounds": 9,
-                "assists": 4,
-            },
-        },
-    }
-    game.update(kw)
-    return game
-
-
-def make_live_player_stats(**kw):
-    stats = {
-        "points": 28,
-        "reboundsTotal": 8,
-        "assists": 6,
-        "steals": 1,
-        "blocks": 0,
-        "turnovers": 2,
-        "fieldGoalsMade": 11,
-        "fieldGoalsAttempted": 20,
-        "threePointersMade": 2,
-        "threePointersAttempted": 5,
-        "freeThrowsMade": 4,
-        "freeThrowsAttempted": 4,
-        "reboundsOffensive": 1,
-        "reboundsDefensive": 7,
-        "foulsPersonal": 2,
-        "minutes": "PT28M00.00S",
-        "plusMinusPoints": 8,
-    }
-    stats.update(kw)
-    return stats
-
-
-def make_live_player(person_id=PLAYER_ID, name="LeBron James", **stats_kw):
-    return {
-        "personId": person_id,
-        "name": name,
-        "status": "ACTIVE",
-        "statistics": make_live_player_stats(**stats_kw),
-    }
-
-
-def make_live_boxscore(game_id=GAME_ID, status="Final"):
-    return {
-        "game": {
-            "gameStatusText": status,
-            "homeTeam": {
-                "teamCity": "Los Angeles",
-                "teamName": "Lakers",
-                "teamTricode": "LAL",
-                "teamId": TEAM_ID_LAL,
-                "score": 110,
-                "players": [make_live_player()],
-            },
-            "awayTeam": {
-                "teamCity": "Boston",
-                "teamName": "Celtics",
-                "teamTricode": "BOS",
-                "teamId": TEAM_ID_BOS,
-                "score": 105,
-                "players": [make_live_player(person_id=1629029, name="Jayson Tatum")],
-            },
-        }
-    }
-
-
-def make_standings_row(rank, city, name, conf, wins, losses):
-    row = [None] * 40
-    row[3] = city
-    row[4] = name
-    row[5] = conf
-    row[7] = rank
-    row[12] = wins
-    row[13] = losses
-    row[14] = wins / (wins + losses) if (wins + losses) else 0.0
-    row[17] = f"{wins // 2}-{losses // 2}"
-    row[18] = f"{wins // 2}-{losses // 2}"
-    row[19] = "8-2"
-    row[36] = "W3"
-    row[37] = 2.5
-    return row
-
-
-def make_adv_player_row(person_id, plus_minus=5):
-    row = [None] * 20
-    row[6] = person_id
-    row[14] = plus_minus
-    return row
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -271,48 +145,26 @@ class TestCacheHits:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# /api/players/advanced
+# /api/players/stats – advanced fields (double-double, triple-double, fg/ft%)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class TestPlayerAdvancedStats:
-    def test_returns_200(self, client):
+class TestPlayerStatsAdvancedFields:
+    def test_player_stats_shape_includes_advanced_fields(self, client):
         with (
             patch(
-                "routes.scores.load_players_dict",
-                return_value={p[0]: p for p in FAKE_PLAYERS},
-            ),
-            patch("routes.scores.get_cached_scoreboard", return_value=[]),
-        ):
-            r = client.get(f"/api/players/advanced?ids={PLAYER_ID}")
-        assert r.status_code == 200
-
-    def test_no_game_returns_empty(self, client):
-        with (
-            patch(
-                "routes.scores.load_players_dict",
-                return_value={p[0]: p for p in FAKE_PLAYERS},
-            ),
-            patch("routes.scores.get_cached_scoreboard", return_value=[]),
-        ):
-            r = client.get(f"/api/players/advanced?ids={PLAYER_ID}")
-        assert r.json()["players"] == []
-
-    def test_player_stats_shape(self, client):
-        with (
-            patch(
-                "routes.scores.load_players_dict",
+                "routes.players.load_players_dict",
                 return_value={p[0]: p for p in FAKE_PLAYERS},
             ),
             patch(
-                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
+                "routes.players.get_cached_scoreboard", return_value=[make_live_game()]
             ),
             patch(
-                "routes.scores.get_cached_live_boxscore",
+                "routes.players.get_cached_live_boxscore",
                 return_value=make_live_boxscore(),
             ),
         ):
-            r = client.get(f"/api/players/advanced?ids={PLAYER_ID}")
+            r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
         assert r.status_code == 200
         p = r.json()["players"][0]
         for key in (
@@ -323,6 +175,11 @@ class TestPlayerAdvancedStats:
             "rebounds",
             "assists",
             "fg",
+            "fgPct",
+            "ft",
+            "ftPct",
+            "isDoubleDouble",
+            "isTripleDouble",
         ):
             assert key in p
 
@@ -357,15 +214,15 @@ class TestPlayerAdvancedStats:
         }
         with (
             patch(
-                "routes.scores.load_players_dict",
+                "routes.players.load_players_dict",
                 return_value={p[0]: p for p in FAKE_PLAYERS},
             ),
             patch(
-                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
+                "routes.players.get_cached_scoreboard", return_value=[make_live_game()]
             ),
-            patch("routes.scores.get_cached_live_boxscore", return_value=bs),
+            patch("routes.players.get_cached_live_boxscore", return_value=bs),
         ):
-            r = client.get(f"/api/players/advanced?ids={PLAYER_ID}")
+            r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
         assert r.json()["players"][0]["isDoubleDouble"] is True
         assert r.json()["players"][0]["isTripleDouble"] is False
 
@@ -400,24 +257,16 @@ class TestPlayerAdvancedStats:
         }
         with (
             patch(
-                "routes.scores.load_players_dict",
+                "routes.players.load_players_dict",
                 return_value={p[0]: p for p in FAKE_PLAYERS},
             ),
             patch(
-                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
+                "routes.players.get_cached_scoreboard", return_value=[make_live_game()]
             ),
-            patch("routes.scores.get_cached_live_boxscore", return_value=bs),
+            patch("routes.players.get_cached_live_boxscore", return_value=bs),
         ):
-            r = client.get(f"/api/players/advanced?ids={PLAYER_ID}")
+            r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
         assert r.json()["players"][0]["isTripleDouble"] is True
-
-    def test_invalid_ids_returns_400(self, client):
-        r = client.get("/api/players/advanced?ids=not_a_number")
-        # non-digit chunks are discarded by the route
-        assert r.status_code == 200
-
-    def test_missing_ids_param_returns_422(self, client):
-        assert client.get("/api/players/advanced").status_code == 422
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -651,3 +500,167 @@ class TestPlayerErrorHandlers:
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/season-avg")
         assert r.status_code == 500
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /api/season/doubles
+# ─────────────────────────────────────────────────────────────────────────────
+
+DOUBLES_HEADERS = [
+    "PLAYER_ID",
+    "PLAYER_NAME",
+    "TEAM_ID",
+    "TEAM_ABBREVIATION",
+    "DD2",
+    "TD3",
+]
+
+
+def _make_doubles_row(pid, name, team, dd2, td3):
+    return [pid, name, 0, team, dd2, td3]
+
+
+def _mock_league_dash(rows):
+    m = MagicMock()
+    m.return_value.get_dict.return_value = {
+        "resultSets": [{"headers": DOUBLES_HEADERS, "rowSet": rows}]
+    }
+    return m
+
+
+GAMELOG_HEADERS = [
+    "GAME_DATE",
+    "MATCHUP",
+    "PTS",
+    "REB",
+    "AST",
+    "STL",
+    "BLK",
+]
+
+
+def _make_gamelog_row(date, matchup, pts, reb, ast, stl=0, blk=0):
+    return [date, matchup, pts, reb, ast, stl, blk]
+
+
+def _mock_gamelog(rows):
+    m = MagicMock()
+    m.return_value.get_dict.return_value = {
+        "resultSets": [{"headers": GAMELOG_HEADERS, "rowSet": rows}]
+    }
+    return m
+
+
+class TestSeasonDoubles:
+    def test_returns_200(self, client):
+        rows = [_make_doubles_row(1, "Player A", "LAL", 10, 0)]
+        with patch(
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            _mock_league_dash(rows),
+        ):
+            r = client.get("/api/season/doubles")
+        assert r.status_code == 200
+
+    def test_response_shape(self, client):
+        rows = [_make_doubles_row(1, "Player A", "LAL", 5, 2)]
+        with patch(
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            _mock_league_dash(rows),
+        ):
+            r = client.get("/api/season/doubles")
+        data = r.json()
+        assert "doubleDoubles" in data
+        assert "tripleDoubles" in data
+
+    def test_sorted_descending(self, client):
+        rows = [
+            _make_doubles_row(1, "A", "LAL", 5, 0),
+            _make_doubles_row(2, "B", "BOS", 15, 0),
+            _make_doubles_row(3, "C", "GSW", 10, 0),
+        ]
+        with patch(
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            _mock_league_dash(rows),
+        ):
+            r = client.get("/api/season/doubles")
+        counts = [p["count"] for p in r.json()["doubleDoubles"]]
+        assert counts == sorted(counts, reverse=True)
+
+    def test_max_10_results(self, client):
+        rows = [_make_doubles_row(i, f"P{i}", "LAL", 20 - i, 0) for i in range(15)]
+        with patch(
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            _mock_league_dash(rows),
+        ):
+            r = client.get("/api/season/doubles")
+        assert len(r.json()["doubleDoubles"]) <= 10
+
+    def test_zero_excluded(self, client):
+        rows = [
+            _make_doubles_row(1, "A", "LAL", 5, 0),
+            _make_doubles_row(2, "B", "BOS", 0, 0),
+        ]
+        with patch(
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            _mock_league_dash(rows),
+        ):
+            r = client.get("/api/season/doubles")
+        dd_names = [p["name"] for p in r.json()["doubleDoubles"]]
+        assert "B" not in dd_names
+        assert len(r.json()["tripleDoubles"]) == 0
+
+    def test_cached_on_second_call(self, client):
+        rows = [_make_doubles_row(1, "A", "LAL", 5, 0)]
+        mock = _mock_league_dash(rows)
+        with patch("routes.season.leaguedashplayerstats.LeagueDashPlayerStats", mock):
+            client.get("/api/season/doubles")
+            client.get("/api/season/doubles")
+        mock.assert_called_once()
+
+
+class TestTripleDoubleGames:
+    def test_returns_200(self, client):
+        rows = [_make_gamelog_row("2025-01-01", "LAL vs BOS", 20, 10, 10)]
+        with patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog(rows)):
+            r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
+        assert r.status_code == 200
+
+    def test_filters_triple_doubles(self, client):
+        rows = [
+            _make_gamelog_row("2025-01-01", "LAL vs BOS", 20, 10, 10),
+            _make_gamelog_row("2025-01-02", "LAL @ CHI", 15, 5, 3),
+            _make_gamelog_row("2025-01-03", "LAL vs MIA", 10, 10, 10, 10),
+        ]
+        with patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog(rows)):
+            r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
+        games = r.json()["games"]
+        assert len(games) == 2
+
+    def test_game_shape(self, client):
+        rows = [_make_gamelog_row("2025-01-01", "LAL vs BOS", 20, 10, 10)]
+        with patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog(rows)):
+            r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
+        game = r.json()["games"][0]
+        for key in (
+            "date",
+            "matchup",
+            "points",
+            "rebounds",
+            "assists",
+            "steals",
+            "blocks",
+        ):
+            assert key in game
+
+    def test_cached_on_second_call(self, client):
+        rows = [_make_gamelog_row("2025-01-01", "LAL vs BOS", 20, 10, 10)]
+        mock = _mock_gamelog(rows)
+        with patch("routes.season.playergamelog.PlayerGameLog", mock):
+            client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
+            client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
+        mock.assert_called_once()
+
+    def test_empty_returns_empty_games(self, client):
+        with patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog([])):
+            r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
+        assert r.json()["games"] == []

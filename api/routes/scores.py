@@ -12,10 +12,7 @@ from helpers.stats import (
     get_display_date,
     get_games_leaders_list,
     get_games_list,
-    load_players_dict,
-    reformat_player_minutes,
 )
-from isodate import parse_duration
 from nba_api.stats.endpoints import leaguestandings
 
 router = APIRouter()
@@ -259,119 +256,6 @@ def get_standings():
         result = {"east": east, "west": west}
         cache.set("standings", result, CACHE_TTL["standings"])
         return result
-    except Exception as e:  # pragma: no cover
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/api/players/advanced")
-def get_player_advanced_stats(
-    ids: str = Query(..., description="Comma-separated player IDs"),
-):
-    """Get advanced stats for players including plus/minus, efficiency metrics"""
-    player_ids = set()
-    for pid in ids.split(","):
-        try:
-            player_ids.add(int(pid.strip()))
-        except ValueError:
-            continue
-
-    cache_key = f"player_advanced_{','.join(str(x) for x in sorted(player_ids))}"
-    cached = cache.get(cache_key)
-    if cached:  # pragma: no cover
-        return cached
-
-    try:
-        players_dict = load_players_dict()
-
-        # Get team IDs for requested players
-        team_ids = set()
-        for pid in player_ids:
-            player = players_dict.get(pid)
-            if player and player[2]:
-                team_ids.add(player[2])
-
-        results = []
-        relevant_game_ids = [
-            game["gameId"]
-            for game in get_cached_scoreboard()
-            if game["homeTeam"]["teamId"] in team_ids
-            or game["awayTeam"]["teamId"] in team_ids
-        ]
-
-        def fetch_boxscore(game_id):
-            try:
-                return get_cached_live_boxscore(game_id)
-            except Exception as ex:  # pragma: no cover
-                log_exceptions(ex)
-                return None
-
-        game_data = list(executor.map(fetch_boxscore, relevant_game_ids))
-
-        for bs in game_data:
-            if not bs:  # pragma: no cover
-                continue
-            for team_key in ["homeTeam", "awayTeam"]:
-                team = bs["game"][team_key]
-                for player in team["players"]:
-                    if (
-                        player["personId"] in player_ids
-                        and player["status"] == "ACTIVE"
-                    ):
-                        stats = player["statistics"]
-
-                        try:
-                            minutes = reformat_player_minutes(
-                                int(parse_duration(stats["minutes"]).total_seconds())
-                            )
-                        except Exception as ex:  # pragma: no cover
-                            log_exceptions(ex)
-                            minutes = "0:00"
-
-                        pts = stats["points"]
-                        fgm = stats["fieldGoalsMade"]
-                        fga = stats["fieldGoalsAttempted"]
-                        tpm = stats["threePointersMade"]
-                        fta = stats["freeThrowsAttempted"]
-                        ftm = stats["freeThrowsMade"]
-                        reb = stats["reboundsTotal"]
-                        ast = stats["assists"]
-                        stl = stats["steals"]
-                        blk = stats["blocks"]
-                        tov = stats["turnovers"]
-
-                        double_digits = sum(
-                            1 for x in [pts, reb, ast, stl, blk] if x >= 10
-                        )
-
-                        results.append(
-                            {
-                                "id": player["personId"],
-                                "name": fix_encoding(player["name"]),
-                                "team": team["teamTricode"],
-                                "minutes": minutes,
-                                "points": pts,
-                                "rebounds": reb,
-                                "assists": ast,
-                                "steals": stl,
-                                "blocks": blk,
-                                "turnovers": tov,
-                                "fg": f"{fgm}/{fga}",
-                                "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
-                                "threePt": f"{tpm}/{stats['threePointersAttempted']}",
-                                "ft": f"{ftm}/{fta}",
-                                "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
-                                "isDoubleDouble": double_digits >= 2,
-                                "isTripleDouble": double_digits >= 3,
-                            }
-                        )
-
-        result = {"players": results}
-        cache.set(cache_key, result, CACHE_TTL["player_stats"])
-        return result
-    except ValueError as err:  # pragma: no cover
-        log_exceptions(err)
-        raise HTTPException(status_code=400, detail="Invalid player IDs format")
     except Exception as e:  # pragma: no cover
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))

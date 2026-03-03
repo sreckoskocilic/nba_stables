@@ -14,6 +14,7 @@ CACHE_TTL = {
     "historical": 86400,  # 24 hours - days_offset >= 2 never changes
     "injuries": 7200,  # 2 hours - injury reports don't change often, avoid rate limits
     "trades": 12 * 3600,  # 12 hours
+    "season_leaders": 3600,  # 1 hour
 }
 
 

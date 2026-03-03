@@ -17,6 +17,7 @@
 - **Standings** - Conference standings with W/L, streak, home/away splits
 - **Injury Report** - Current NBA injury data sourced from CBS Sports
 - **Trades & Player Movement** - Latest NBA transactions (trades, signings, waivers) with 6-month history and color-coded contract highlights
+- **Season Doubles & Triples** - Top 10 double-double and triple-double leaders this season, with expandable per-game triple-double details
 
 ## Tech Stack
 

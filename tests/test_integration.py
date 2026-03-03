@@ -7,22 +7,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+from conftest import (
+    FAKE_PLAYERS,
+    GAME_ID,
+    PLAYER_ID,
+    TEAM_ID_LAL,
+    make_live_boxscore,
+    make_live_game,
+    make_standings_row,
+)
 from fastapi.testclient import TestClient
 from helpers.common import cache
 from main import app
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Constants
-# ─────────────────────────────────────────────────────────────────────────────
-GAME_ID = "0022301234"
-PLAYER_ID = 2544  # LeBron James
-TEAM_ID_LAL = 1610612747
-TEAM_ID_BOS = 1610612738
-
-FAKE_PLAYERS = [
-    [PLAYER_ID, "LeBron James", TEAM_ID_LAL],
-    [1629029, "Jayson Tatum", TEAM_ID_BOS],
-]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
@@ -40,123 +36,6 @@ def clear_cache():
     cache.clear()
     yield
     cache.clear()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Mock data builders
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def make_live_game(**kw):
-    game = {
-        "gameId": GAME_ID,
-        "gameStatusText": "7:30 pm ET",
-        "homeTeam": {
-            "teamCity": "Los Angeles",
-            "teamName": "Lakers",
-            "teamTricode": "LAL",
-            "teamId": TEAM_ID_LAL,
-            "score": 0,
-        },
-        "awayTeam": {
-            "teamCity": "Boston",
-            "teamName": "Celtics",
-            "teamTricode": "BOS",
-            "teamId": TEAM_ID_BOS,
-            "score": 0,
-        },
-        "gameLeaders": {
-            "homeLeaders": {
-                "name": "LeBron James",
-                "points": 28,
-                "rebounds": 8,
-                "assists": 6,
-            },
-            "awayLeaders": {
-                "name": "Jayson Tatum",
-                "points": 32,
-                "rebounds": 9,
-                "assists": 4,
-            },
-        },
-    }
-    game.update(kw)
-    return game
-
-
-def make_live_player_stats(**kw):
-    stats = {
-        "points": 28,
-        "reboundsTotal": 8,
-        "assists": 6,
-        "steals": 1,
-        "blocks": 0,
-        "turnovers": 2,
-        "fieldGoalsMade": 11,
-        "fieldGoalsAttempted": 20,
-        "threePointersMade": 2,
-        "threePointersAttempted": 5,
-        "freeThrowsMade": 4,
-        "freeThrowsAttempted": 4,
-        "reboundsOffensive": 1,
-        "reboundsDefensive": 7,
-        "foulsPersonal": 2,
-        "minutes": "PT28M00.00S",
-        "plusMinusPoints": 8,
-    }
-    stats.update(kw)
-    return stats
-
-
-def make_live_player(person_id=PLAYER_ID, name="LeBron James", **stats_kw):
-    return {
-        "personId": person_id,
-        "name": name,
-        "status": "ACTIVE",
-        "statistics": make_live_player_stats(**stats_kw),
-    }
-
-
-def make_live_boxscore(game_id=GAME_ID, status="Q2 5:32"):
-    return {
-        "game": {
-            "gameStatusText": status,
-            "homeTeam": {
-                "teamCity": "Los Angeles",
-                "teamName": "Lakers",
-                "teamTricode": "LAL",
-                "teamId": TEAM_ID_LAL,
-                "score": 56,
-                "players": [make_live_player()],
-            },
-            "awayTeam": {
-                "teamCity": "Boston",
-                "teamName": "Celtics",
-                "teamTricode": "BOS",
-                "teamId": TEAM_ID_BOS,
-                "score": 48,
-                "players": [make_live_player(person_id=1629029, name="Jayson Tatum")],
-            },
-        }
-    }
-
-
-def make_standings_row(rank, city, name, conf, wins, losses):
-    """Build a row matching indices used by get_standings."""
-    row = [None] * 40
-    row[3] = city
-    row[4] = name
-    row[5] = conf
-    row[7] = rank
-    row[12] = wins
-    row[13] = losses
-    row[14] = wins / (wins + losses) if (wins + losses) else 0.0
-    row[17] = f"{wins // 2}-{losses // 2}"
-    row[18] = f"{wins // 2}-{losses // 2}"
-    row[19] = "8-2"
-    row[36] = "W3"
-    row[37] = 2.5
-    return row
 
 
 def make_boxscore_team_row(team_id, city, name, score=100):
@@ -373,7 +252,8 @@ class TestScoreboard:
 
     def test_et_time_converted(self, client):
         with patch(
-            "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
+            "routes.scores.get_cached_scoreboard",
+            return_value=[make_live_game(gameStatusText="7:30 pm ET")],
         ):
             r = client.get("/api/scoreboard")
         # "7:30 pm ET" should be converted; original format ends with " ET"

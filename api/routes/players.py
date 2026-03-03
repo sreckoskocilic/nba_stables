@@ -100,19 +100,41 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
                             log_exceptions(ex)
                             minutes = "0:00"
 
+                        pts = stats["points"]
+                        fgm = stats["fieldGoalsMade"]
+                        fga = stats["fieldGoalsAttempted"]
+                        tpm = stats["threePointersMade"]
+                        ftm = stats["freeThrowsMade"]
+                        fta = stats["freeThrowsAttempted"]
+                        reb = stats["reboundsTotal"]
+                        ast = stats["assists"]
+                        blk = stats["blocks"]
+                        stl = stats["steals"]
+                        tov = stats["turnovers"]
+
+                        double_digits = sum(
+                            1 for x in [pts, reb, ast, stl, blk] if x >= 10
+                        )
+
                         results.append(
                             {
                                 "id": player["personId"],
                                 "name": fix_encoding(player["name"]),
                                 "team": team["teamTricode"],
                                 "minutes": minutes,
-                                "points": stats["points"],
-                                "threePointers": f"{stats['threePointersMade']}/{stats['threePointersAttempted']}",
-                                "rebounds": stats["reboundsTotal"],
-                                "assists": stats["assists"],
-                                "blocks": stats["blocks"],
-                                "steals": stats["steals"],
-                                "turnovers": stats["turnovers"],
+                                "points": pts,
+                                "threePointers": f"{tpm}/{stats['threePointersAttempted']}",
+                                "rebounds": reb,
+                                "assists": ast,
+                                "blocks": blk,
+                                "steals": stl,
+                                "turnovers": tov,
+                                "fg": f"{fgm}/{fga}",
+                                "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
+                                "ft": f"{ftm}/{fta}",
+                                "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
+                                "isDoubleDouble": double_digits >= 2,
+                                "isTripleDouble": double_digits >= 3,
                             }
                         )
 

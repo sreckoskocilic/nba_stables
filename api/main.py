@@ -16,6 +16,7 @@ from helpers.stats import get_display_date
 from routes.injuries import router as injuries_router
 from routes.players import router as players_router
 from routes.scores import router
+from routes.season import router as season_router
 from routes.trades import router as trades_router
 from starlette.middleware.gzip import GZipMiddleware
 
@@ -43,6 +44,7 @@ app.include_router(router)
 app.include_router(players_router)
 app.include_router(trades_router)
 app.include_router(injuries_router)
+app.include_router(season_router)
 
 LOG_CONFIG_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "log_config.yml"

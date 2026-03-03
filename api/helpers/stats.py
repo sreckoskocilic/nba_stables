@@ -9,7 +9,6 @@ from helpers.logger import log_exceptions
 from nba_api.live.nba.endpoints import boxscore as live_boxscore
 from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
 from nba_api.stats.endpoints import (
-    boxscoreadvancedv3,
     boxscoretraditionalv3,
     scoreboardv3,
 )
@@ -31,6 +30,12 @@ def get_date_str(days_offset: int = 0) -> str:
 def get_display_date(days_offset: int = 0) -> str:
     target_date = date.today() - timedelta(days=days_offset)
     return target_date.strftime("%B %d, %Y")
+
+
+def get_current_season() -> str:
+    today = date.today()
+    year = today.year if today.month >= 10 else today.year - 1
+    return f"{year}-{str(year + 1)[-2:]}"
 
 
 def convert_et_to_cet(time_str: str) -> str:
@@ -93,7 +98,7 @@ def load_players_dict():  # pragma: no cover
     return _players_dict_cache
 
 
-def get_cached_scoreboard():
+def get_cached_scoreboard():  # pragma: no cover
     """Return cached live ScoreBoard().games.data."""
     cached = cache.get("raw_scoreboard")
     if cached is not None:  # pragma: no cover
@@ -125,7 +130,7 @@ def get_cached_scoreboard_v3(days_offset: int = 1):
         game_date=target_date.strftime("%Y-%m-%d"),
         proxy=STATS_PROXY,
     )
-    ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["scoreboard"]
+    ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["scoreboard"]
     cache.set(cache_key, sb, ttl)
     return sb
 
@@ -184,21 +189,6 @@ def get_cached_boxscore_v3(game_id):
     )
     cache.set(cache_key, bs_stats, 60)
     return bs_stats
-
-
-def get_cached_advanced_boxscore(game_id):
-    """Return cached BoxScoreAdvancedV3 player_stats data for the given game_id."""
-    cache_key = f"raw_adv_boxscore_{game_id}"
-    cached = cache.get(cache_key)
-    if cached is not None:  # pragma: no cover
-        return cached
-    adv = boxscoreadvancedv3.BoxScoreAdvancedV3(
-        game_id=game_id,
-        proxy=STATS_PROXY,
-    )
-    data = adv.player_stats.get_dict()["data"]
-    cache.set(cache_key, data, 60)
-    return data
 
 
 def fetch_single_boxscore(game_id, leaders_data):
