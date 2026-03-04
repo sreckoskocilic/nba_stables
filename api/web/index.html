@@ -167,6 +167,7 @@
             border-radius: 8px;
             color: var(--text-secondary);
             cursor: pointer;
+            min-width: 140px;
             font-size: 0.9rem;
             font-weight: 500;
             transition: all 0.2s;
@@ -600,6 +601,7 @@
             color: white;
             font-size: 1rem;
             font-weight: 600;
+            min-width: 140px;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
@@ -800,6 +802,11 @@
             to { transform: rotate(360deg); }
         }
 
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
         /* Empty State */
         .empty-state {
             text-align: center;
@@ -827,6 +834,7 @@
             color: var(--text-primary);
             padding: 8px 16px;
             cursor: pointer;
+            min-width: 140px;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -963,37 +971,129 @@
             .loading {
                 padding: 30px;
             }
+
+            .logo-container img {
+                height: 60px;
+            }
         }
-    </style>
+    
+        /* Header navigation wrapper */
+        .nav-tabs-wrapper {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .nav-tabs {
+          display: flex;
+          gap: 8px;
+          justify-content: center;
+        }
+
+        .nav-tabs-1,
+        .nav-tabs-2 {
+          margin: 0 auto;
+        }
+
+        .logo-container {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          margin: 8px 0;
+        }
+
+        .logo {
+          height: 80px;
+          width: auto;
+          object-fit: contain;
+        }
+        
+        .logo-container {
+          display: flex;
+          align-items: center;
+          padding: 0 15px;
+          transition: transform 0.3s ease;
+          background: linear-gradient(135deg, rgba(255,107,53,0.1) 0%, rgba(255,140,90,0.05) 100%);
+          border-radius: 12px;
+          backdrop-filter: blur(10px);
+          animation: fadeIn 0.8s ease-out;
+        }
+        .logo-container:hover {
+          transform: scale(1.05);
+        }
+        .logo-container img {
+          height: 80px;
+          width: auto;
+          object-fit: contain;
+          border-radius: 8px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          filter: drop-shadow(0 0 8px rgba(255, 107, 53, 0.3));
+        }
+        .header-container{position:relative;}
+        .nav-wrapper{display:flex;align-items:center;width:100%;}
+        .nav-left{flex:1;}
+
+        .brand-text {
+          color: #ff6b35; /* Same as --accent */
+          font-size: 1.8rem;
+          font-weight: 700;
+          margin-right: 15px;
+          white-space: nowrap;
+        }
+        .nav-row{display:flex;gap:8px;justify-content:center;}
+        .nav-tab{flex:1;}
+        .logo-container{
+          display:flex;
+          align-items:center;
+          padding: 0 15px;
+          transition: transform 0.3s ease;
+          background: linear-gradient(135deg, rgba(255,107,53,0.1) 0%, rgba(255,140,90,0.05) 100%);
+          border-radius: 12px;
+          backdrop-filter: blur(10px);
+        }
+        .logo-container:hover {
+          transform: scale(1.05);
+        }
+        .logo-container img {
+          height: 80px;
+          width: auto;
+          object-fit: contain;
+          border-radius: 8px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          filter: drop-shadow(0 0 8px rgba(255, 107, 53, 0.3));
+        }
+        </style>
 </head>
 <body>
-    <header>
-        <div class="container">
-            <div class="header-content">
-                <div class="logo">
-                    <div class="logo-icon">&#127936;</div>
-                    <h1>NBA Stables</h1>
-                </div>
-            </div>
+    <header class="header-container">
+  <div class="container">
+    <div class="nav-wrapper">
+      <div class="nav-left">
+        <div class="nav-row nav-1">
+          <button class="nav-tab" data-section="scoreboard">Live Scoreboard</button>
+          <button class="nav-tab" data-section="boxscores">Box Scores</button>
+          <button class="nav-tab" data-section="leaders">Daily Leaders</button>
+          <button class="nav-tab" data-section="tracker">Player Tracker</button>
+          <button class="nav-tab" data-section="seasonDoubles">Doubles & Triples</button>
         </div>
-    </header>
-
-    <nav>
-        <div class="container">
-            <div class="nav-tabs">
-                <button class="nav-tab active" data-section="scoreboard">Live Scoreboard</button>
-                <button class="nav-tab" data-section="boxscores">Box Scores</button>
-                <button class="nav-tab" data-section="leaders">Daily Leaders</button>
-                <button class="nav-tab" data-section="tracker">Player Tracker</button>
-                <button class="nav-tab" data-section="standings">Standings</button>
-                <button class="nav-tab" data-section="injuries">Injuries</button>
-                <button class="nav-tab" data-section="lastngames">Last N Games</button>
-                <button class="nav-tab" data-section="playoffs">Playoffs</button>
-                <button class="nav-tab" data-section="trades">Trades</button>
-                <button class="nav-tab" data-section="seasonDoubles">Doubles &amp; Triples</button>
-            </div>
+        <div class="nav-row nav-2">
+          <button class="nav-tab" data-section="standings">Standings</button>
+          <button class="nav-tab" data-section="playoffs">Playoffs</button>
+          <button class="nav-tab" data-section="injuries">Injuries</button>
+          <button class="nav-tab" data-section="trades">Trades</button>
+          <button class="nav-tab" data-section="about">About</button>
         </div>
-    </nav>
+      </div>
+      <div class="brand-text">NBA Stables</div>
+      <div class="logo-container">
+        <img src="/web/LL_MP.png" alt="NBA Stables logo">
+      </div>
+    </div>
+  </div>
+</header>
 
     <main>
         <div class="container">
