@@ -108,15 +108,9 @@
             text-decoration: none;
         }
 
-        .logo-icon {
-            width: 40px;
+        .logo svg {
             height: 40px;
-            background: var(--gradient-1);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
+            width: 40px;
         }
 
         .logo h1 {
@@ -210,7 +204,7 @@
         @media (max-width: 480px) {
             .header-content { padding: 0 16px; }
             .container { padding: 0 16px; }
-            .logo-icon { width: 34px; height: 34px; font-size: 17px; }
+            .logo svg { height: 34px; width: 34px; }
             .logo h1 { font-size: 1.25rem; }
             .back-link { font-size: 0.85rem; }
             main { padding: 30px 0; }
@@ -241,7 +235,15 @@
     <header>
         <div class="header-content">
             <a href="/" class="logo">
-                <div class="logo-icon">&#127936;</div>
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="46" fill="#ff6b35"/>
+                    <g fill="none" stroke="#12121a" stroke-width="2.5" stroke-linecap="round">
+                        <line x1="4" y1="50" x2="96" y2="50"/>
+                        <line x1="50" y1="4" x2="50" y2="96"/>
+                        <ellipse cx="50" cy="50" rx="18" ry="46"/>
+                        <ellipse cx="50" cy="50" rx="34" ry="46"/>
+                    </g>
+                </svg>
                 <h1>NBA Stables</h1>
             </a>
             <a href="/" class="back-link">&#8592; Back to App</a>
