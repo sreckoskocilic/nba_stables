@@ -10,3 +10,7 @@ requests[socks]
 lxml
 PyYAML
 tzdata
+pytest
+httpx
+pydantic-core==2.41.5
+pytest-cov

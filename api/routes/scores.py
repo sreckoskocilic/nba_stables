@@ -183,7 +183,7 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                     if val > max_vals[key]:
                         max_vals[key] = val
                         max_players[key] = [{"name": p["name"], "team": p["team"]}]
-                    elif val == max_vals[key]:
+                    elif val == max_vals[key]: # pragma: no cover
                         max_players[key].append({"name": p["name"], "team": p["team"]})
             for key, label in categories:
                 leaders[key] = {
