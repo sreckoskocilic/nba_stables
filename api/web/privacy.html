@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - NBA Stables</title>
+    <meta name="description" content="Privacy Policy for NBA Stables.">
+    <link rel="canonical" href="https://nbastables.com/web/privacy.html">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a24;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --accent: #ff6b35;
+            --border: #2a2a3a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+        header { border-bottom: 1px solid var(--border); padding: 18px 0; background: var(--bg-secondary); }
+        main { padding: 32px 0 48px; }
+        h1 { margin: 0 0 12px; font-size: 1.8rem; }
+        h2 { margin-top: 24px; font-size: 1.1rem; }
+        p, li { color: var(--text-secondary); }
+        a { color: var(--accent); }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+        footer { border-top: 1px solid var(--border); padding: 22px 0; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container"><a href="/" style="color: var(--accent); text-decoration: none;">&larr; Back to App</a></div>
+    </header>
+    <main>
+        <div class="container">
+            <div class="card">
+                <h1>Privacy Policy</h1>
+                <p>Last updated: March 5, 2026</p>
+                <p>NBA Stables is a free stats site. We do not require user accounts.</p>
+
+                <h2>What We Process</h2>
+                <ul>
+                    <li>Basic technical request data (for example IP address, user agent, referrer, response status) in server logs.</li>
+                    <li>Usage analytics events through self-hosted Umami, only when you accept analytics cookies.</li>
+                    <li>Local browser storage needed for app behavior (including your cookie consent choice).</li>
+                </ul>
+
+                <h2>Why We Process Data</h2>
+                <ul>
+                    <li>Operate, secure, and troubleshoot the service.</li>
+                    <li>Measure site usage and improve performance and content.</li>
+                </ul>
+
+                <h2>Legal Basis</h2>
+                <p>Where applicable (EEA/UK), we rely on legitimate interests for necessary operation/security and consent for non-essential analytics cookies.</p>
+
+                <h2>Retention</h2>
+                <p>Logs and analytics are retained only as long as reasonably needed for operations, reliability, and abuse prevention.</p>
+
+                <h2>Third-Party Sources</h2>
+                <p>NBA Stables displays data from third-party sports data sources, which may be delayed or incomplete.</p>
+
+                <h2>Contact</h2>
+                <p>For privacy requests: <a href="mailto:privacy@nbastables.com">privacy@nbastables.com</a></p>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <a href="/web/privacy.html">Privacy</a> |
+            <a href="/web/cookies.html">Cookies</a> |
+            <a href="/web/terms.html">Terms</a> |
+            <a href="#" onclick="openCookieSettings(); return false;">Cookie Settings</a>
+        </div>
+    </footer>
+
+    <div id="cookieBanner" style="position: fixed; left: 16px; right: 16px; bottom: 16px; display: none; align-items: center; justify-content: space-between; gap: 12px; background: #12121a; border: 1px solid #2a2a3a; border-radius: 10px; padding: 12px 14px; z-index: 1000;">
+        <p style="margin: 0; font-size: 0.85rem; color: #a0a0b0;">We use privacy-friendly analytics cookies only if you accept.</p>
+        <div style="display: flex; gap: 8px; flex-shrink: 0;">
+            <button id="cookieReject" style="padding: 8px 10px; border-radius: 8px; border: 1px solid #2a2a3a; background: transparent; color: #fff; cursor: pointer;">Reject</button>
+            <button id="cookieAccept" style="padding: 8px 10px; border-radius: 8px; border: 1px solid #ff6b35; background: #ff6b35; color: #fff; cursor: pointer;">Accept</button>
+        </div>
+    </div>
+    <script defer src="/web/legal.js"></script>
+</body>
+</html>

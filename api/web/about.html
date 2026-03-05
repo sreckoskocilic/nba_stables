@@ -253,7 +253,7 @@
     <main>
         <div class="container">
             <h2>About NBA Stables</h2>
-            <p>NBA Stables is a free web app built for basketball fans who want fast, real-time NBA stats without the clutter. No ads, no paywalls, no tracking — just clean data updated live during every game.</p>
+            <p>NBA Stables is a free web app built for basketball fans who want fast, real-time NBA stats without the clutter. No ads, no paywalls, and privacy-friendly analytics to help improve the app.</p>
 
             <h3>What You Get</h3>
             <div class="feature-grid">
@@ -293,7 +293,7 @@
             <p>Most sports sites are bloated with ads, pop-ups and slow-loading pages. NBA Stables strips all of that away. It's a lightweight progressive web app (PWA) that works on any device — desktop, tablet or phone. You can even install it to your home screen for an app-like experience.</p>
 
             <h3>Always Free</h3>
-            <p>NBA Stables is and will always be completely free. No account needed, no data collected. Just open the site and get your stats.</p>
+            <p>NBA Stables is and will always be completely free. No account needed. We only use minimal analytics with your consent.</p>
 
             <a href="/" class="cta">Open NBA Stables</a>
         </div>
@@ -301,9 +301,23 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 NBA Stables. Not affiliated with the NBA.</p>
+            <p>&copy; 2026 NBA Stables. Not affiliated with the NBA.</p>
+            <p style="margin-top: 8px;">
+                <a href="/web/privacy.html" style="color: var(--accent);">Privacy</a> |
+                <a href="/web/cookies.html" style="color: var(--accent);">Cookies</a> |
+                <a href="/web/terms.html" style="color: var(--accent);">Terms</a> |
+                <a href="#" onclick="openCookieSettings(); return false;" style="color: var(--accent);">Cookie Settings</a>
+            </p>
         </div>
     </footer>
-    <script defer src="/t/a.js" data-website-id="b68bfbcf-f86b-4e65-9257-bda61e465ddb"></script>
+
+    <div id="cookieBanner" style="position: fixed; left: 16px; right: 16px; bottom: 16px; display: none; align-items: center; justify-content: space-between; gap: 12px; background: #12121a; border: 1px solid #2a2a3a; border-radius: 10px; padding: 12px 14px; z-index: 1000;">
+        <p style="margin: 0; font-size: 0.85rem; color: #a0a0b0;">We use privacy-friendly analytics cookies only if you accept.</p>
+        <div style="display: flex; gap: 8px; flex-shrink: 0;">
+            <button id="cookieReject" style="padding: 8px 10px; border-radius: 8px; border: 1px solid #2a2a3a; background: transparent; color: #fff; cursor: pointer;">Reject</button>
+            <button id="cookieAccept" style="padding: 8px 10px; border-radius: 8px; border: 1px solid #ff6b35; background: #ff6b35; color: #fff; cursor: pointer;">Accept</button>
+        </div>
+    </div>
+    <script defer src="/web/legal.js"></script>
 </body>
 </html>

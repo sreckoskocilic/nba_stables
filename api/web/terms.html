@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Use - NBA Stables</title>
+    <meta name="description" content="Terms of Use for NBA Stables.">
+    <link rel="canonical" href="https://nbastables.com/web/terms.html">
+    <style>
+        :root { --bg-primary:#0a0a0f; --bg-secondary:#12121a; --bg-card:#1a1a24; --text-primary:#fff; --text-secondary:#a0a0b0; --accent:#ff6b35; --border:#2a2a3a; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif; background:var(--bg-primary); color:var(--text-primary); line-height:1.6; }
+        .container { max-width:900px; margin:0 auto; padding:0 20px; }
+        header { border-bottom:1px solid var(--border); padding:18px 0; background:var(--bg-secondary); }
+        main { padding:32px 0 48px; }
+        h1 { margin:0 0 12px; font-size:1.8rem; }
+        h2 { margin-top:24px; font-size:1.1rem; }
+        p, li { color:var(--text-secondary); }
+        a { color:var(--accent); }
+        .card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px; }
+        footer { border-top:1px solid var(--border); padding:22px 0; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container"><a href="/" style="color: var(--accent); text-decoration: none;">&larr; Back to App</a></div>
+    </header>
+    <main>
+        <div class="container">
+            <div class="card">
+                <h1>Terms of Use</h1>
+                <p>Last updated: March 5, 2026</p>
+
+                <h2>Informational Use</h2>
+                <p>NBA Stables provides sports information for general use. Data may be delayed, unavailable, or inaccurate.</p>
+
+                <h2>No Warranty</h2>
+                <p>The site is provided "as is" and "as available" without warranties of any kind.</p>
+
+                <h2>Limitation of Liability</h2>
+                <p>To the maximum extent allowed by law, NBA Stables is not liable for losses arising from use of the site.</p>
+
+                <h2>Acceptable Use</h2>
+                <ul>
+                    <li>Do not abuse, overload, or interfere with the service.</li>
+                    <li>Do not perform unauthorized scraping beyond normal browsing use.</li>
+                </ul>
+
+                <h2>Intellectual Property and Trademarks</h2>
+                <p>NBA Stables is not affiliated with, endorsed by, or sponsored by the NBA or any NBA team. NBA names, team names, logos, and marks are property of their respective owners.</p>
+
+                <h2>Contact</h2>
+                <p>Questions: <a href="mailto:legal@nbastables.com">legal@nbastables.com</a></p>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <a href="/web/privacy.html">Privacy</a> |
+            <a href="/web/cookies.html">Cookies</a> |
+            <a href="/web/terms.html">Terms</a> |
+            <a href="#" onclick="openCookieSettings(); return false;">Cookie Settings</a>
+        </div>
+    </footer>
+
+    <div id="cookieBanner" style="position: fixed; left: 16px; right: 16px; bottom: 16px; display: none; align-items: center; justify-content: space-between; gap: 12px; background: #12121a; border: 1px solid #2a2a3a; border-radius: 10px; padding: 12px 14px; z-index: 1000;">
+        <p style="margin: 0; font-size: 0.85rem; color: #a0a0b0;">We use privacy-friendly analytics cookies only if you accept.</p>
+        <div style="display: flex; gap: 8px; flex-shrink: 0;">
+            <button id="cookieReject" style="padding: 8px 10px; border-radius: 8px; border: 1px solid #2a2a3a; background: transparent; color: #fff; cursor: pointer;">Reject</button>
+            <button id="cookieAccept" style="padding: 8px 10px; border-radius: 8px; border: 1px solid #ff6b35; background: #ff6b35; color: #fff; cursor: pointer;">Accept</button>
+        </div>
+    </div>
+    <script defer src="/web/legal.js"></script>
+</body>
+</html>
