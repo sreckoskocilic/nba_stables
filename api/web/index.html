@@ -146,10 +146,10 @@
 
         .nav-tab {
             padding: 6px 10px;
-            background: rgba(28, 40, 60, 0.98);
-            border: 1px solid rgba(172, 206, 242, 0.86);
+            background: #1b2a3f;
+            border: 1px solid #4a5f78;
             border-radius: 9px;
-            color: #edf6ff;
+            color: #dbe8f5;
             cursor: pointer;
             font-size: 0.77rem;
             font-weight: 600;
@@ -161,15 +161,15 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.28);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
         }
 
         .nav-tab:hover {
-            background: rgba(44, 61, 89, 1);
-            border-color: rgba(197, 223, 249, 1);
+            background: #24364f;
+            border-color: #617892;
             color: #ffffff;
             transform: translateY(-1px);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 5px 14px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 5px 14px rgba(0, 0, 0, 0.3);
         }
 
         .nav-tab.active {
@@ -1173,10 +1173,10 @@
 
         /* Refresh Button */
         .refresh-btn {
-            background: rgba(30, 43, 63, 0.98);
-            border: 1px solid rgba(176, 206, 236, 0.82);
+            background: #1d2b40;
+            border: 1px solid #4d627b;
             border-radius: 8px;
-            color: #eef7ff;
+            color: #dbe8f4;
             padding: 8px 12px;
             cursor: pointer;
             min-width: 40px;
@@ -1185,15 +1185,15 @@
             gap: 8px;
             font-size: 0.85rem;
             transition: all 0.2s;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
         }
 
         .refresh-btn:hover {
             color: #ffffff;
-            border-color: rgba(202, 225, 246, 1);
-            background: rgba(43, 61, 88, 1);
+            border-color: #667e98;
+            background: #283b57;
             transform: translateY(-1px);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 10px rgba(0, 0, 0, 0.28);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.28);
         }
 
         .refresh-btn:active {
@@ -1228,21 +1228,21 @@
 
         .date-btn {
             padding: 8px 16px;
-            background: rgba(28, 41, 60, 0.98);
-            border: 1px solid rgba(170, 204, 240, 0.84);
+            background: #1b2a3f;
+            border: 1px solid #4b6079;
             border-radius: 8px;
-            color: #ecf5ff;
+            color: #dce8f4;
             cursor: pointer;
             font-size: 0.85rem;
             white-space: nowrap;
             flex-shrink: 0;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
             transition: all 0.2s;
         }
 
         .date-btn:hover {
-            background: rgba(43, 60, 87, 1);
-            border-color: rgba(197, 223, 249, 1);
+            background: #273a56;
+            border-color: #637a94;
             color: #ffffff;
             transform: translateY(-1px);
         }
@@ -1709,19 +1709,74 @@
                     `);
 
         const played=a.games.filter(g=>!g.dnp);
-        const avg=(key)=>{
+        const avgNum=(key)=>{
             if(!played.length)return "0.0";
             return(played.reduce((sum,g)=>sum+(Number(g[key])||0),0)/played.length).toFixed(1);
+        };
+        const avgMinutes=()=>{
+            if(!played.length)return "0.0";
+            const toMinutes=(value)=>{
+                if(value==null)return 0;
+                if(typeof value==="number")return value;
+                const txt=String(value).trim();
+                const m=txt.match(/^(\d+):(\d+)$/);
+                if(m){
+                    const mins=Number(m[1])||0;
+                    const secs=Number(m[2])||0;
+                    return mins+secs/60;
+                }
+                return Number(txt)||0;
+            };
+            return(played.reduce((sum,g)=>sum+toMinutes(g.minutes),0)/played.length).toFixed(1);
+        };
+        const avgPair=(key)=>{
+            if(!played.length)return "-";
+            let made=0,attempt=0,count=0;
+            played.forEach((g)=>{
+                const raw=g[key];
+            const m=String(raw??"").match(/^(\d+)\s*[\/-]\s*(\d+)$/);
+                if(m){
+                    made+=Number(m[1])||0;
+                    attempt+=Number(m[2])||0;
+                    count+=1;
+                }
+            });
+            if(!count)return "-";
+            return`${(made/count).toFixed(1)}-${(attempt/count).toFixed(1)}`;
+        };
+        const pairPct=(value)=>{
+            const m=String(value??"").match(/^(\d+)\s*[\/-]\s*(\d+)$/);
+            if(!m)return "-";
+            const made=Number(m[1])||0;
+            const attempt=Number(m[2])||0;
+            if(!attempt)return "0.0%";
+            return`${((made/attempt)*100).toFixed(1)}%`;
+        };
+        const avgPairPct=(key)=>{
+            if(!played.length)return "-";
+            let made=0,attempt=0,count=0;
+            played.forEach((g)=>{
+                const raw=g[key];
+                const m=String(raw??"").match(/^(\d+)\s*[\/-]\s*(\d+)$/);
+                if(m){
+                    made+=Number(m[1])||0;
+                    attempt+=Number(m[2])||0;
+                    count+=1;
+                }
+            });
+            if(!count||!attempt)return "0.0%";
+            return`${((made/attempt)*100).toFixed(1)}%`;
+        };
+        const pct1=(value)=>{
+            let n=Number(value);
+            if(!Number.isFinite(n))return "-";
+            if(n<=1)n*=100;
+            return`${n.toFixed(1)}%`;
         };
 
         t.innerHTML=`
                     <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 0.85rem;">
                         ${played.length} games played of ${a.games.length} shown
-                    </div>
-                    <div class="lastn-summary">
-                        <span class="summary-chip">${lastNGamesCount}G Avg <strong>${avg("points")} PTS</strong></span>
-                        <span class="summary-chip"><strong>${avg("rebounds")} REB</strong></span>
-                        <span class="summary-chip"><strong>${avg("assists")} AST</strong></span>
                     </div>
                     <div class="card lastn-table-wrap">
                         <table class="player-stats-table">
@@ -1751,9 +1806,9 @@
                                         <td>${g.matchup}</td>
                                         <td>${g.minutes}</td>
                                         <td class="${statClass("points",g.points)}">${g.points}</td>
-                                        <td>${g.fg}</td>
-                                        <td>${g.threePointers}</td>
-                                        <td>${g.ft}</td>
+                                        <td>${g.fg} (${pairPct(g.fg)})</td>
+                                        <td>${g.threePointers} (${pairPct(g.threePointers)})</td>
+                                        <td>${g.ft} (${pairPct(g.ft)})</td>
                                         <td class="${statClass("rebounds",g.rebounds)}">${g.rebounds}</td>
                                         <td class="${statClass("assists",g.assists)}">${g.assists}</td>
                                         <td class="${statClass("blocks",g.blocks)}">${g.blocks}</td>
@@ -1769,15 +1824,28 @@
                                     </td>
                                     <td style="color: var(--text-secondary);">${n.minutes}</td>
                                     <td class="highlight">${n.points}</td>
-                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${n.fgPct.toFixed(2)}%</td>
-                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${n.fg3Pct.toFixed(2)}%</td>
-                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${n.ftPct.toFixed(2)}%</td>
+                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${pct1(n.fgPct)}</td>
+                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${pct1(n.fg3Pct)}</td>
+                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${pct1(n.ftPct)}</td>
                                     <td>${n.rebounds}</td>
                                     <td>${n.assists}</td>
                                     <td>${n.blocks}</td>
                                     <td>${n.steals}</td>
                                     <td style="color: var(--text-secondary);">${n.fouls}</td>
                                 </tr>`:""}
+                                <tr style="background: var(--bg-secondary); border-top: 1px solid var(--border);">
+                                    <td style="text-align: left; white-space: nowrap; color: var(--text-primary); font-weight: 600;">${played.length}G Avg</td>
+                                    <td>${avgMinutes()}</td>
+                                    <td class="highlight">${avgNum("points")}</td>
+                                    <td>${avgPairPct("fg")}</td>
+                                    <td>${avgPairPct("threePointers")}</td>
+                                    <td>${avgPairPct("ft")}</td>
+                                    <td>${avgNum("rebounds")}</td>
+                                    <td>${avgNum("assists")}</td>
+                                    <td>${avgNum("blocks")}</td>
+                                    <td>${avgNum("steals")}</td>
+                                    <td>${avgNum("fouls")}</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
