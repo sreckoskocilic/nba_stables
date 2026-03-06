@@ -128,6 +128,10 @@
                     const data = await response.json();
                     const leaders = Object.values(data.leaders || {});
                     if (leaders.length === 0) {
+                        const activeBtn = document.querySelector("#leadersDateSelector .date-btn.active");
+                        if (activeBtn) activeBtn.hidden = true;
+                        const nextBtn = document.querySelector("#leadersDateSelector .date-btn:not([hidden])");
+                        if (nextBtn) { nextBtn.click(); return; }
                         content.innerHTML = `
                             <div class="empty-state">
                                 <div class="empty-state-icon">&#127942;</div>
@@ -336,6 +340,10 @@
                     const data = await response.json();
                     const boxscores = Array.isArray(data.boxscores) ? data.boxscores : [];
                     if (boxscores.length === 0) {
+                        const activeBtn = document.querySelector("#boxscores .date-btn.active");
+                        if (activeBtn) activeBtn.hidden = true;
+                        const nextBtn = document.querySelector("#boxscores .date-btn:not([hidden])");
+                        if (nextBtn) { nextBtn.click(); return; }
                         content.innerHTML = `
                             <div class="empty-state">
                                 <div class="empty-state-icon">&#128202;</div>

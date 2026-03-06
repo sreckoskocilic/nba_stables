@@ -20,8 +20,21 @@ router = APIRouter()
 
 @router.get("/api/dates")
 def get_date_labels():
-    """Return display dates for day offsets 0-7 so the frontend can label date buttons accurately"""
-    return {"dates": [get_display_date(i) for i in range(8)]}
+    """Return display dates and game availability for day offsets 0-7"""
+    cached = cache.get("dates")
+    if cached:
+        return cached
+
+    def _has_games(i):
+        try:
+            return len(get_games_list(i)) > 0
+        except Exception:
+            return False
+
+    has_games = list(executor.map(_has_games, range(8)))
+    result = {"dates": [get_display_date(i) for i in range(8)], "hasGames": has_games}
+    cache.set("dates", result, CACHE_TTL["leaders"])
+    return result
 
 
 @router.get("/api/boxscores")
