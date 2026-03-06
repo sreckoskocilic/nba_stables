@@ -1,10 +1,76 @@
 from fastapi import APIRouter, HTTPException
 from helpers.common import CACHE_TTL, STATS_PROXY, cache
 from helpers.logger import log_exceptions
-from helpers.stats import get_current_season
-from nba_api.stats.endpoints import leaguedashplayerstats, playergamelog
+from helpers.stats import fix_encoding, get_current_season
+from nba_api.stats.endpoints import leaguedashplayerstats, leaguegamelog, playergamelog
 
 router = APIRouter()
+
+
+@router.get("/api/season/highs")
+def get_season_highs():
+    """Get season single-game highs for each statistical category"""
+    cached = cache.get("season_highs")
+    if cached:
+        return cached
+
+    try:
+        season = get_current_season()
+        log = leaguegamelog.LeagueGameLog(
+            season=season,
+            player_or_team_abbreviation="P",
+            proxy=STATS_PROXY,
+        )
+        data = log.get_dict()
+        headers = data["resultSets"][0]["headers"]
+        rows = data["resultSets"][0]["rowSet"]
+        h = {k: i for i, k in enumerate(headers)}
+
+        categories = [
+            ("PTS", "points", "Points"),
+            ("REB", "rebounds", "Rebounds"),
+            ("AST", "assists", "Assists"),
+            ("BLK", "blocks", "Blocks"),
+            ("STL", "steals", "Steals"),
+            ("FG3M", "threePointers", "3-Pointers"),
+            ("FGM", "fgm", "FG Made"),
+            ("FTM", "ftm", "FT Made"),
+            ("FTA", "fta", "FT Attempted"),
+            ("OREB", "oreb", "Off. Rebounds"),
+            ("DREB", "dreb", "Def. Rebounds"),
+            ("TOV", "turnovers", "Turnovers"),
+        ]
+
+        max_vals = {key: 0 for _, key, _ in categories}
+        max_entries = {key: [] for _, key, _ in categories}
+
+        for row in rows:
+            name = fix_encoding(row[h["PLAYER_NAME"]])
+            team = row[h["TEAM_ABBREVIATION"]]
+            game_date = row[h["GAME_DATE"]]
+            matchup = row[h["MATCHUP"]]
+            for col, key, _ in categories:
+                val = row[h[col]] or 0
+                if val > max_vals[key]:
+                    max_vals[key] = val
+                    max_entries[key] = [{"name": name, "team": team, "date": game_date, "matchup": matchup}]
+                elif val == max_vals[key] and val != 0:
+                    max_entries[key].append({"name": name, "team": team, "date": game_date, "matchup": matchup})
+
+        highs = {}
+        for _, key, label in categories:
+            highs[key] = {
+                "label": label,
+                "value": max_vals[key],
+                "players": max_entries[key],
+            }
+
+        result = {"highs": highs, "season": season}
+        cache.set("season_highs", result, CACHE_TTL["season_leaders"])
+        return result
+    except Exception as e:  # pragma: no cover
+        log_exceptions(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/api/season/doubles")

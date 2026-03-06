@@ -53,10 +53,9 @@
                                         .map((game, idx) => {
                                             const homeScore = toNum(game.homeTeam?.score);
                                             const awayScore = toNum(game.awayTeam?.score);
-                                            const homeWinner =
-                                                homeScore != null && awayScore != null && homeScore > awayScore;
-                                            const awayWinner =
-                                                homeScore != null && awayScore != null && awayScore > homeScore;
+                                            const scoresValid = homeScore != null && awayScore != null;
+                                            const homeWinner = scoresValid && homeScore > awayScore;
+                                            const awayWinner = scoresValid && awayScore > homeScore;
                                             const statusRaw = String(game.status ?? "");
                                             const statusClass = statusRaw.toLowerCase().includes("final")
                                                 ? "final"
@@ -185,22 +184,100 @@
                 }
             }
 
+            async function loadSeasonHighsSafe(force = false) {
+                if (window._seasonHighsData && !force) {
+                    renderSeasonHighsSafe();
+                    return;
+                }
+                const content = document.getElementById("seasonHighsContent");
+                content.innerHTML = '<div class="loading"><div class="spinner"></div> Loading season highs...</div>';
+                try {
+                    const response = await _fetchWithAbort("seasonHighs", "/api/season/highs");
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.detail || "Failed to load season highs");
+                    window._seasonHighsData = data;
+                    renderSeasonHighsSafe();
+                } catch (e) {
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#9888;</div>
+                            <div class="empty-state-title">Error Loading Season Highs</div>
+                            <p>${esc(e.message)}</p>
+                        </div>
+                    `;
+                }
+            }
+
+            function renderSeasonHighsSafe() {
+                const content = document.getElementById("seasonHighsContent");
+                const data = window._seasonHighsData;
+                if (!data) return;
+
+                const highs = Object.values(data.highs || {});
+                if (highs.length === 0) {
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#127942;</div>
+                            <div class="empty-state-title">No Data Available</div>
+                            <p>Season highs not available yet</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                content.innerHTML = `
+                    <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.8rem;">
+                        Best single-game performances this season (${esc(data.season || "")})
+                    </p>
+                    <div class="card leaders-table-wrap">
+                        <table class="leaders-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>High</th>
+                                    <th>Player</th>
+                                    <th>Team</th>
+                                    <th>Date</th>
+                                    <th>Matchup</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${highs.map((high) => {
+                                    const players = Array.isArray(high.players) ? high.players : [];
+                                    const fmtDate = (p) => {
+                                        if (!p.date) return "-";
+                                        const d = new Date(p.date + "T12:00:00");
+                                        return isNaN(d) ? esc(p.date) : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                                    };
+                                    const playerNames = players.length ? players.map((p) => esc(p.name)).join("<br>") : "-";
+                                    const playerTeams = players.length ? players.map((p) => esc(p.team)).join("<br>") : "-";
+                                    const playerDates = players.length ? players.map(fmtDate).join("<br>") : "-";
+                                    const playerMatchups = players.length ? players.map((p) => esc(p.matchup || "-")).join("<br>") : "-";
+                                    return `
+                                    <tr>
+                                        <td>${esc(high.label)}</td>
+                                        <td>${esc(high.value)}</td>
+                                        <td>${playerNames}</td>
+                                        <td>${playerTeams}</td>
+                                        <td style="white-space: nowrap; color: var(--text-secondary); font-size: 0.85em;">${playerDates}</td>
+                                        <td style="white-space: nowrap; color: var(--text-secondary); font-size: 0.85em;">${playerMatchups}</td>
+                                    </tr>
+                                `;
+                                }).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
             // Override legacy renderers with safe versions.
             window.loadScoreboard = loadScoreboardSafe;
             window.loadLeaders = loadLeadersSafe;
+            window.loadSeasonHighs = loadSeasonHighsSafe;
+            window.renderSeasonHighs = renderSeasonHighsSafe;
 
             // Ensure first render uses override.
             loadScoreboardSafe();
-        })();
-
-        (function () {
-            const esc = (value) =>
-                String(value ?? "")
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#39;");
 
             // Keep keyword highlighting, but only on escaped text.
             _hlDesc = function (desc) {
@@ -475,8 +552,7 @@
                                                     const statusColor =
                                                         statusLower.includes("out") || statusLower === "suspension"
                                                             ? "#ef4444"
-                                                            : statusLower.includes("day-to-day") ||
-                                                                statusLower.includes("expected")
+                                                            : statusLower.includes("expected")
                                                               ? "#f59e0b"
                                                               : "var(--success)";
                                                     return `

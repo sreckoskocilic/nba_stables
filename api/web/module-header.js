@@ -31,8 +31,8 @@
                 currentTitle = nextTitle;
             }
 
-            const originalTabHandler = document.querySelectorAll(".nav-tab[data-section]");
-            originalTabHandler.forEach((tab) => {
+            const tabs = document.querySelectorAll(".nav-tab[data-section]");
+            tabs.forEach((tab) => {
                 tab.addEventListener("click", () => {
                     window.requestAnimationFrame(moveActiveTitleToHeader);
                 });
