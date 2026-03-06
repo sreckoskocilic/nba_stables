@@ -541,9 +541,56 @@
 
         /* Leaders Section */
         .leaders-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+            display: block;
+        }
+
+        .leaders-table-wrap {
+            overflow-x: auto;
+            padding: 0;
+            width: fit-content;
+            max-width: 100%;
+        }
+
+        .leaders-table {
+            width: max-content;
+            border-collapse: collapse;
+            font-size: 0.96rem;
+            line-height: 1.25;
+        }
+
+        .leaders-table th,
+        .leaders-table td {
+            padding: 8px 7px;
+            border-bottom: 0.5px solid var(--border);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .leaders-table th {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+        }
+
+        .leaders-table td:nth-child(2) {
+            text-align: center;
+            font-weight: 700;
+            color: var(--accent);
+            white-space: nowrap;
+        }
+
+        .leaders-table td:nth-child(3) {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .leaders-table td:nth-child(4) {
+            color: var(--text-secondary);
+            white-space: nowrap;
         }
 
         .leader-card {
@@ -1110,8 +1157,13 @@
                 grid-template-columns: 1fr;
             }
 
-            .leaders-grid {
-                grid-template-columns: 1fr;
+            .leaders-table {
+                font-size: 0.86rem;
+            }
+
+            .leaders-table th,
+            .leaders-table td {
+                padding: 7px 8px;
             }
 
             .header-content {
@@ -1655,6 +1707,60 @@ _lastNDateBtns.forEach(t=>{t.addEventListener("click",()=>{_lastNDateBtns.forEac
 
             moveActiveTitleToHeader();
         })();
+    </script>
+    <script>
+        async function loadLeaders() {
+            const content = document.getElementById("leadersContent");
+            content.innerHTML = '<div class="loading"><div class="spinner"></div> Loading leaders...</div>';
+            try {
+                const response = await _fetchWithAbort("leaders", `/api/leaders?days_offset=${currentLeadersOffset}`);
+                const data = await response.json();
+                const leaders = Object.values(data.leaders || {});
+                if (leaders.length === 0) {
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#127942;</div>
+                            <div class="empty-state-title">No Stats Available</div>
+                            <p>No completed games for ${data.date}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                content.innerHTML = `
+                    <div class="card leaders-table-wrap">
+                        <table class="leaders-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Best</th>
+                                    <th>Player</th>
+                                    <th>Team</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${leaders.map((leader) => `
+                                    <tr>
+                                        <td>${leader.label}</td>
+                                        <td>${leader.value}</td>
+                                        <td>${(leader.players || []).map((p) => p.name).join("<br>")}</td>
+                                        <td>${(leader.players || []).map((p) => p.team).join("<br>")}</td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } catch (e) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#9888;</div>
+                        <div class="empty-state-title">Error Loading Leaders</div>
+                        <p>${e.message}</p>
+                    </div>
+                `;
+            }
+        }
     </script>
     <script defer src="/web/legal.js"></script>
 </body>
