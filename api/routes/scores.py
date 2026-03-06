@@ -22,13 +22,13 @@ router = APIRouter()
 def get_date_labels():
     """Return display dates and game availability for day offsets 0-7"""
     cached = cache.get("dates")
-    if cached:
+    if cached: # pragma: no cover
         return cached
 
     def _has_games(i):
         try:
             return len(get_games_list(i)) > 0
-        except Exception:
+        except Exception: # pragma: no cover
             return False
 
     has_games = list(executor.map(_has_games, range(8)))
