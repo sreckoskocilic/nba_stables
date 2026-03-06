@@ -484,6 +484,117 @@
             text-transform: uppercase;
         }
 
+        .scoreboard-table-shell {
+            display: block;
+            overflow-x: auto;
+        }
+
+        .scoreboard-split {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, max-content));
+            gap: 10px;
+            width: max-content;
+            max-width: 100%;
+            align-items: start;
+        }
+
+        .scoreboard-table-wrap {
+            overflow-x: auto;
+            width: fit-content;
+            max-width: 100%;
+        }
+
+        .scoreboard-table {
+            width: max-content;
+            border-collapse: collapse;
+            font-size: 0.86rem;
+        }
+
+        .scoreboard-table th,
+        .scoreboard-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .scoreboard-table th {
+            text-align: left;
+            font-size: 0.68rem;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+        }
+
+        .scoreboard-game-meta td {
+            background: rgba(255, 255, 255, 0.02);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+
+        .scoreboard-game-meta td:first-child {
+            white-space: nowrap;
+        }
+
+        .scoreboard-game-meta-label {
+            text-align: right;
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .scoreboard-table th:first-child,
+        .scoreboard-table td:first-child {
+            width: fit-content;
+            white-space: nowrap;
+        }
+
+        .scoreboard-team {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .scoreboard-team code {
+            margin-right: 6px;
+            font-size: 0.7rem;
+            padding: 1px 4px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            background: var(--bg-hover);
+            font-family: inherit;
+        }
+
+        .scoreboard-team-name {
+            display: inline-block;
+            vertical-align: bottom;
+        }
+
+        .scoreboard-score {
+            text-align: center;
+            color: var(--accent);
+            font-weight: 700;
+            width: 56px;
+            white-space: nowrap;
+        }
+
+        .scoreboard-team-row.winner .scoreboard-team {
+            color: #ffffff;
+        }
+
+        .scoreboard-team-row.winner .scoreboard-score {
+            color: #ffb08f;
+        }
+
+        .scoreboard-leader {
+            color: var(--text-secondary);
+            white-space: nowrap;
+            width: fit-content;
+        }
+
         /* Box Score */
         .boxscore-card {
             overflow-x: auto;
@@ -1166,6 +1277,24 @@
                 padding: 7px 8px;
             }
 
+            .scoreboard-table {
+                font-size: 0.8rem;
+            }
+
+            .scoreboard-table th,
+            .scoreboard-table td {
+                padding: 5px 6px;
+            }
+
+            .scoreboard-split {
+                grid-template-columns: 1fr;
+                width: 100%;
+            }
+
+            .scoreboard-table-wrap {
+                width: 100%;
+            }
+
             .header-content {
                 gap: 10px;
             }
@@ -1707,6 +1836,102 @@ _lastNDateBtns.forEach(t=>{t.addEventListener("click",()=>{_lastNDateBtns.forEac
 
             moveActiveTitleToHeader();
         })();
+    </script>
+    <script>
+        async function loadScoreboard() {
+            const content = document.getElementById("scoreboardContent");
+            content.classList.remove("cards-grid-compact");
+            content.classList.add("scoreboard-table-shell");
+            content.innerHTML = '<div class="loading"><div class="spinner"></div> Loading games...</div>';
+            try {
+                const response = await _fetchWithAbort("scoreboard", "/api/scoreboard");
+                const data = await response.json();
+                document.getElementById("gamesCount").textContent = `${data.games.length} Games`;
+                if (data.games.length === 0) {
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#127944;</div>
+                            <div class="empty-state-title">No Games Today</div>
+                            <p>Check back later for live games</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const safeVal = (value) => (value == null || value === "null" ? "-" : value);
+                const hasLeader = (leader) => leader && leader.name && leader.name !== "null";
+                const leaderLine = (leader) =>
+                    hasLeader(leader)
+                        ? `${leader.name} ${safeVal(leader.points)}/${safeVal(leader.rebounds)}/${safeVal(leader.assists)}`
+                        : "-";
+                const toNum = (value) => {
+                    const parsed = parseInt(value, 10);
+                    return Number.isFinite(parsed) ? parsed : null;
+                };
+                const renderTable = (games, startIndex) => `
+                    <div class="card scoreboard-table-wrap">
+                        <table class="scoreboard-table">
+                            <thead>
+                                <tr>
+                                    <th>Team</th>
+                                    <th>Score</th>
+                                    <th>Leader (PTS/REB/AST)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${games.map((game, idx) => {
+                                    const homeScore = toNum(game.homeTeam.score);
+                                    const awayScore = toNum(game.awayTeam.score);
+                                    const homeWinner = homeScore != null && awayScore != null && homeScore > awayScore;
+                                    const awayWinner = homeScore != null && awayScore != null && awayScore > homeScore;
+                                    const statusClass = game.status.toLowerCase().includes("final") ? "final" : "live";
+                                    const localTime = isGameLive(game.status) ? homeTeamLocalTime(game.homeTeam.tricode) : "";
+                                    return `
+                                        <tr class="scoreboard-game-meta">
+                                            <td>
+                                                <span class="game-status ${statusClass}">${game.status}</span>
+                                                ${localTime ? `<span class="game-local-time" style="margin-left:8px;">${localTime}</span>` : ""}
+                                            </td>
+                                            <td class="scoreboard-game-meta-label" colspan="2">Game ${startIndex + idx + 1}</td>
+                                        </tr>
+                                        <tr class="scoreboard-team-row${homeWinner ? " winner" : ""}">
+                                            <td class="scoreboard-team"><code>Home</code><span class="scoreboard-team-name">${game.homeTeam.name}</span></td>
+                                            <td class="scoreboard-score">${safeVal(game.homeTeam.score)}</td>
+                                            <td class="scoreboard-leader">${leaderLine(game.homeTeam.leader)}</td>
+                                        </tr>
+                                        <tr class="scoreboard-team-row${awayWinner ? " winner" : ""}">
+                                            <td class="scoreboard-team"><code>Away</code><span class="scoreboard-team-name">${game.awayTeam.name}</span></td>
+                                            <td class="scoreboard-score">${safeVal(game.awayTeam.score)}</td>
+                                            <td class="scoreboard-leader">${leaderLine(game.awayTeam.leader)}</td>
+                                        </tr>
+                                    `;
+                                }).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                const splitAt = Math.ceil(data.games.length / 2);
+                const leftGames = data.games.slice(0, splitAt);
+                const rightGames = data.games.slice(splitAt);
+
+                content.innerHTML = `
+                    <div class="scoreboard-split">
+                        ${renderTable(leftGames, 0)}
+                        ${rightGames.length ? renderTable(rightGames, splitAt) : ""}
+                    </div>
+                `;
+            } catch (e) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#9888;</div>
+                        <div class="empty-state-title">Error Loading Games</div>
+                        <p>${e.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        loadScoreboard();
     </script>
     <script>
         async function loadLeaders() {
