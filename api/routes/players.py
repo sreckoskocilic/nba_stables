@@ -211,7 +211,7 @@ def get_game_players(game_id: str):
                     )
 
             # Sort by minutes played (descending)
-            team_data["players"].sort(key=lambda x: x["minutes"], reverse=True)
+            team_data["players"].sort(key=lambda x: tuple(int(p) for p in x["minutes"].split(":")), reverse=True)
             teams.append(team_data)
 
         game_status = bs["game"]["gameStatusText"]

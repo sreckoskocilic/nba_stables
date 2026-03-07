@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from helpers.common import CACHE_TTL, STATS_PROXY, cache
 from helpers.logger import log_exceptions
-from helpers.stats import fix_encoding, get_current_season
+from helpers.stats import find_category_leaders, fix_encoding, get_current_season, load_players_dict
 from nba_api.stats.endpoints import leaguedashplayerstats, leaguegamelog, playergamelog
 
 router = APIRouter()
@@ -41,28 +41,28 @@ def get_season_highs():
             ("TOV", "turnovers", "Turnovers"),
         ]
 
-        max_vals = {key: 0 for _, key, _ in categories}
-        max_entries = {key: [] for _, key, _ in categories}
-
+        players = []
         for row in rows:
-            name = fix_encoding(row[h["PLAYER_NAME"]])
-            team = row[h["TEAM_ABBREVIATION"]]
-            game_date = row[h["GAME_DATE"]]
-            matchup = row[h["MATCHUP"]]
+            entry = {
+                "name": fix_encoding(row[h["PLAYER_NAME"]]),
+                "team": row[h["TEAM_ABBREVIATION"]],
+                "date": row[h["GAME_DATE"]],
+                "matchup": row[h["MATCHUP"]],
+            }
             for col, key, _ in categories:
-                val = row[h[col]] or 0
-                if val > max_vals[key]:
-                    max_vals[key] = val
-                    max_entries[key] = [{"name": name, "team": team, "date": game_date, "matchup": matchup}]
-                elif val == max_vals[key] and val != 0:
-                    max_entries[key].append({"name": name, "team": team, "date": game_date, "matchup": matchup})
+                entry[key] = row[h[col]] or 0
+            players.append(entry)
 
+        cat_keys = [(key, label) for _, key, label in categories]
+        max_vals, max_entries = find_category_leaders(players, cat_keys)
+
+        _display_fields = {"name", "team", "date", "matchup"}
         highs = {}
         for _, key, label in categories:
             highs[key] = {
                 "label": label,
                 "value": max_vals[key],
-                "players": max_entries[key],
+                "players": [{k: v for k, v in e.items() if k in _display_fields} for e in max_entries[key]],
             }
 
         result = {"highs": highs, "season": season}
@@ -147,7 +147,9 @@ def get_triple_double_games(player_id: int):
         rows = data["resultSets"][0]["rowSet"]
 
         h = {k: i for i, k in enumerate(headers)}
-        player_name = ""
+        players_dict = load_players_dict()
+        player_row = players_dict.get(player_id) if players_dict else None
+        player_name = fix_encoding(player_row[1]) if player_row else ""
 
         games = []
         for row in rows:

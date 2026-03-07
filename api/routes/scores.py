@@ -1,11 +1,12 @@
 from concurrent.futures import as_completed
 
 from fastapi import APIRouter, HTTPException, Query
-from helpers.common import CACHE_TTL, STATS_PROXY, cache, executor
+from helpers.common import CACHE_TTL, STATS_PROXY, TEAMS, cache, executor
 from helpers.logger import log_exceptions
 from helpers.stats import (
     convert_et_to_cet,
     fetch_single_boxscore,
+    find_category_leaders,
     fix_encoding,
     get_cached_live_boxscore,
     get_cached_scoreboard,
@@ -54,7 +55,6 @@ def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
         futures = {
             executor.submit(fetch_single_boxscore, game_id, leaders_data): game_id
             for game_id, leaders_data in leaders_by_game.items()
-            if leaders_data
         }
         for future in as_completed(futures):
             result = future.result()
@@ -188,21 +188,12 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
 
         leaders = {}
         if all_players:
-            max_vals = {key: 0 for key, _ in categories}
-            max_players = {key: [] for key, _ in categories}
-            for p in all_players:
-                for key, _ in categories:
-                    val = p[key]
-                    if val > max_vals[key]:
-                        max_vals[key] = val
-                        max_players[key] = [{"name": p["name"], "team": p["team"]}]
-                    elif val == max_vals[key]: # pragma: no cover
-                        max_players[key].append({"name": p["name"], "team": p["team"]})
+            max_vals, max_entries = find_category_leaders(all_players, categories)
             for key, label in categories:
                 leaders[key] = {
                     "label": label,
                     "value": max_vals[key],
-                    "players": max_players[key],
+                    "players": [{"name": p["name"], "team": p["team"]} for p in max_entries[key]],
                 }
 
         result = {"leaders": leaders, "date": get_display_date(days_offset)}
@@ -246,7 +237,7 @@ def get_standings():
             team_data = {
                 "rank": team[7] or 0,
                 "name": f"{team[3]} {team[4]}" or "",
-                "tricode": (team[3] or "")[:3].upper(),  # TeamCity -> tricode
+                "tricode": (TEAMS.get(team[2]) or ("",))[0] or (team[3] or "")[:3].upper(),
                 "wins": team[12] or 0,
                 "losses": team[13] or 0,
                 "winPct": round(win_pct, 3) if win_pct else 0,
@@ -308,7 +299,7 @@ def get_playoff_picture():
             team_data = {
                 "rank": rank,
                 "name": f"{team[3]} {team[4]}",
-                "tricode": (team[3] or "")[:3].upper(),
+                "tricode": (TEAMS.get(team[2]) or ("",))[0] or (team[3] or "")[:3].upper(),
                 "wins": wins,
                 "losses": losses,
                 "winPct": round(win_pct, 3) if win_pct else 0,

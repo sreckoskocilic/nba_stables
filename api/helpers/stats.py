@@ -130,9 +130,32 @@ def get_cached_scoreboard_v3(days_offset: int = 1):
         game_date=target_date.strftime("%Y-%m-%d"),
         proxy=STATS_PROXY,
     )
-    ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["scoreboard"]
+    ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["scoreboard"]
     cache.set(cache_key, sb, ttl)
     return sb
+
+
+def find_category_leaders(items, categories):
+    """Track per-category max values across a list of player dicts.
+
+    items:      list of dicts, each containing numeric values for every category key
+                plus any extra fields (name, team, etc.) to carry into results
+    categories: list of (key, label) tuples
+
+    Returns (max_vals dict, max_entries dict) where max_entries values are
+    lists of the full item dicts that share the maximum value.
+    """
+    max_vals = {key: 0 for key, _ in categories}
+    max_entries = {key: [] for key, _ in categories}
+    for item in items:
+        for key, _ in categories:
+            val = item.get(key) or 0
+            if val > max_vals[key]:
+                max_vals[key] = val
+                max_entries[key] = [item]
+            elif val == max_vals[key] and val != 0:
+                max_entries[key].append(item)
+    return max_vals, max_entries
 
 
 def get_games_list(days_offset: int = 1):
