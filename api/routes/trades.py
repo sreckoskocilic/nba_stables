@@ -72,6 +72,6 @@ def get_trades():
         raise HTTPException(
             status_code=503, detail="Failed to fetch player movement data"
         )
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))

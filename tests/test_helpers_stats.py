@@ -577,3 +577,45 @@ class TestFetchSingleBoxscore:
         ):
             result = fetch_single_boxscore("0022300001", [])
         assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# _today_et / scoreboard_date
+# ---------------------------------------------------------------------------
+
+
+class TestTodayEt:
+    def test_returns_date_object(self):
+        from helpers.stats import _today_et
+
+        result = _today_et()
+        assert isinstance(result, date)
+
+
+class TestScoreboardDate:
+    def test_before_13_cet_returns_yesterday(self):
+        from helpers.stats import scoreboard_date, _TZ_CET
+
+        morning = real_datetime(2026, 3, 8, 10, 0, tzinfo=_TZ_CET)
+        with patch("helpers.stats.datetime") as mock_dt:
+            mock_dt.now.return_value = morning
+            result = scoreboard_date()
+        assert result == date(2026, 3, 7)
+
+    def test_after_13_cet_returns_today(self):
+        from helpers.stats import scoreboard_date, _TZ_CET
+
+        afternoon = real_datetime(2026, 3, 8, 14, 0, tzinfo=_TZ_CET)
+        with patch("helpers.stats.datetime") as mock_dt:
+            mock_dt.now.return_value = afternoon
+            result = scoreboard_date()
+        assert result == date(2026, 3, 8)
+
+    def test_exactly_13_cet_returns_today(self):
+        from helpers.stats import scoreboard_date, _TZ_CET
+
+        exact = real_datetime(2026, 3, 8, 13, 0, tzinfo=_TZ_CET)
+        with patch("helpers.stats.datetime") as mock_dt:
+            mock_dt.now.return_value = exact
+            result = scoreboard_date()
+        assert result == date(2026, 3, 8)

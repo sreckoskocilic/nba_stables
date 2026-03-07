@@ -52,7 +52,7 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
 
     cache_key = f"player_stats_{','.join(str(x) for x in sorted(players_ids))}"
     cached = cache.get(cache_key)
-    if cached:  # pragma: no cover
+    if cached:
         return cached
 
     try:
@@ -76,7 +76,8 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
         def fetch_player_boxscore(game_id):  # pragma: no cover
             try:
                 return get_cached_live_boxscore(game_id)
-            except Exception:
+            except Exception as ex:
+                log_exceptions(ex)
                 return None
 
         boxscores = list(executor.map(fetch_player_boxscore, relevant_game_ids))
@@ -155,7 +156,7 @@ def get_game_players(game_id: str):
     """Get all player stats for a specific game with advanced metrics"""
     cache_key = f"game_players_{game_id}"
     cached = cache.get(cache_key)
-    if cached:  # pragma: no cover
+    if cached:
         return cached
 
     try:
@@ -213,7 +214,10 @@ def get_game_players(game_id: str):
                     )
 
             # Sort by minutes played (descending)
-            team_data["players"].sort(key=lambda x: tuple(int(p) for p in x["minutes"].split(":")), reverse=True)
+            team_data["players"].sort(
+                key=lambda x: tuple(int(p) for p in x["minutes"].split(":")),
+                reverse=True,
+            )
             teams.append(team_data)
 
         game_status = bs["game"]["gameStatusText"]
@@ -222,7 +226,11 @@ def get_game_players(game_id: str):
             "status": game_status,
             "teams": teams,
         }
-        ttl = CACHE_TTL["historical"] if "Final" in game_status else CACHE_TTL["boxscores"]
+        ttl = (
+            CACHE_TTL["historical"]
+            if "Final" in game_status
+            else CACHE_TTL["boxscores"]
+        )
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
@@ -255,10 +263,13 @@ def get_last_n_games_stats(
         if game_rows_all is None:
             for attempt in range(2):
                 try:
-                    cc = cumestatsteamgames.CumeStatsTeamGames(team_id=team_id, proxy=STATS_PROXY)
+                    cc = cumestatsteamgames.CumeStatsTeamGames(
+                        team_id=team_id, proxy=STATS_PROXY
+                    )
                     game_rows_all = cc.cume_stats_team_games.get_dict()["data"]
                     break
-                except Exception: # pragma: no cover
+                except Exception as e:  # pragma: no cover
+                    log_exceptions(e)
                     if attempt == 1:
                         raise
             cache.set(raw_cache_key, game_rows_all, CACHE_TTL["historical"])

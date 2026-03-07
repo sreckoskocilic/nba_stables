@@ -1,8 +1,12 @@
+import logging
 import os
 import sys
 
 # Make `api/` importable from anywhere pytest is run
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
+
+# Suppress noisy error logs from intentional exception tests
+logging.getLogger("helpers.logger").setLevel(logging.CRITICAL)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared test constants
@@ -116,6 +120,113 @@ def make_live_boxscore(game_id=GAME_ID, status="Final"):
             },
         }
     }
+
+
+def make_scoreboard_v3(games=None):
+    """Build a mock ScoreboardV3 object from a list of live game dicts.
+
+    Translates make_live_game()-style dicts into the V3 data format
+    so tests can mock get_scoreboard_v3_by_date with familiar data.
+    """
+    from unittest.mock import MagicMock
+
+    if games is None:
+        games = []
+
+    header_data = []
+    line_score_data = []
+    leaders_data = []
+
+    for g in games:
+        gid = g["gameId"]
+        home = g["homeTeam"]
+        away = g["awayTeam"]
+        status_text = g.get("gameStatusText", "Final")
+        game_status = 3 if "Final" in status_text else (2 if "Q" in status_text else 1)
+        game_code = f"20260307/{away['teamTricode']}{home['teamTricode']}"
+        game_et = g.get("gameEt", "2026-03-07T19:00:00Z")
+
+        header_data.append(
+            [
+                gid,
+                game_code,
+                game_status,
+                status_text,
+                0,
+                "",
+                "2026-03-08T00:00:00Z",
+                game_et,
+                4,
+                "",
+                "",
+                "",
+                "",
+                False,
+                "",
+                "",
+                "",
+                False,
+            ]
+        )
+
+        line_score_data.append(
+            [
+                gid,
+                home["teamId"],
+                home["teamCity"],
+                home["teamName"],
+                home["teamTricode"],
+                home["teamName"].lower(),
+                0,
+                0,
+                home.get("score", 0),
+                0,
+                None,
+                0,
+            ]
+        )
+        line_score_data.append(
+            [
+                gid,
+                away["teamId"],
+                away["teamCity"],
+                away["teamName"],
+                away["teamTricode"],
+                away["teamName"].lower(),
+                0,
+                0,
+                away.get("score", 0),
+                0,
+                None,
+                0,
+            ]
+        )
+
+        for team_key in ("homeLeaders", "awayLeaders"):
+            leader = g["gameLeaders"][team_key]
+            tid = home["teamId"] if team_key == "homeLeaders" else away["teamId"]
+            leaders_data.append(
+                [
+                    gid,
+                    tid,
+                    0,
+                    0,
+                    leader.get("name", ""),
+                    0,
+                    0,
+                    0,
+                    0,
+                    leader.get("points", 0),
+                    leader.get("rebounds", 0),
+                    leader.get("assists", 0),
+                ]
+            )
+
+    sb = MagicMock()
+    sb.game_header.get_dict.return_value = {"data": header_data}
+    sb.line_score.get_dict.return_value = {"data": line_score_data}
+    sb.game_leaders.get_dict.return_value = {"data": leaders_data}
+    return sb
 
 
 def make_standings_row(rank, city, name, conf, wins, losses):

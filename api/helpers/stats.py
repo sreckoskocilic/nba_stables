@@ -22,8 +22,25 @@ _TZ_CET = ZoneInfo("Europe/Berlin")
 
 
 # Helper functions
+def _today_et() -> date:
+    """Return today's date in US/Eastern (NBA schedule timezone)."""
+    return datetime.now(_TZ_ET).date()
+
+
+def scoreboard_date() -> date:
+    """Return the NBA game date for the scoreboard.
+
+    Before 13:00 CET show yesterday's games (last night's results),
+    after 13:00 CET show today's upcoming games.
+    """
+    now_cet = datetime.now(_TZ_CET)
+    if now_cet.hour < 13:
+        return now_cet.date() - timedelta(days=1)
+    return now_cet.date()
+
+
 def _target_date(days_offset: int = 0) -> date:
-    return date.today() - timedelta(days=days_offset)
+    return _today_et() - timedelta(days=days_offset)
 
 
 def get_date_str(days_offset: int = 0) -> str:
@@ -35,7 +52,7 @@ def get_display_date(days_offset: int = 0) -> str:
 
 
 def get_current_season() -> str:
-    today = date.today()
+    today = _today_et()
     year = today.year if today.month >= 10 else today.year - 1
     return f"{year}-{str(year + 1)[-2:]}"
 
@@ -125,16 +142,22 @@ def get_cached_live_boxscore(game_id):  # pragma: no cover
 
 def get_cached_scoreboard_v3(days_offset: int = 1):
     """Return a cached ScoreboardV3 object for the given days_offset."""
-    cache_key = f"raw_scoreboard_v3_{days_offset}"
+    target_date = _today_et() - timedelta(days=days_offset)
+    return get_scoreboard_v3_by_date(target_date, historical=days_offset >= 1)
+
+
+def get_scoreboard_v3_by_date(game_date: date, historical: bool = False):
+    """Return a cached ScoreboardV3 object for a specific date."""
+    date_str = game_date.strftime("%Y-%m-%d")
+    cache_key = f"raw_scoreboard_v3_{date_str}"
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
-    target_date = date.today() - timedelta(days=days_offset)
     sb = scoreboardv3.ScoreboardV3(
-        game_date=target_date.strftime("%Y-%m-%d"),
+        game_date=date_str,
         proxy=STATS_PROXY,
     )
-    ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["scoreboard"]
+    ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["scoreboard"]
     cache.set(cache_key, sb, ttl)
     return sb
 
@@ -264,6 +287,7 @@ def fetch_single_boxscore(game_id, leaders_data):
             )
 
         return game_box
-    except Exception:
+    except Exception as ex:
         # Ignore exception as the game hasn't started yet (No response from boxscore endpoint for provided gameId)
+        log_exceptions(ex)
         return game_box

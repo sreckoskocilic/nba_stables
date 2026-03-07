@@ -3,6 +3,7 @@
 import json
 import os
 import tempfile
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,6 +15,7 @@ from conftest import (
     TEAM_ID_LAL,
     make_live_boxscore,
     make_live_game,
+    make_scoreboard_v3,
     make_standings_row,
 )
 from fastapi.testclient import TestClient
@@ -233,17 +235,29 @@ class TestInjuries:
 
 
 class TestScoreboard:
+    def _patch_sb(self, games=None):
+        """Return a context manager that mocks the scoreboard endpoint dependencies."""
+        from contextlib import ExitStack
+        from datetime import date
+
+        stack = ExitStack()
+        sb_v3 = make_scoreboard_v3(games or [])
+        stack.enter_context(
+            patch("routes.scores.get_scoreboard_v3_by_date", return_value=sb_v3)
+        )
+        stack.enter_context(
+            patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7))
+        )
+        return stack
+
     def test_empty_games(self, client):
-        with patch("routes.scores.get_cached_scoreboard", return_value=[]):
+        with self._patch_sb([]):
             r = client.get("/api/scoreboard")
         assert r.status_code == 200
         assert r.json()["games"] == []
 
     def test_game_shape(self, client):
-        with patch(
-            "routes.scores.get_cached_scoreboard",
-            return_value=[make_live_game(gameStatusText="Final")],
-        ):
+        with self._patch_sb([make_live_game(gameStatusText="Final")]):
             r = client.get("/api/scoreboard")
         g = r.json()["games"][0]
         assert g["homeTeam"]["tricode"] == "LAL"
@@ -251,31 +265,73 @@ class TestScoreboard:
         assert g["status"] == "Final"
 
     def test_et_time_converted(self, client):
-        with patch(
-            "routes.scores.get_cached_scoreboard",
-            return_value=[make_live_game(gameStatusText="7:30 pm ET")],
-        ):
+        with self._patch_sb([make_live_game(gameStatusText="7:30 pm ET")]):
             r = client.get("/api/scoreboard")
-        # "7:30 pm ET" should be converted; original format ends with " ET"
         assert not r.json()["games"][0]["status"].endswith(" ET")
 
     def test_has_date(self, client):
-        with patch("routes.scores.get_cached_scoreboard", return_value=[]):
+        with self._patch_sb([]):
             r = client.get("/api/scoreboard")
         assert "date" in r.json()
 
     def test_leader_stats_present(self, client):
-        with patch(
-            "routes.scores.get_cached_scoreboard",
-            return_value=[make_live_game(gameStatusText="Final")],
-        ):
+        with self._patch_sb([make_live_game(gameStatusText="Final")]):
             r = client.get("/api/scoreboard")
         home = r.json()["games"][0]["homeTeam"]
         assert home["leader"]["points"] == 28
         assert home["leader"]["rebounds"] == 8
 
+    def test_missing_line_score_fallback(self, client):
+        """Game in header but no matching line_score rows -> empty team fallback."""
+        sb = MagicMock()
+        # Header has one game, but line_score has no rows for it
+        sb.game_header.get_dict.return_value = {
+            "data": [
+                [
+                    GAME_ID,
+                    "20260307/BOSLAL",
+                    1,
+                    "7:00 pm ET",
+                    0,
+                    "",
+                    "2026-03-08T00:00:00Z",
+                    "2026-03-07T19:00:00Z",
+                    4,
+                    "",
+                    "",
+                    "",
+                    "",
+                    False,
+                    "",
+                    "",
+                    "",
+                    False,
+                ]
+            ]
+        }
+        sb.line_score.get_dict.return_value = {"data": []}
+        sb.game_leaders.get_dict.return_value = {"data": []}
+
+        with (
+            patch("routes.scores.get_scoreboard_v3_by_date", return_value=sb),
+            patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7)),
+        ):
+            r = client.get("/api/scoreboard")
+
+        g = r.json()["games"][0]
+        assert g["homeTeam"]["name"] == ""
+        assert g["homeTeam"]["score"] == 0
+        assert g["awayTeam"]["name"] == ""
+        assert g["awayTeam"]["score"] == 0
+
     def test_cached_on_second_call(self, client):
-        with patch("routes.scores.get_cached_scoreboard", return_value=[]) as mock:
+        with self._patch_sb([]) as stack:
+            mock = stack.enter_context(
+                patch(
+                    "routes.scores.get_scoreboard_v3_by_date",
+                    return_value=make_scoreboard_v3([]),
+                )
+            )
             client.get("/api/scoreboard")
             client.get("/api/scoreboard")
         mock.assert_called_once()

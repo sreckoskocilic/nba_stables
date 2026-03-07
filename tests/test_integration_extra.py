@@ -664,3 +664,248 @@ class TestTripleDoubleGames:
         with patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog([])):
             r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
         assert r.json()["games"] == []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Error handlers – scores.py routes (500 on exception)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestScoresErrorHandlers:
+    def _patch_sb(self):
+        from contextlib import ExitStack
+        from datetime import date
+
+        stack = ExitStack()
+        stack.enter_context(
+            patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7))
+        )
+        return stack
+
+    def test_scoreboard_500_on_error(self, client):
+        from datetime import date
+
+        with (
+            patch(
+                "routes.scores.get_scoreboard_v3_by_date", side_effect=Exception("boom")
+            ),
+            patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7)),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/scoreboard")
+        assert r.status_code == 500
+
+    def test_boxscores_500_on_error(self, client):
+        with (
+            patch(
+                "routes.scores.get_games_leaders_list", side_effect=Exception("boom")
+            ),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/boxscores?days_offset=1")
+        assert r.status_code == 500
+
+    def test_leaders_500_on_error(self, client):
+        with (
+            patch("routes.scores.get_games_list", side_effect=Exception("boom")),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/leaders?days_offset=1")
+        assert r.status_code == 500
+
+    def test_standings_500_on_error(self, client):
+        with (
+            patch(
+                "routes.scores.leaguestandings.LeagueStandings",
+                side_effect=Exception("boom"),
+            ),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/standings")
+        assert r.status_code == 500
+
+    def test_playoffs_500_on_error(self, client):
+        with (
+            patch(
+                "routes.scores.leaguestandings.LeagueStandings",
+                side_effect=Exception("boom"),
+            ),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/playoffs")
+        assert r.status_code == 500
+
+    def test_doubledoubles_500_on_error(self, client):
+        with (
+            patch("routes.scores.get_cached_scoreboard", side_effect=Exception("boom")),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/doubledoubles?days_offset=0")
+        assert r.status_code == 500
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cache hits that aren't yet tested
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestMoreCacheHits:
+    def test_doubledoubles_cached(self, client):
+        with patch("routes.scores.get_cached_scoreboard", return_value=[]) as mock:
+            client.get("/api/doubledoubles?days_offset=0")
+            client.get("/api/doubledoubles?days_offset=0")
+        mock.assert_called_once()
+
+    def test_player_stats_cached(self, client):
+        with (
+            patch(
+                "routes.players.load_players_dict",
+                return_value={p[0]: p for p in FAKE_PLAYERS},
+            ),
+            patch("routes.players.get_cached_scoreboard", return_value=[]) as mock,
+        ):
+            client.get(f"/api/players/stats?ids={PLAYER_ID}")
+            client.get(f"/api/players/stats?ids={PLAYER_ID}")
+        mock.assert_called_once()
+
+    def test_game_players_cached(self, client):
+        with patch(
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
+        ) as mock:
+            client.get(f"/api/games/{GAME_ID}/players")
+            client.get(f"/api/games/{GAME_ID}/players")
+        mock.assert_called_once()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Empty boxscore results in leaders/doubledoubles
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestEmptyBoxscoreResults:
+    def test_leaders_skips_empty_boxscore(self, client):
+        with (
+            patch("routes.scores.get_games_list", return_value=[GAME_ID]),
+            patch("routes.scores.get_cached_live_boxscore", return_value={}),
+        ):
+            r = client.get("/api/leaders?days_offset=1")
+        assert r.status_code == 200
+        assert r.json()["leaders"] == {}
+
+    def test_doubledoubles_skips_empty_boxscore(self, client):
+        with (
+            patch(
+                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
+            ),
+            patch("routes.scores.get_cached_live_boxscore", return_value={}),
+        ):
+            r = client.get("/api/doubledoubles?days_offset=0")
+        assert r.status_code == 200
+        assert r.json()["doubleDoubles"] == []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Inner exception handlers (fetch fails but endpoint continues)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestInnerExceptionHandlers:
+    def test_leaders_survives_boxscore_exception(self, client):
+        with (
+            patch("routes.scores.get_games_list", return_value=[GAME_ID]),
+            patch(
+                "routes.scores.get_cached_live_boxscore", side_effect=Exception("boom")
+            ),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/leaders?days_offset=1")
+        assert r.status_code == 200
+
+    def test_doubledoubles_survives_boxscore_exception(self, client):
+        with (
+            patch(
+                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
+            ),
+            patch(
+                "routes.scores.get_cached_live_boxscore", side_effect=Exception("boom")
+            ),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/doubledoubles?days_offset=0")
+        assert r.status_code == 200
+
+    def test_dates_survives_games_list_exception(self, client):
+        with (
+            patch("routes.scores.get_games_list", side_effect=Exception("boom")),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/dates")
+        assert r.status_code == 200
+        # All hasGames should be False when exception occurs
+        assert not any(r.json()["hasGames"])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Season and trades error handlers
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestSeasonErrorHandlers:
+    def test_season_highs_500_on_error(self, client):
+        with (
+            patch(
+                "routes.season.leaguegamelog.LeagueGameLog",
+                side_effect=Exception("boom"),
+            ),
+            patch("routes.season.log_exceptions"),
+        ):
+            r = client.get("/api/season/highs")
+        assert r.status_code == 500
+
+    def test_season_doubles_500_on_error(self, client):
+        with (
+            patch(
+                "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+                side_effect=Exception("boom"),
+            ),
+            patch("routes.season.log_exceptions"),
+        ):
+            r = client.get("/api/season/doubles")
+        assert r.status_code == 500
+
+    def test_triple_double_games_500_on_error(self, client):
+        with (
+            patch(
+                "routes.season.playergamelog.PlayerGameLog",
+                side_effect=Exception("boom"),
+            ),
+            patch("routes.season.log_exceptions"),
+        ):
+            r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
+        assert r.status_code == 500
+
+    def test_trades_500_on_unexpected_error(self, client):
+        with (
+            patch("routes.trades.requests.get", side_effect=TypeError("unexpected")),
+            patch("routes.trades.load_players_dict", return_value={}),
+            patch("routes.trades.log_exceptions"),
+        ):
+            r = client.get("/api/trades")
+        assert r.status_code == 500
+
+    def test_injuries_500_on_json_error(self, client):
+        import tempfile
+        import os
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            f.write("not json")
+            tmp = f.name
+        try:
+            with (
+                patch("routes.injuries.CBS_INJURIES_FILE", tmp),
+                patch("routes.injuries.log_exceptions"),
+            ):
+                r = client.get("/api/injuries")
+            assert r.status_code == 500
+        finally:
+            os.unlink(tmp)
