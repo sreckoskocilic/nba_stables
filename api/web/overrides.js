@@ -1,4 +1,19 @@
         (function () {
+            const _fetchWithAbort = typeof window._fetchWithAbort === 'function'
+                ? window._fetchWithAbort
+                : (function () {
+                    const controllers = {};
+                    return function (key, url, opts, timeout) {
+                        opts = opts || {};
+                        timeout = timeout || 15000;
+                        if (controllers[key]) controllers[key].abort();
+                        const ac = new AbortController();
+                        controllers[key] = ac;
+                        const timer = setTimeout(() => ac.abort(), timeout);
+                        return fetch(url, Object.assign({}, opts, { signal: ac.signal })).finally(() => clearTimeout(timer));
+                    };
+                })();
+
             const esc = (value) =>
                 String(value ?? "")
                     .replace(/&/g, "&amp;")
