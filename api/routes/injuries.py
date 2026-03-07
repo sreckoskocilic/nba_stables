@@ -26,6 +26,6 @@ def get_injuries():
             result = json.load(f)
         cache.set("injuries", result, CACHE_TTL["injuries"])
         return result
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))

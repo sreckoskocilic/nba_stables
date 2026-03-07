@@ -92,7 +92,7 @@
                                                                 : ""
                                                         }
                                                     </td>
-                                                    <td class="scoreboard-game-meta-label" colspan="2">Game ${startIndex + idx + 1}</td>
+                                                    <td class="scoreboard-game-meta-label" colspan="2">${game.gameEt ? new Date(game.gameEt).toLocaleDateString("en-US", {month: "long", day: "2-digit", year: "numeric"}) : ""}</td>
                                                 </tr>
                                                 <tr class="scoreboard-team-row${homeWinner ? " winner" : ""}">
                                                     <td class="scoreboard-team"><code>Home</code><span class="scoreboard-team-name">${homeName}</span></td>

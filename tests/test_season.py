@@ -129,8 +129,18 @@ class TestGetSeasonHighs:
 
     def test_all_categories_present(self, client):
         expected_keys = {
-            "points", "rebounds", "assists", "blocks", "steals",
-            "threePointers", "fgm", "ftm", "fta", "oreb", "dreb", "turnovers",
+            "points",
+            "rebounds",
+            "assists",
+            "blocks",
+            "steals",
+            "threePointers",
+            "fgm",
+            "ftm",
+            "fta",
+            "oreb",
+            "dreb",
+            "turnovers",
         }
         resp = self._call(client, [_highs_row(pts=30)])
         assert set(resp.json()["highs"].keys()) == expected_keys
@@ -143,12 +153,18 @@ class TestGetSeasonHighs:
         assert "players" in pts
 
     def test_points_high_correct_value(self, client):
-        rows = [_highs_row(name="Player A", pts=50), _highs_row(name="Player B", pts=40)]
+        rows = [
+            _highs_row(name="Player A", pts=50),
+            _highs_row(name="Player B", pts=40),
+        ]
         resp = self._call(client, rows)
         assert resp.json()["highs"]["points"]["value"] == 50
 
     def test_points_high_correct_player(self, client):
-        rows = [_highs_row(name="Player A", pts=50), _highs_row(name="Player B", pts=40)]
+        rows = [
+            _highs_row(name="Player A", pts=50),
+            _highs_row(name="Player B", pts=40),
+        ]
         resp = self._call(client, rows)
         players = resp.json()["highs"]["points"]["players"]
         assert len(players) == 1
@@ -166,7 +182,15 @@ class TestGetSeasonHighs:
         assert names == {"Player A", "Player B"}
 
     def test_player_entry_has_required_fields(self, client):
-        rows = [_highs_row(name="Player A", team="LAL", date="2024-01-15", matchup="LAL vs. BOS", pts=30)]
+        rows = [
+            _highs_row(
+                name="Player A",
+                team="LAL",
+                date="2024-01-15",
+                matchup="LAL vs. BOS",
+                pts=30,
+            )
+        ]
         resp = self._call(client, rows)
         player = resp.json()["highs"]["points"]["players"][0]
         assert player["name"] == "Player A"
@@ -210,7 +234,9 @@ class TestGetSeasonHighs:
         mock = _mock_gamelog([_highs_row(pts=30)])
         with (
             patch("routes.season.get_current_season", return_value="2024-25"),
-            patch("routes.season.leaguegamelog.LeagueGameLog", return_value=mock) as api_mock,
+            patch(
+                "routes.season.leaguegamelog.LeagueGameLog", return_value=mock
+            ) as api_mock,
         ):
             client.get("/api/season/highs")
             client.get("/api/season/highs")
@@ -266,7 +292,10 @@ def _mock_dash_stats(rows):
 class TestGetSeasonDoubles:
     def _call(self, client, rows):
         mock = _mock_dash_stats(rows)
-        with patch("routes.season.leaguedashplayerstats.LeagueDashPlayerStats", return_value=mock):
+        with patch(
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            return_value=mock,
+        ):
             return client.get("/api/season/doubles")
 
     def test_returns_200(self, client):
@@ -358,7 +387,8 @@ class TestGetSeasonDoubles:
     def test_cache_hit_skips_api_call(self, client):
         mock = _mock_dash_stats([])
         with patch(
-            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats", return_value=mock
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            return_value=mock,
         ) as api_mock:
             client.get("/api/season/doubles")
             client.get("/api/season/doubles")
@@ -372,7 +402,9 @@ class TestGetSeasonDoubles:
 TD_GAMES_HEADERS = ["GAME_DATE", "MATCHUP", "PTS", "REB", "AST", "STL", "BLK"]
 
 
-def _td_game_row(date="2024-01-15", matchup="LAL vs. BOS", pts=0, reb=0, ast=0, stl=0, blk=0):
+def _td_game_row(
+    date="2024-01-15", matchup="LAL vs. BOS", pts=0, reb=0, ast=0, stl=0, blk=0
+):
     h = {k: i for i, k in enumerate(TD_GAMES_HEADERS)}
     row = [None] * len(TD_GAMES_HEADERS)
     row[h["GAME_DATE"]] = date
@@ -447,7 +479,9 @@ class TestGetTripleDoubleGames:
         assert resp.json()["games"] == []
 
     def test_game_entry_has_required_fields(self, client):
-        row = _td_game_row(date="2024-02-01", matchup="LAL @ BOS", pts=12, reb=10, ast=10)
+        row = _td_game_row(
+            date="2024-02-01", matchup="LAL @ BOS", pts=12, reb=10, ast=10
+        )
         resp = self._call(client, [row])
         game = resp.json()["games"][0]
         assert game["date"] == "2024-02-01"
@@ -474,7 +508,9 @@ class TestGetTripleDoubleGames:
         mock = _mock_player_gamelog([])
         with (
             patch("routes.season.get_current_season", return_value="2024-25"),
-            patch("routes.season.playergamelog.PlayerGameLog", return_value=mock) as api_mock,
+            patch(
+                "routes.season.playergamelog.PlayerGameLog", return_value=mock
+            ) as api_mock,
         ):
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}")

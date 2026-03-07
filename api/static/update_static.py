@@ -2,6 +2,7 @@ import json
 import os
 from datetime import date, timedelta
 
+from helpers.logger import log_exceptions
 from nba_api.stats.endpoints import boxscoretraditionalv3, scoreboardv3
 
 PLAYERS_FILE = os.path.join(
@@ -18,8 +19,8 @@ def get_games_list(days_offset: int = 1):
         games = sb.game_header.get_dict()
         for g in games["data"]:
             g_set.add(g[0])
-    except Exception:
-        pass
+    except Exception as ex:
+        log_exceptions(ex)
     return list(g_set)
 
 
@@ -34,7 +35,8 @@ def update_players():
     for game in get_games_list(date_offset):
         try:
             bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(game_id=game)
-        except Exception:
+        except Exception as ex:
+            log_exceptions(ex)
             continue
 
         for player in bs_stats.player_stats.get_dict()["data"]:

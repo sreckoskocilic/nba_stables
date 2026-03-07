@@ -13,6 +13,8 @@ from helpers.stats import (
     get_display_date,
     get_games_leaders_list,
     get_games_list,
+    get_scoreboard_v3_by_date,
+    scoreboard_date,
 )
 from nba_api.stats.endpoints import leaguestandings
 
@@ -23,13 +25,14 @@ router = APIRouter()
 def get_date_labels():
     """Return display dates and game availability for day offsets 0-7"""
     cached = cache.get("dates")
-    if cached: # pragma: no cover
+    if cached:  # pragma: no cover
         return cached
 
     def _has_games(i):
         try:
             return len(get_games_list(i)) > 0
-        except Exception: # pragma: no cover
+        except Exception as ex:
+            log_exceptions(ex)
             return False
 
     has_games = list(executor.map(_has_games, range(8)))
@@ -66,70 +69,175 @@ def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
         ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["boxscores"]
         cache.set(cache_key, result, ttl)
         return result
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/api/scoreboard")
 def get_scoreboard():
-    """Get live scoreboard with game results and leading scorers"""
-    # Check cache first
+    """Get live scoreboard with game results and leading scorers.
+
+    Uses ScoreboardV3 to show today's scheduled games. Once any game has
+    started (gameStatus >= 2), switches to the live scoreboard API for
+    real-time scores and leaders.
+    """
     cached = cache.get("scoreboard")
-    if cached:  # pragma: no cover
+    if cached:
         return cached
 
     try:
-        games = []
-        for game in get_cached_scoreboard():
-            home_team = game["homeTeam"]
-            away_team = game["awayTeam"]
-            home_leaders = game["gameLeaders"]["homeLeaders"]
-            away_leaders = game["gameLeaders"]["awayLeaders"]
+        # Use CET-aware date: before 13:00 CET show last night's games,
+        # after 13:00 CET show today's upcoming games
+        sb_date = scoreboard_date()
+        sb = get_scoreboard_v3_by_date(sb_date)
+        header = sb.game_header.get_dict()
+        started_ids = {g[0] for g in header["data"] if g[2] >= 2}
 
-            status_text = game["gameStatusText"]
-            if "ET" in status_text:
-                status_text = convert_et_to_cet(status_text)
+        # Build scheduled games from V3
+        games = _scoreboard_from_v3(sb)
 
-            games.append(
-                {
-                    "gameId": game["gameId"],
-                    "status": status_text,
-                    "homeTeam": {
-                        "name": f"{home_team['teamCity']} {home_team['teamName']}",
-                        "tricode": home_team["teamTricode"],
-                        "score": home_team["score"],
-                        "leader": {
-                            "name": fix_encoding(home_leaders["name"])
-                            if home_leaders["name"]
-                            else "",
-                            "points": home_leaders["points"],
-                            "rebounds": home_leaders["rebounds"],
-                            "assists": home_leaders["assists"],
-                        },
-                    },
-                    "awayTeam": {
-                        "name": f"{away_team['teamCity']} {away_team['teamName']}",
-                        "tricode": away_team["teamTricode"],
-                        "score": away_team["score"],
-                        "leader": {
-                            "name": fix_encoding(away_leaders["name"])
-                            if away_leaders["name"]
-                            else "",
-                            "points": away_leaders["points"],
-                            "rebounds": away_leaders["rebounds"],
-                            "assists": away_leaders["assists"],
-                        },
-                    },
-                }
-            )
+        # Replace started/finished games with live data
+        if started_ids:
+            live_by_id = {g["gameId"]: g for g in _scoreboard_from_live()}
+            games = [
+                live_by_id.get(g["gameId"], g) if g["gameId"] in started_ids else g
+                for g in games
+            ]
 
-        result = {"games": games, "date": get_display_date(0)}
+        display_date = sb_date.strftime("%B %d, %Y")
+        result = {"games": games, "date": display_date}
         cache.set("scoreboard", result, CACHE_TTL["scoreboard"])
         return result
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _scoreboard_from_live():
+    """Build scoreboard game list from the live API (in-progress / finished games)."""
+    games = []
+    for game in get_cached_scoreboard():
+        home_team = game["homeTeam"]
+        away_team = game["awayTeam"]
+        home_leaders = game["gameLeaders"]["homeLeaders"]
+        away_leaders = game["gameLeaders"]["awayLeaders"]
+
+        status_text = game["gameStatusText"]
+        if "ET" in status_text:
+            status_text = convert_et_to_cet(status_text)
+
+        games.append(
+            {
+                "gameId": game["gameId"],
+                "status": status_text,
+                "gameEt": game.get("gameEt", ""),
+                "homeTeam": {
+                    "name": f"{home_team['teamCity']} {home_team['teamName']}",
+                    "tricode": home_team["teamTricode"],
+                    "score": home_team["score"],
+                    "leader": {
+                        "name": fix_encoding(home_leaders["name"])
+                        if home_leaders["name"]
+                        else "",
+                        "points": home_leaders["points"],
+                        "rebounds": home_leaders["rebounds"],
+                        "assists": home_leaders["assists"],
+                    },
+                },
+                "awayTeam": {
+                    "name": f"{away_team['teamCity']} {away_team['teamName']}",
+                    "tricode": away_team["teamTricode"],
+                    "score": away_team["score"],
+                    "leader": {
+                        "name": fix_encoding(away_leaders["name"])
+                        if away_leaders["name"]
+                        else "",
+                        "points": away_leaders["points"],
+                        "rebounds": away_leaders["rebounds"],
+                        "assists": away_leaders["assists"],
+                    },
+                },
+            }
+        )
+    return games
+
+
+def _scoreboard_from_v3(sb):
+    """Build scoreboard game list from ScoreboardV3 (scheduled / pre-game)."""
+    header = sb.game_header.get_dict()
+    line_score = sb.line_score.get_dict()
+
+    # Build team lookup from line_score: {(gameId, teamId): row}
+    team_rows = {}
+    for row in line_score["data"]:
+        team_rows[(row[0], row[1])] = row
+
+    # Build leaders lookup
+    leaders_data = sb.game_leaders.get_dict()
+    leaders_by = {}  # {(gameId, teamId): row}
+    for ld in leaders_data["data"]:
+        leaders_by[(ld[0], ld[1])] = ld
+
+    games = []
+    for g in header["data"]:
+        game_id = g[0]
+        game_code = g[1]  # e.g. "20260307/ORLMIN"
+        status_text = g[3]
+        if "ET" in status_text:
+            status_text = convert_et_to_cet(status_text)
+
+        # Parse teams from gameCode: away(3) + home(3)
+        teams_str = game_code.split("/")[1] if "/" in game_code else ""
+        away_tri = teams_str[:3]
+        home_tri = teams_str[3:]
+
+        home_row = away_row = None
+        home_team_id = away_team_id = None
+        for (gid, tid), row in team_rows.items():
+            if gid == game_id:
+                if row[4] == home_tri:
+                    home_row = row
+                    home_team_id = tid
+                elif row[4] == away_tri:
+                    away_row = row
+                    away_team_id = tid
+
+        def _build_team(row, team_id):
+            if not row:
+                return {
+                    "name": "",
+                    "tricode": "",
+                    "score": 0,
+                    "leader": {"name": "", "points": 0, "rebounds": 0, "assists": 0},
+                }
+            ld = leaders_by.get((game_id, team_id))
+            leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
+            if ld:
+                leader = {
+                    "name": fix_encoding(ld[4]) if ld[4] else "",
+                    "points": ld[9] or 0,
+                    "rebounds": ld[10] or 0,
+                    "assists": ld[11] or 0,
+                }
+            return {
+                "name": f"{row[2]} {row[3]}",
+                "tricode": row[4],
+                "score": row[8] or 0,
+                "leader": leader,
+            }
+
+        games.append(
+            {
+                "gameId": game_id,
+                "status": status_text,
+                "gameEt": g[7] or "",
+                "homeTeam": _build_team(home_row, home_team_id),
+                "awayTeam": _build_team(away_row, away_team_id),
+            }
+        )
+
+    return games
 
 
 @router.get("/api/leaders")
@@ -149,14 +257,14 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
         def fetch_leaders_boxscore(gid):
             try:
                 return get_cached_live_boxscore(gid)
-            except Exception as ex:  # pragma: no cover
+            except Exception as ex:
                 log_exceptions(ex)
                 return {}
 
         results = executor.map(fetch_leaders_boxscore, game_ids)
 
         for bs in results:
-            if not bs:  # pragma: no cover
+            if not bs:
                 continue
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
@@ -194,14 +302,16 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                 leaders[key] = {
                     "label": label,
                     "value": max_vals[key],
-                    "players": [{"name": p["name"], "team": p["team"]} for p in max_entries[key]],
+                    "players": [
+                        {"name": p["name"], "team": p["team"]} for p in max_entries[key]
+                    ],
                 }
 
         result = {"leaders": leaders, "date": get_display_date(days_offset)}
         ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["leaders"]
         cache.set(cache_key, result, ttl)
         return result
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -265,7 +375,7 @@ def get_standings():
         result = {"east": east, "west": west}
         cache.set("standings", result, CACHE_TTL["standings"])
         return result
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -302,12 +412,14 @@ def get_playoff_picture():
             else:
                 status = "out"
 
-            team_data.update({
-                "gamesRemaining": games_remaining,
-                "projectedWins": projected_wins,
-                "projectedLosses": projected_losses,
-                "status": status,
-            })
+            team_data.update(
+                {
+                    "gamesRemaining": games_remaining,
+                    "projectedWins": projected_wins,
+                    "projectedLosses": projected_losses,
+                    "status": status,
+                }
+            )
 
             if team[5] == "East":
                 east.append(team_data)
@@ -320,7 +432,7 @@ def get_playoff_picture():
         result = {"east": east, "west": west}
         cache.set("playoffs", result, CACHE_TTL["standings"])
         return result
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -330,7 +442,7 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
     """Get players with double-doubles or triple-doubles for a given day"""
     cache_key = f"doubledoubles_{days_offset}"
     cached = cache.get(cache_key)
-    if cached:  # pragma: no cover
+    if cached:
         return cached
 
     try:
@@ -346,14 +458,14 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
         def fetch_dd_boxscore(gid):
             try:
                 return get_cached_live_boxscore(gid)
-            except Exception as ex:  # pragma: no cover
+            except Exception as ex:
                 log_exceptions(ex)
                 return {}
 
         boxscore_results = list(executor.map(fetch_dd_boxscore, game_ids))
 
         for bs in boxscore_results:
-            if not bs:  # pragma: no cover
+            if not bs:
                 continue
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
@@ -405,6 +517,6 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
         ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["boxscores"]
         cache.set(cache_key, result, ttl)
         return result
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))

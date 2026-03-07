@@ -1,7 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from helpers.common import CACHE_TTL, STATS_PROXY, cache
 from helpers.logger import log_exceptions
-from helpers.stats import find_category_leaders, fix_encoding, get_current_season, load_players_dict
+from helpers.stats import (
+    find_category_leaders,
+    fix_encoding,
+    get_current_season,
+    load_players_dict,
+)
 from nba_api.stats.endpoints import leaguedashplayerstats, leaguegamelog, playergamelog
 
 router = APIRouter()
@@ -62,13 +67,16 @@ def get_season_highs():
             highs[key] = {
                 "label": label,
                 "value": max_vals[key],
-                "players": [{k: v for k, v in e.items() if k in _display_fields} for e in max_entries[key]],
+                "players": [
+                    {k: v for k, v in e.items() if k in _display_fields}
+                    for e in max_entries[key]
+                ],
             }
 
         result = {"highs": highs, "season": season}
         cache.set("season_highs", result, CACHE_TTL["season_leaders"])
         return result
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -117,7 +125,7 @@ def get_season_doubles():
         result = {"doubleDoubles": dd_list, "tripleDoubles": td_list}
         cache.set("season_doubles", result, CACHE_TTL["season_leaders"])
         return result
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -171,6 +179,6 @@ def get_triple_double_games(player_id: int):
         result = {"playerId": player_id, "playerName": player_name, "games": games}
         cache.set(cache_key, result, CACHE_TTL["season_leaders"])
         return result
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail=str(e))
