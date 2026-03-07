@@ -61,6 +61,7 @@ def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
             if result:
                 boxscores_list.append(result)
 
+        boxscores_list.sort(key=lambda x: x.get("gameId", ""))
         result = {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
         ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
         cache.set(cache_key, result, ttl)
@@ -216,6 +217,25 @@ def _fetch_standings_teams():
     return teams
 
 
+def _parse_team_row(team):
+    """Extract common fields from a raw LeagueStandings row."""
+    # Indices: 2=TeamID, 3=CityName, 4=TeamName, 7=PlayoffRank, 12=WINS, 13=LOSSES,
+    # 14=WinPCT, 19=L10, 36=strCurrentStreak, 37=ConferenceGamesBack
+    win_pct = team[14] if team[14] is not None else 0
+    team_info = TEAMS.get(team[2])
+    return {
+        "rank": team[7] or 0,
+        "name": f"{team[3]} {team[4]}",
+        "tricode": team_info[0] if team_info else (team[3] or "")[:3].upper(),
+        "wins": team[12] or 0,
+        "losses": team[13] or 0,
+        "winPct": round(win_pct, 3) if win_pct else 0,
+        "gamesBack": team[37] if team[37] is not None else "-",
+        "streak": team[36] or "-",
+        "last10": team[19] or "0-0",
+    }
+
+
 @router.get("/api/standings")
 def get_standings():
     """Get current NBA standings by conference"""
@@ -230,30 +250,15 @@ def get_standings():
         west = []
 
         for team in teams:
-            # Indices based on API headers:
-            # 4=TeamName, 5=Conference, 7=PlayoffRank, 12=WINS, 13=LOSSES,
-            # 14=WinPCT, 17=HOME, 18=ROAD, 19=L10, 36=strCurrentStreak, 37=ConferenceGamesBack
-            win_pct = team[14] if team[14] is not None else 0
-            team_data = {
-                "rank": team[7] or 0,
-                "name": f"{team[3]} {team[4]}" or "",
-                "tricode": (TEAMS.get(team[2]) or ("",))[0] or (team[3] or "")[:3].upper(),
-                "wins": team[12] or 0,
-                "losses": team[13] or 0,
-                "winPct": round(win_pct, 3) if win_pct else 0,
-                "gamesBack": team[37] if team[37] is not None else "-",
-                "streak": team[36] or "-",
-                "last10": team[19] or "0-0",
-                "homeRecord": team[17] or "0-0",
-                "awayRecord": team[18] or "0-0",
-            }
+            team_data = _parse_team_row(team)
+            team_data["homeRecord"] = team[17] or "0-0"
+            team_data["awayRecord"] = team[18] or "0-0"
 
             if team[5] == "East":
                 east.append(team_data)
             else:
                 west.append(team_data)
 
-        # Sort by rank
         east.sort(key=lambda x: x["rank"] or 99)
         west.sort(key=lambda x: x["rank"] or 99)
 
@@ -281,36 +286,28 @@ def get_playoff_picture():
 
         for team in teams:
             win_pct = team[14] if team[14] is not None else 0
-            wins = team[12] or 0
-            losses = team[13] or 0
-            rank = team[7] or 0
+            team_data = _parse_team_row(team)
+            wins = team_data["wins"]
+            losses = team_data["losses"]
+            rank = team_data["rank"]
             games_played = wins + losses
             games_remaining = max(0, TOTAL_GAMES - games_played)
             projected_wins = round(wins + games_remaining * win_pct)
             projected_losses = TOTAL_GAMES - projected_wins
 
-            if rank <= 6:
+            if 1 <= rank <= 6:
                 status = "in"
             elif rank <= 10:
                 status = "play-in"
             else:
                 status = "out"
 
-            team_data = {
-                "rank": rank,
-                "name": f"{team[3]} {team[4]}",
-                "tricode": (TEAMS.get(team[2]) or ("",))[0] or (team[3] or "")[:3].upper(),
-                "wins": wins,
-                "losses": losses,
-                "winPct": round(win_pct, 3) if win_pct else 0,
-                "gamesBack": team[37] if team[37] is not None else "-",
-                "streak": team[36] or "-",
-                "last10": team[19] or "0-0",
+            team_data.update({
                 "gamesRemaining": games_remaining,
                 "projectedWins": projected_wins,
                 "projectedLosses": projected_losses,
                 "status": status,
-            }
+            })
 
             if team[5] == "East":
                 east.append(team_data)

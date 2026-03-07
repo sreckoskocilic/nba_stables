@@ -115,7 +115,7 @@ def get_cached_live_boxscore(game_id):  # pragma: no cover
     if cached is not None:
         return cached
     data = live_boxscore.BoxScore(game_id=game_id).get_dict()
-    cache.set(cache_key, data, 60)
+    cache.set(cache_key, data, CACHE_TTL["boxscores"])
     return data
 
 
@@ -210,7 +210,7 @@ def get_cached_boxscore_v3(game_id):
         game_id=game_id,
         proxy=STATS_PROXY,
     )
-    cache.set(cache_key, bs_stats, 60)
+    cache.set(cache_key, bs_stats, CACHE_TTL["boxscores"])
     return bs_stats
 
 

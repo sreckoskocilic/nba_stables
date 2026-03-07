@@ -207,6 +207,7 @@ def get_game_players(game_id: str):
                             "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
                             "threePt": f"{tpm}/{stats['threePointersAttempted']}",
                             "ft": f"{ftm}/{fta}",
+                            "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
                         }
                     )
 
@@ -358,7 +359,7 @@ def get_player_season_avg(player_id: int):
             "ftPct": pct("FT_PCT"),
         }
 
-        cache.set(cache_key, result, CACHE_TTL["standings"])
+        cache.set(cache_key, result, CACHE_TTL["season_leaders"])
         return result
     except HTTPException:
         raise
