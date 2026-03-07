@@ -1833,9 +1833,9 @@
                                         <td>${_escHtml(g.matchup)}</td>
                                         <td>${g.minutes}</td>
                                         <td class="${statClass("points",g.points)}">${g.points}</td>
-                                        <td>${g.fg} (${pairPct(g.fg)})</td>
-                                        <td>${g.threePointers} (${pairPct(g.threePointers)})</td>
-                                        <td>${g.ft} (${pairPct(g.ft)})</td>
+                                        <td>${g.fg}</td>
+                                        <td>${g.threePointers}</td>
+                                        <td>${g.ft}</td>
                                         <td class="${statClass("rebounds",g.rebounds)}">${g.rebounds}</td>
                                         <td class="${statClass("assists",g.assists)}">${g.assists}</td>
                                         <td class="${statClass("blocks",g.blocks)}">${g.blocks}</td>
@@ -1861,7 +1861,7 @@
                                     <td style="color: var(--text-secondary);">${n.fouls}</td>
                                 </tr>`:""}
                                 <tr style="background: var(--bg-secondary); border-top: 1px solid var(--border);">
-                                    <td style="text-align: left; white-space: nowrap; color: var(--text-primary); font-weight: 600;">${played.length}G Avg</td>
+                                    <td style="text-align: left; white-space: nowrap; color: var(--text-primary); font-weight: 600;">Last ${played.length} Games Average</td>
                                     <td>${avgMinutes()}</td>
                                     <td class="highlight">${avgNum("points")}</td>
                                     <td>${avgPairPct("fg")}</td>
