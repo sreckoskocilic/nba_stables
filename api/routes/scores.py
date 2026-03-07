@@ -63,7 +63,7 @@ def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
 
         boxscores_list.sort(key=lambda x: x.get("gameId", ""))
         result = {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
-        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
+        ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["boxscores"]
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:  # pragma: no cover
@@ -198,7 +198,7 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                 }
 
         result = {"leaders": leaders, "date": get_display_date(days_offset)}
-        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["leaders"]
+        ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["leaders"]
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:  # pragma: no cover
@@ -402,7 +402,7 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
             "doubleDoubles": double_doubles,
             "date": get_display_date(days_offset),
         }
-        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
+        ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["boxscores"]
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:  # pragma: no cover

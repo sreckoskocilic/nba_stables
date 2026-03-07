@@ -115,7 +115,9 @@ def get_cached_live_boxscore(game_id):  # pragma: no cover
     if cached is not None:
         return cached
     data = live_boxscore.BoxScore(game_id=game_id).get_dict()
-    cache.set(cache_key, data, CACHE_TTL["boxscores"])
+    status = data.get("game", {}).get("gameStatusText", "")
+    ttl = CACHE_TTL["historical"] if "Final" in status else CACHE_TTL["boxscores"]
+    cache.set(cache_key, data, ttl)
     return data
 
 
@@ -130,7 +132,7 @@ def get_cached_scoreboard_v3(days_offset: int = 1):
         game_date=target_date.strftime("%Y-%m-%d"),
         proxy=STATS_PROXY,
     )
-    ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["scoreboard"]
+    ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["scoreboard"]
     cache.set(cache_key, sb, ttl)
     return sb
 

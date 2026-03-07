@@ -665,7 +665,7 @@ class TestLastNGames:
                 return_value=self._cumestats(),
             ),
             patch(
-                "routes.players.boxscoretraditionalv3.BoxScoreTraditionalV3",
+                "routes.players.get_cached_boxscore_v3",
                 return_value=self._trad_boxscore(),
             ),
         ):
@@ -699,7 +699,7 @@ class TestLastNGames:
                 return_value=self._cumestats(),
             ),
             patch(
-                "routes.players.boxscoretraditionalv3.BoxScoreTraditionalV3",
+                "routes.players.get_cached_boxscore_v3",
                 return_value=empty_bs,
             ),
         ):

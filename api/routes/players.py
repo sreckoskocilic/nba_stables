@@ -3,6 +3,7 @@ from helpers.common import CACHE_TTL, STATS_PROXY, cache, executor
 from helpers.logger import log_exceptions
 from helpers.stats import (
     fix_encoding,
+    get_cached_boxscore_v3,
     get_cached_live_boxscore,
     get_cached_scoreboard,
     load_players_dict,
@@ -11,7 +12,6 @@ from helpers.stats import (
 )
 from isodate import parse_duration
 from nba_api.stats.endpoints import (
-    boxscoretraditionalv3,
     cumestatsteamgames,
     playercareerstats,
 )
@@ -123,16 +123,17 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
                                 "team": team["teamTricode"],
                                 "minutes": minutes,
                                 "points": pts,
+                                "fg": f"{fgm}/{fga}",
+                                "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
                                 "threePointers": f"{tpm}/{stats['threePointersAttempted']}",
+                                "ft": f"{ftm}/{fta}",
+                                "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
                                 "rebounds": reb,
                                 "assists": ast,
                                 "blocks": blk,
                                 "steals": stl,
                                 "turnovers": tov,
-                                "fg": f"{fgm}/{fga}",
-                                "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
-                                "ft": f"{ftm}/{fta}",
-                                "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
+                                "fouls": stats["foulsPersonal"],
                                 "isDoubleDouble": double_digits >= 2,
                                 "isTripleDouble": double_digits >= 3,
                             }
@@ -254,9 +255,7 @@ def get_last_n_games_stats(
 
         def fetch_game_stats(gg):
             try:
-                csp = boxscoretraditionalv3.BoxScoreTraditionalV3(
-                    game_id=gg[1], proxy=STATS_PROXY
-                )
+                csp = get_cached_boxscore_v3(gg[1])
                 player_stats_dict = {
                     x[6]: x for x in csp.player_stats.get_dict()["data"]
                 }
