@@ -32,7 +32,7 @@
                     const hasLeader = (leader) => leader && leader.name && leader.name !== "null";
                     const leaderLine = (leader) => {
                         if (!hasLeader(leader)) return "-";
-                        return `${esc(leader.name)} ${esc(safeVal(leader.points))}/${esc(safeVal(leader.rebounds))}/${esc(safeVal(leader.assists))}`;
+                        return `${esc(leader.name)} ${esc(safeVal(leader.points))}|${esc(safeVal(leader.rebounds))}|${esc(safeVal(leader.assists))}`;
                     };
                     const toNum = (value) => {
                         const parsed = parseInt(value, 10);
@@ -45,7 +45,7 @@
                                     <tr>
                                         <th>Team</th>
                                         <th>Score</th>
-                                        <th>Leader (PTS/REB/AST)</th>
+                                        <th>Leader (PTS|REB|AST)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
