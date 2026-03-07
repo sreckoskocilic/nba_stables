@@ -253,8 +253,14 @@ def get_last_n_games_stats(
         raw_cache_key = f"team_games_raw_{team_id}"
         game_rows_all = cache.get(raw_cache_key)
         if game_rows_all is None:
-            cc = cumestatsteamgames.CumeStatsTeamGames(team_id=team_id, proxy=STATS_PROXY)
-            game_rows_all = cc.cume_stats_team_games.get_dict()["data"]
+            for attempt in range(2):
+                try:
+                    cc = cumestatsteamgames.CumeStatsTeamGames(team_id=team_id, proxy=STATS_PROXY)
+                    game_rows_all = cc.cume_stats_team_games.get_dict()["data"]
+                    break
+                except Exception: # pragma: no cover
+                    if attempt == 1:
+                        raise
             cache.set(raw_cache_key, game_rows_all, CACHE_TTL["historical"])
         game_rows = game_rows_all[:n]
 
