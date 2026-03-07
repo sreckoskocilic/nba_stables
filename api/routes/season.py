@@ -111,13 +111,8 @@ def get_season_doubles():
 
         dd_list.sort(key=lambda x: x["count"], reverse=True)
         td_list.sort(key=lambda x: x["count"], reverse=True)
-        dd_list = dd_list[:30]
-        td_list = td_list[:20]
-
-        for i, p in enumerate(dd_list):
-            p["rank"] = i + 1
-        for i, p in enumerate(td_list):
-            p["rank"] = i + 1
+        dd_list = [{**p, "rank": i + 1} for i, p in enumerate(dd_list[:30])]
+        td_list = [{**p, "rank": i + 1} for i, p in enumerate(td_list[:20])]
 
         result = {"doubleDoubles": dd_list, "tripleDoubles": td_list}
         cache.set("season_doubles", result, CACHE_TTL["season_leaders"])

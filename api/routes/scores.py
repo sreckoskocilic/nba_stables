@@ -285,8 +285,8 @@ def get_playoff_picture():
         west = []
 
         for team in teams:
-            win_pct = team[14] if team[14] is not None else 0
             team_data = _parse_team_row(team)
+            win_pct = team_data["winPct"]
             wins = team_data["wins"]
             losses = team_data["losses"]
             rank = team_data["rank"]

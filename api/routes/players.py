@@ -222,7 +222,7 @@ def get_game_players(game_id: str):
             "status": game_status,
             "teams": teams,
         }
-        ttl = CACHE_TTL["historical"] if "Final" in game_status else 60
+        ttl = CACHE_TTL["historical"] if "Final" in game_status else CACHE_TTL["boxscores"]
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
@@ -250,8 +250,13 @@ def get_last_n_games_stats(
         team_id = player[2]
         player_name = fix_encoding(player[1])
 
-        cc = cumestatsteamgames.CumeStatsTeamGames(team_id=team_id, proxy=STATS_PROXY)
-        game_rows = cc.cume_stats_team_games.get_dict()["data"][:n]
+        raw_cache_key = f"team_games_raw_{team_id}"
+        game_rows_all = cache.get(raw_cache_key)
+        if game_rows_all is None:
+            cc = cumestatsteamgames.CumeStatsTeamGames(team_id=team_id, proxy=STATS_PROXY)
+            game_rows_all = cc.cume_stats_team_games.get_dict()["data"]
+            cache.set(raw_cache_key, game_rows_all, CACHE_TTL["historical"])
+        game_rows = game_rows_all[:n]
 
         def fetch_game_stats(gg):
             try:

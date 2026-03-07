@@ -22,14 +22,16 @@ _TZ_CET = ZoneInfo("Europe/Berlin")
 
 
 # Helper functions
+def _target_date(days_offset: int = 0) -> date:
+    return date.today() - timedelta(days=days_offset)
+
+
 def get_date_str(days_offset: int = 0) -> str:
-    target_date = date.today() - timedelta(days=days_offset)
-    return target_date.strftime("%Y-%m-%d")
+    return _target_date(days_offset).strftime("%Y-%m-%d")
 
 
 def get_display_date(days_offset: int = 0) -> str:
-    target_date = date.today() - timedelta(days=days_offset)
-    return target_date.strftime("%B %d, %Y")
+    return _target_date(days_offset).strftime("%B %d, %Y")
 
 
 def get_current_season() -> str:
