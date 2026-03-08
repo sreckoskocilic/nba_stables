@@ -29,3 +29,5 @@ coverage/
 htmlcov/
 .nyc_output/
 *.cover
+
+secrets/
