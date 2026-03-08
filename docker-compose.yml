@@ -1,7 +1,7 @@
 x-nba-common: &nba-common
   build: .
   ports:
-    - "8000:8000"
+    - "127.0.0.1:8000:8000"
   restart: unless-stopped
   extra_hosts:
     - "host.docker.internal:host-gateway"
@@ -20,6 +20,7 @@ services:
     environment:
       - TZ=Europe/Berlin
       - STATS_PROXY=socks5h://host.docker.internal:40001
+      - CORS_ORIGINS=https://nbastables.com
     volumes:
       - type: bind
         source: /opt/nba_stables

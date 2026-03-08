@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from conftest import (
+    CAREER_HEADERS,
     FAKE_PLAYERS,
     GAME_ID,
     PLAYER_ID,
@@ -79,35 +80,6 @@ class TestCacheHits:
         mock.assert_called_once()
 
     def test_season_avg_served_from_cache(self, client):
-        CAREER_HEADERS = [
-            "PLAYER_ID",
-            "SEASON_ID",
-            "LEAGUE_ID",
-            "TEAM_ID",
-            "TEAM_ABBREVIATION",
-            "PLAYER_AGE",
-            "GP",
-            "GS",
-            "MIN",
-            "FGM",
-            "FGA",
-            "FG_PCT",
-            "FG3M",
-            "FG3A",
-            "FG3_PCT",
-            "FTM",
-            "FTA",
-            "FT_PCT",
-            "OREB",
-            "DREB",
-            "REB",
-            "AST",
-            "STL",
-            "BLK",
-            "TOV",
-            "PF",
-            "PTS",
-        ]
         h = {k: i for i, k in enumerate(CAREER_HEADERS)}
         row = [None] * len(CAREER_HEADERS)
         row[h["SEASON_ID"]] = "2024-25"
@@ -377,19 +349,34 @@ class TestDoubleDoubles:
             },
         }
 
+    def _patch_sb_today(self):
+        """Patch scoreboard_date to return today so days_offset=0 uses live scoreboard."""
+        from datetime import date
+
+        return patch("routes.scores.scoreboard_date", return_value=date.today())
+
     def test_returns_200(self, client):
-        with patch("routes.scores.get_cached_scoreboard", return_value=[]):
+        with (
+            self._patch_sb_today(),
+            patch("routes.scores.get_cached_scoreboard", return_value=[]),
+        ):
             r = client.get("/api/doubledoubles")
         assert r.status_code == 200
 
     def test_response_shape(self, client):
-        with patch("routes.scores.get_cached_scoreboard", return_value=[]):
+        with (
+            self._patch_sb_today(),
+            patch("routes.scores.get_cached_scoreboard", return_value=[]),
+        ):
             r = client.get("/api/doubledoubles")
         for key in ("doubleDoubles", "tripleDoubles", "date"):
             assert key in r.json()
 
     def test_no_games_returns_empty(self, client):
-        with patch("routes.scores.get_cached_scoreboard", return_value=[]):
+        with (
+            self._patch_sb_today(),
+            patch("routes.scores.get_cached_scoreboard", return_value=[]),
+        ):
             r = client.get("/api/doubledoubles")
         assert r.json()["doubleDoubles"] == []
         assert r.json()["tripleDoubles"] == []
@@ -400,6 +387,7 @@ class TestDoubleDoubles:
             [],
         )
         with (
+            self._patch_sb_today(),
             patch(
                 "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
             ),
@@ -415,6 +403,7 @@ class TestDoubleDoubles:
             [],
         )
         with (
+            self._patch_sb_today(),
             patch(
                 "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
             ),
@@ -430,8 +419,54 @@ class TestDoubleDoubles:
         assert r.status_code == 200
         mock.assert_called_once_with(1)
 
+    def test_morning_cet_uses_games_list(self, client):
+        """Before 13:00 CET, days_offset=0 falls back to games_list with ET offset."""
+        from datetime import date, timedelta
+
+        yesterday = date.today() - timedelta(days=1)
+        with (
+            patch("routes.scores.scoreboard_date", return_value=yesterday),
+            patch("routes.scores.get_games_list", return_value=[]) as mock,
+        ):
+            r = client.get("/api/doubledoubles?days_offset=0")
+        assert r.status_code == 200
+        mock.assert_called_once()
+
+    def test_boxscore_fetch_error_skipped(self, client):
+        """Boxscore fetch errors are logged and skipped gracefully."""
+        with (
+            self._patch_sb_today(),
+            patch(
+                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
+            ),
+            patch(
+                "routes.scores.get_cached_live_boxscore",
+                side_effect=Exception("timeout"),
+            ),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/doubledoubles?days_offset=0")
+        assert r.status_code == 200
+        assert r.json()["doubleDoubles"] == []
+
+    def test_empty_boxscore_skipped(self, client):
+        """Empty boxscore dict is skipped without error."""
+        with (
+            self._patch_sb_today(),
+            patch(
+                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
+            ),
+            patch("routes.scores.get_cached_live_boxscore", return_value={}),
+        ):
+            r = client.get("/api/doubledoubles?days_offset=0")
+        assert r.status_code == 200
+        assert r.json()["doubleDoubles"] == []
+
     def test_live_offset_uses_scoreboard(self, client):
-        with patch("routes.scores.get_cached_scoreboard", return_value=[]) as mock:
+        with (
+            self._patch_sb_today(),
+            patch("routes.scores.get_cached_scoreboard", return_value=[]) as mock,
+        ):
             r = client.get("/api/doubledoubles?days_offset=0")
         assert r.status_code == 200
         mock.assert_called_once()
@@ -736,7 +771,10 @@ class TestScoresErrorHandlers:
         assert r.status_code == 500
 
     def test_doubledoubles_500_on_error(self, client):
+        from datetime import date
+
         with (
+            patch("routes.scores.scoreboard_date", return_value=date.today()),
             patch("routes.scores.get_cached_scoreboard", side_effect=Exception("boom")),
             patch("routes.scores.log_exceptions"),
         ):
@@ -751,7 +789,12 @@ class TestScoresErrorHandlers:
 
 class TestMoreCacheHits:
     def test_doubledoubles_cached(self, client):
-        with patch("routes.scores.get_cached_scoreboard", return_value=[]) as mock:
+        from datetime import date
+
+        with (
+            patch("routes.scores.scoreboard_date", return_value=date.today()),
+            patch("routes.scores.get_cached_scoreboard", return_value=[]) as mock,
+        ):
             client.get("/api/doubledoubles?days_offset=0")
             client.get("/api/doubledoubles?days_offset=0")
         mock.assert_called_once()

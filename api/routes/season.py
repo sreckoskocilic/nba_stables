@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException
-from helpers.common import CACHE_TTL, STATS_PROXY, cache
+import asyncio
+
+from fastapi import APIRouter, HTTPException, Path
+from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache
 from helpers.logger import log_exceptions
 from helpers.stats import (
     find_category_leaders,
@@ -13,18 +15,19 @@ router = APIRouter()
 
 
 @router.get("/api/season/highs")
-def get_season_highs():
+async def get_season_highs():
     """Get season single-game highs for each statistical category"""
     cached = cache.get("season_highs")
     if cached:
         return cached
 
-    try:
+    def _sync():
         season = get_current_season()
         log = leaguegamelog.LeagueGameLog(
             season=season,
             player_or_team_abbreviation="P",
             proxy=STATS_PROXY,
+            timeout=STATS_TIMEOUT,
         )
         data = log.get_dict()
         headers = data["resultSets"][0]["headers"]
@@ -73,25 +76,29 @@ def get_season_highs():
                 ],
             }
 
-        result = {"highs": highs, "season": season}
+        return {"highs": highs, "season": season}
+
+    try:
+        result = await asyncio.to_thread(_sync)
         cache.set("season_highs", result, CACHE_TTL["season_leaders"])
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch season highs")
 
 
 @router.get("/api/season/doubles")
-def get_season_doubles():
+async def get_season_doubles():
     """Get top 10 players by double-doubles and triple-doubles this season"""
     cached = cache.get("season_doubles")
     if cached:
         return cached
 
-    try:
+    def _sync():
         stats = leaguedashplayerstats.LeagueDashPlayerStats(
             per_mode_detailed="Totals",
             proxy=STATS_PROXY,
+            timeout=STATS_TIMEOUT,
         )
         data = stats.get_dict()
         headers = data["resultSets"][0]["headers"]
@@ -122,28 +129,32 @@ def get_season_doubles():
         dd_list = [{**p, "rank": i + 1} for i, p in enumerate(dd_list[:30])]
         td_list = [{**p, "rank": i + 1} for i, p in enumerate(td_list[:20])]
 
-        result = {"doubleDoubles": dd_list, "tripleDoubles": td_list}
+        return {"doubleDoubles": dd_list, "tripleDoubles": td_list}
+
+    try:
+        result = await asyncio.to_thread(_sync)
         cache.set("season_doubles", result, CACHE_TTL["season_leaders"])
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch season doubles")
 
 
 @router.get("/api/season/triple-double-games/{player_id}")
-def get_triple_double_games(player_id: int):
+async def get_triple_double_games(player_id: int = Path(..., gt=0)):
     """Get individual triple-double games for a player this season"""
     cache_key = f"td_games_{player_id}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
-    try:
+    def _sync():
         season = get_current_season()
         log = playergamelog.PlayerGameLog(
             player_id=player_id,
             season=season,
             proxy=STATS_PROXY,
+            timeout=STATS_TIMEOUT,
         )
         data = log.get_dict()
         headers = data["resultSets"][0]["headers"]
@@ -176,9 +187,14 @@ def get_triple_double_games(player_id: int):
                     }
                 )
 
-        result = {"playerId": player_id, "playerName": player_name, "games": games}
+        return {"playerId": player_id, "playerName": player_name, "games": games}
+
+    try:
+        result = await asyncio.to_thread(_sync)
         cache.set(cache_key, result, CACHE_TTL["season_leaders"])
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch triple-double games"
+        )

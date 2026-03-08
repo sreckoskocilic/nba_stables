@@ -22,6 +22,36 @@ FAKE_PLAYERS = [
     [1629029, "Jayson Tatum", TEAM_ID_BOS],
 ]
 
+CAREER_HEADERS = [
+    "PLAYER_ID",
+    "SEASON_ID",
+    "LEAGUE_ID",
+    "TEAM_ID",
+    "TEAM_ABBREVIATION",
+    "PLAYER_AGE",
+    "GP",
+    "GS",
+    "MIN",
+    "FGM",
+    "FGA",
+    "FG_PCT",
+    "FG3M",
+    "FG3A",
+    "FG3_PCT",
+    "FTM",
+    "FTA",
+    "FT_PCT",
+    "OREB",
+    "DREB",
+    "REB",
+    "AST",
+    "STL",
+    "BLK",
+    "TOV",
+    "PF",
+    "PTS",
+]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared mock data builders
@@ -229,8 +259,9 @@ def make_scoreboard_v3(games=None):
     return sb
 
 
-def make_standings_row(rank, city, name, conf, wins, losses):
+def make_standings_row(rank, city, name, conf, wins, losses, team_id=1610612738):
     row = [None] * 40
+    row[2] = team_id
     row[3] = city
     row[4] = name
     row[5] = conf

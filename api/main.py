@@ -3,8 +3,10 @@ NBA Stables REST API
 FastAPI backend for live NBA statistics
 """
 
+import logging
 import logging.config
 import os
+from contextlib import asynccontextmanager
 
 import uvicorn
 import yaml
@@ -12,6 +14,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+import helpers.common as _common
 from helpers.stats import get_display_date
 from routes.injuries import router as injuries_router
 from routes.players import router as players_router
@@ -20,6 +23,15 @@ from routes.season import router as season_router
 from routes.trades import router as trades_router
 from starlette.middleware.gzip import GZipMiddleware
 
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    _common.cache.clear()
+
+
 app = FastAPI(
     title="NBA Stables API",
     description="Live NBA statistics API",
@@ -27,18 +39,21 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
+    lifespan=lifespan,
 )
 
 # Enable CORS for frontend
+_cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
+if _cors_origins == ["*"]:
+    logger.warning("CORS_ORIGINS not set — falling back to allow-all wildcard (*)")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 app.include_router(router)
 app.include_router(players_router)
 app.include_router(trades_router)
@@ -48,17 +63,24 @@ app.include_router(season_router)
 LOG_CONFIG_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "log_config.yml"
 )
-with open(LOG_CONFIG_FILE, "r") as f:
-    logging.config.dictConfig(yaml.safe_load(f.read()))
-
-if not os.path.exists("../logs"):  # pragma: no cover
-    os.makedirs("../logs")
+try:
+    with open(LOG_CONFIG_FILE, "r") as f:
+        logging.config.dictConfig(yaml.safe_load(f.read()))
+except OSError:  # pragma: no cover
+    logging.basicConfig(level=logging.WARNING)
 
 
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "date": get_display_date(0)}
+    test_key = "_health_probe"
+    _common.cache.set(test_key, True, 5)
+    cache_ok = _common.cache.get(test_key) is True
+    return {
+        "status": "healthy" if cache_ok else "degraded",
+        "date": get_display_date(0),
+        "cache_ok": cache_ok,
+    }
 
 
 # Serve web files

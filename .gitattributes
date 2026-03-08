@@ -1,0 +1,35 @@
+# Auto detect text files and ensure LF line endings
+* text=auto eol=lf
+
+# Python
+*.py text diff=python
+*.pyi text diff=python
+
+# Web
+*.html text diff=html
+*.css text
+*.js text
+*.json text
+*.xml text
+
+# Config
+*.yml text
+*.yaml text
+*.toml text
+*.cfg text
+*.ini text
+*.txt text
+Dockerfile text
+Caddyfile text
+
+# Images (binary)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+
+# Archives (binary)
+*.gz binary
+*.zip binary

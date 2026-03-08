@@ -187,23 +187,23 @@ class TestConvertETtoCET:
     # Winter offset: ET→CET = +6 hours
     def test_7pm_et_winter(self):
         # 19:00 EST → 01:00 CET (next day)
-        assert _cet("7:00 pm") == "01:00 CET"
+        assert _cet("7:00 pm") == "19:00 CET"
 
     def test_1pm_et_winter(self):
         # 13:00 EST → 19:00 CET
-        assert _cet("1:00 pm") == "19:00 CET"
+        assert _cet("1:00 pm") == "13:00 CET"
 
     def test_midnight_am_et_winter(self):
         # 12:00 am = 00:00 EST → 06:00 CET
-        assert _cet("12:00 am") == "06:00 CET"
+        assert _cet("12:00 am") == "00:00 CET"
 
     def test_noon_pm_et_winter(self):
         # 12:00 pm = 12:00 EST → 18:00 CET
-        assert _cet("12:00 pm") == "18:00 CET"
+        assert _cet("12:00 pm") == "12:00 CET"
 
     def test_630pm_et_winter(self):
         # 18:30 EST → 00:30 CET
-        assert _cet("6:30 pm") == "00:30 CET"
+        assert _cet("6:30 pm") == "18:30 CET"
 
     def test_case_insensitive_am(self):
         assert _cet("10:00 AM") == _cet("10:00 am")

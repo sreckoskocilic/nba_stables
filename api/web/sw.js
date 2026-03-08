@@ -23,18 +23,20 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch - network first, cache fallback for static assets
+// Fetch - network first, cache fallback for shell assets only
 self.addEventListener('fetch', (event) => {
   // Skip API calls - always fetch fresh
   if (event.request.url.includes('/api/')) {
     return;
   }
 
+  const isShellAsset = SHELL_ASSETS.some((asset) => event.request.url.endsWith(asset));
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache successful responses for shell assets
-        if (response.ok && event.request.method === 'GET') {
+        // Only cache shell assets, not arbitrary GETs
+        if (response.ok && isShellAsset) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }

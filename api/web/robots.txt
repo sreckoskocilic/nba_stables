@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://nba-stables.onrender.com/sitemap.xml
+Sitemap: https://nbastables.com/sitemap.xml
