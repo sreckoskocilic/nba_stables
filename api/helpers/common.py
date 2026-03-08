@@ -1,4 +1,5 @@
 # Cache TTLs (in seconds)
+import atexit
 import os
 import threading
 import time
@@ -34,6 +35,10 @@ class SimpleCache:
                 if time.time() < entry["expires"]:
                     return entry["data"]
                 del self._cache[key]
+            self._call_count += 1
+            if self._call_count >= self._EVICT_EVERY:
+                self._evict_expired()
+                self._call_count = 0
             return None
 
     def set(self, key: str, data: Any, ttl_seconds: int):
@@ -55,10 +60,18 @@ class SimpleCache:
             self._cache.clear()
 
 
+# Named constants
+DAYS_OFFSET_MIN = 0
+DAYS_OFFSET_MAX = 7
+SEASON_CUTOFF_MONTH = 10
+SEASON_CUTOFF_DAY = 15
+
 # Shared singleton instances
 cache = SimpleCache()
 executor = ThreadPoolExecutor(max_workers=10)
+atexit.register(executor.shutdown, wait=False)
 STATS_PROXY = os.environ.get("STATS_PROXY", None)
+STATS_TIMEOUT = int(os.environ.get("STATS_TIMEOUT", "30"))
 
 # NBA team ID → (tricode, full name)
 TEAMS = {

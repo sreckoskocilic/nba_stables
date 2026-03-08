@@ -1,7 +1,8 @@
+import asyncio
 from concurrent.futures import as_completed
 
 from fastapi import APIRouter, HTTPException, Query
-from helpers.common import CACHE_TTL, STATS_PROXY, TEAMS, cache, executor
+from helpers.common import CACHE_TTL, DAYS_OFFSET_MAX, DAYS_OFFSET_MIN, STATS_PROXY, STATS_TIMEOUT, TEAMS, cache, executor
 from helpers.logger import log_exceptions
 from helpers.stats import (
     convert_et_to_cet,
@@ -22,38 +23,38 @@ router = APIRouter()
 
 
 @router.get("/api/dates")
-def get_date_labels():
+async def get_date_labels():
     """Return display dates and game availability for day offsets 0-7"""
     cached = cache.get("dates")
     if cached:  # pragma: no cover
         return cached
 
-    def _has_games(i):
-        try:
-            return len(get_games_list(i)) > 0
-        except Exception as ex:
-            log_exceptions(ex)
-            return False
+    def _sync():
+        def _has_games(i):
+            try:
+                return len(get_games_list(i)) > 0
+            except Exception as ex:
+                log_exceptions(ex)
+                return False
 
-    has_games = list(executor.map(_has_games, range(8)))
-    result = {"dates": [get_display_date(i) for i in range(8)], "hasGames": has_games}
+        has_games = list(executor.map(_has_games, range(8)))
+        return {"dates": [get_display_date(i) for i in range(8)], "hasGames": has_games}
+
+    result = await asyncio.to_thread(_sync)
     cache.set("dates", result, CACHE_TTL["leaders"])
     return result
 
 
 @router.get("/api/boxscores")
-def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
+async def get_boxscores(days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX)):
     """Get detailed box scores for games"""
     cache_key = f"boxscores_{days_offset}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
-    try:
-        # Use the helper function to get games with leaders
+    def _sync():
         leaders_by_game = get_games_leaders_list(days_offset)
-
-        # Fetch all boxscores in parallel
         boxscores_list = []
         futures = {
             executor.submit(fetch_single_boxscore, game_id, leaders_data): game_id
@@ -63,19 +64,21 @@ def get_boxscores(days_offset: int = Query(default=1, ge=0, le=7)):
             result = future.result()
             if result:
                 boxscores_list.append(result)
-
         boxscores_list.sort(key=lambda x: x.get("gameId", ""))
-        result = {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
-        ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["boxscores"]
+        return {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
+
+    try:
+        result = await asyncio.to_thread(_sync)
+        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch boxscores")
 
 
 @router.get("/api/scoreboard")
-def get_scoreboard():
+async def get_scoreboard():
     """Get live scoreboard with game results and leading scorers.
 
     Uses ScoreboardV3 to show today's scheduled games. Once any game has
@@ -86,32 +89,28 @@ def get_scoreboard():
     if cached:
         return cached
 
-    try:
-        # Use CET-aware date: before 13:00 CET show last night's games,
-        # after 13:00 CET show today's upcoming games
+    def _sync():
         sb_date = scoreboard_date()
         sb = get_scoreboard_v3_by_date(sb_date)
         header = sb.game_header.get_dict()
         started_ids = {g[0] for g in header["data"] if g[2] >= 2}
-
-        # Build scheduled games from V3
         games = _scoreboard_from_v3(sb)
-
-        # Replace started/finished games with live data
         if started_ids:
             live_by_id = {g["gameId"]: g for g in _scoreboard_from_live()}
             games = [
                 live_by_id.get(g["gameId"], g) if g["gameId"] in started_ids else g
                 for g in games
             ]
-
         display_date = sb_date.strftime("%B %d, %Y")
-        result = {"games": games, "date": display_date}
+        return {"games": games, "date": display_date}
+
+    try:
+        result = await asyncio.to_thread(_sync)
         cache.set("scoreboard", result, CACHE_TTL["scoreboard"])
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch scoreboard")
 
 
 def _scoreboard_from_live():
@@ -163,6 +162,32 @@ def _scoreboard_from_live():
     return games
 
 
+def _build_team(row, team_id, game_id, leaders_by):
+    """Build a team dict for the scoreboard from a V3 line_score row."""
+    if not row:
+        return {
+            "name": "",
+            "tricode": "",
+            "score": 0,
+            "leader": {"name": "", "points": 0, "rebounds": 0, "assists": 0},
+        }
+    ld = leaders_by.get((game_id, team_id))
+    leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
+    if ld:
+        leader = {
+            "name": fix_encoding(ld[4]) if ld[4] else "",
+            "points": ld[9] or 0,
+            "rebounds": ld[10] or 0,
+            "assists": ld[11] or 0,
+        }
+    return {
+        "name": f"{row[2]} {row[3]}",
+        "tricode": row[4],
+        "score": row[8] or 0,
+        "leader": leader,
+    }
+
+
 def _scoreboard_from_v3(sb):
     """Build scoreboard game list from ScoreboardV3 (scheduled / pre-game)."""
     header = sb.game_header.get_dict()
@@ -192,48 +217,22 @@ def _scoreboard_from_v3(sb):
         away_tri = teams_str[:3]
         home_tri = teams_str[3:]
 
-        home_row = away_row = None
-        home_team_id = away_team_id = None
-        for (gid, tid), row in team_rows.items():
-            if gid == game_id:
-                if row[4] == home_tri:
-                    home_row = row
-                    home_team_id = tid
-                elif row[4] == away_tri:
-                    away_row = row
-                    away_team_id = tid
-
-        def _build_team(row, team_id):
-            if not row:
-                return {
-                    "name": "",
-                    "tricode": "",
-                    "score": 0,
-                    "leader": {"name": "", "points": 0, "rebounds": 0, "assists": 0},
-                }
-            ld = leaders_by.get((game_id, team_id))
-            leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
-            if ld:
-                leader = {
-                    "name": fix_encoding(ld[4]) if ld[4] else "",
-                    "points": ld[9] or 0,
-                    "rebounds": ld[10] or 0,
-                    "assists": ld[11] or 0,
-                }
-            return {
-                "name": f"{row[2]} {row[3]}",
-                "tricode": row[4],
-                "score": row[8] or 0,
-                "leader": leader,
-            }
+        # Build tricode→(row, team_id) lookup for this game
+        game_teams = {
+            row[4]: (row, tid)
+            for (gid, tid), row in team_rows.items()
+            if gid == game_id
+        }
+        home_row, home_team_id = game_teams.get(home_tri, (None, None))
+        away_row, away_team_id = game_teams.get(away_tri, (None, None))
 
         games.append(
             {
                 "gameId": game_id,
                 "status": status_text,
                 "gameEt": g[7] or "",
-                "homeTeam": _build_team(home_row, home_team_id),
-                "awayTeam": _build_team(away_row, away_team_id),
+                "homeTeam": _build_team(home_row, home_team_id, game_id, leaders_by),
+                "awayTeam": _build_team(away_row, away_team_id, game_id, leaders_by),
             }
         )
 
@@ -241,17 +240,15 @@ def _scoreboard_from_v3(sb):
 
 
 @router.get("/api/leaders")
-def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
+async def get_daily_leaders(days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX)):
     """Get daily leaders across statistical categories"""
     cache_key = f"leaders_{days_offset}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
-    try:
-        # Get game IDs using helper function
+    def _sync():
         game_ids = get_games_list(days_offset)
-
         all_players = []
 
         def fetch_leaders_boxscore(gid):
@@ -262,14 +259,12 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                 return {}
 
         results = executor.map(fetch_leaders_boxscore, game_ids)
-
         for bs in results:
             if not bs:
                 continue
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
                 tricode = team["teamTricode"]
-
                 for player in team["players"]:
                     if player["status"] == "ACTIVE":
                         stats = player["statistics"]
@@ -294,7 +289,6 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
             ("steals", "Steals"),
             ("threePointers", "3-Pointers"),
         ]
-
         leaders = {}
         if all_players:
             max_vals, max_entries = find_category_leaders(all_players, categories)
@@ -306,14 +300,16 @@ def get_daily_leaders(days_offset: int = Query(default=1, ge=0, le=7)):
                         {"name": p["name"], "team": p["team"]} for p in max_entries[key]
                     ],
                 }
+        return {"leaders": leaders, "date": get_display_date(days_offset)}
 
-        result = {"leaders": leaders, "date": get_display_date(days_offset)}
-        ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["leaders"]
+    try:
+        result = await asyncio.to_thread(_sync)
+        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["leaders"]
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch daily leaders")
 
 
 def _fetch_standings_teams():
@@ -321,7 +317,7 @@ def _fetch_standings_teams():
     cached = cache.get("raw_standings")
     if cached is not None:  # pragma: no cover
         return cached
-    standings = leaguestandings.LeagueStandings(proxy=STATS_PROXY).get_dict()
+    standings = leaguestandings.LeagueStandings(proxy=STATS_PROXY, timeout=STATS_TIMEOUT).get_dict()
     teams = standings["resultSets"][0]["rowSet"]
     cache.set("raw_standings", teams, CACHE_TTL["standings"])
     return teams
@@ -347,13 +343,13 @@ def _parse_team_row(team):
 
 
 @router.get("/api/standings")
-def get_standings():
+async def get_standings():
     """Get current NBA standings by conference"""
     cached = cache.get("standings")
     if cached:
         return cached
 
-    try:
+    def _sync():
         teams = _fetch_standings_teams()
 
         east = []
@@ -372,22 +368,25 @@ def get_standings():
         east.sort(key=lambda x: x["rank"] or 99)
         west.sort(key=lambda x: x["rank"] or 99)
 
-        result = {"east": east, "west": west}
+        return {"east": east, "west": west}
+
+    try:
+        result = await asyncio.to_thread(_sync)
         cache.set("standings", result, CACHE_TTL["standings"])
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch standings")
 
 
 @router.get("/api/playoffs")
-def get_playoff_picture():
+async def get_playoff_picture():
     """Get current playoff picture with projected final records"""
     cached = cache.get("playoffs")
     if cached:  # pragma: no cover
         return cached
 
-    try:
+    def _sync():
         teams = _fetch_standings_teams()
 
         TOTAL_GAMES = 82
@@ -429,23 +428,26 @@ def get_playoff_picture():
         east.sort(key=lambda x: x["rank"] or 99)
         west.sort(key=lambda x: x["rank"] or 99)
 
-        result = {"east": east, "west": west}
+        return {"east": east, "west": west}
+
+    try:
+        result = await asyncio.to_thread(_sync)
         cache.set("playoffs", result, CACHE_TTL["standings"])
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch playoff picture")
 
 
 @router.get("/api/doubledoubles")
-def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
+async def get_double_doubles(days_offset: int = Query(default=0, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX)):
     """Get players with double-doubles or triple-doubles for a given day"""
     cache_key = f"doubledoubles_{days_offset}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
-    try:
+    def _sync():
         if days_offset == 0:
             # Use live scoreboard for today
             game_ids = [g["gameId"] for g in get_cached_scoreboard()]
@@ -509,14 +511,17 @@ def get_double_doubles(days_offset: int = Query(default=0, ge=0, le=7)):
                             else:
                                 double_doubles.append(player_data)
 
-        result = {
+        return {
             "tripleDoubles": triple_doubles,
             "doubleDoubles": double_doubles,
             "date": get_display_date(days_offset),
         }
-        ttl = CACHE_TTL["historical"] if days_offset >= 1 else CACHE_TTL["boxscores"]
+
+    try:
+        result = await asyncio.to_thread(_sync)
+        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
         cache.set(cache_key, result, ttl)
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch double-doubles")

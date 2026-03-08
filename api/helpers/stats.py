@@ -1,10 +1,11 @@
 import json
 import os
 import re
+import threading
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from helpers.common import CACHE_TTL, STATS_PROXY, cache
+from helpers.common import CACHE_TTL, SEASON_CUTOFF_DAY, SEASON_CUTOFF_MONTH, STATS_PROXY, STATS_TIMEOUT, cache
 from helpers.logger import log_exceptions
 from nba_api.live.nba.endpoints import boxscore as live_boxscore
 from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
@@ -43,17 +44,14 @@ def _target_date(days_offset: int = 0) -> date:
     return _today_et() - timedelta(days=days_offset)
 
 
-def get_date_str(days_offset: int = 0) -> str:
-    return _target_date(days_offset).strftime("%Y-%m-%d")
-
-
 def get_display_date(days_offset: int = 0) -> str:
     return _target_date(days_offset).strftime("%B %d, %Y")
 
 
 def get_current_season() -> str:
     today = _today_et()
-    year = today.year if today.month >= 10 else today.year - 1
+    # NBA regular season starts mid-October
+    year = today.year if (today.month > SEASON_CUTOFF_MONTH or (today.month == SEASON_CUTOFF_MONTH and today.day >= SEASON_CUTOFF_DAY)) else today.year - 1
     return f"{year}-{str(year + 1)[-2:]}"
 
 
@@ -68,9 +66,8 @@ def convert_et_to_cet(time_str: str) -> str:
             hour += 12
         elif ampm == "am" and hour == 12:
             hour = 0
-        now = datetime.now()
-        naive_dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        et_dt = naive_dt.replace(tzinfo=_TZ_ET)
+        now_et = datetime.now(_TZ_ET)
+        et_dt = now_et.replace(hour=hour, minute=minute, second=0, microsecond=0)
         cet_dt = et_dt.astimezone(_TZ_CET)
         return cet_dt.strftime("%H:%M CET")
     except Exception as ex:  # pragma: no cover
@@ -95,20 +92,22 @@ def fix_encoding(s: str) -> str:
 _players_cache = None
 _players_cache_mtime = 0
 _players_dict_cache = None
+_players_lock = threading.Lock()
 
 
 def load_players_file():  # pragma: no cover
     global _players_cache, _players_cache_mtime, _players_dict_cache
-    try:
-        mtime = os.path.getmtime(PLAYERS_FILE)
-    except OSError:
-        mtime = 0
-    if _players_cache is None or mtime != _players_cache_mtime:
-        with open(PLAYERS_FILE, "r") as f:
-            _players_cache = json.load(f)
-        _players_dict_cache = {p[0]: p for p in _players_cache}
-        _players_cache_mtime = mtime
-    return _players_cache
+    with _players_lock:
+        try:
+            mtime = os.path.getmtime(PLAYERS_FILE)
+        except OSError:
+            mtime = 0
+        if _players_cache is None or mtime != _players_cache_mtime:
+            with open(PLAYERS_FILE, "r") as f:
+                _players_cache = json.load(f)
+            _players_dict_cache = {p[0]: p for p in _players_cache}
+            _players_cache_mtime = mtime
+        return _players_cache
 
 
 def load_players_dict():  # pragma: no cover
@@ -143,7 +142,7 @@ def get_cached_live_boxscore(game_id):  # pragma: no cover
 def get_cached_scoreboard_v3(days_offset: int = 1):
     """Return a cached ScoreboardV3 object for the given days_offset."""
     target_date = _today_et() - timedelta(days=days_offset)
-    return get_scoreboard_v3_by_date(target_date, historical=days_offset >= 1)
+    return get_scoreboard_v3_by_date(target_date, historical=days_offset >= 2)
 
 
 def get_scoreboard_v3_by_date(game_date: date, historical: bool = False):
@@ -156,6 +155,7 @@ def get_scoreboard_v3_by_date(game_date: date, historical: bool = False):
     sb = scoreboardv3.ScoreboardV3(
         game_date=date_str,
         proxy=STATS_PROXY,
+        timeout=STATS_TIMEOUT,
     )
     ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["scoreboard"]
     cache.set(cache_key, sb, ttl)
@@ -236,8 +236,9 @@ def get_cached_boxscore_v3(game_id):
     bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(
         game_id=game_id,
         proxy=STATS_PROXY,
+        timeout=STATS_TIMEOUT,
     )
-    cache.set(cache_key, bs_stats, CACHE_TTL["boxscores"])
+    cache.set(cache_key, bs_stats, CACHE_TTL["historical"])
     return bs_stats
 
 
@@ -251,9 +252,31 @@ def fetch_single_boxscore(game_id, leaders_data):
         game_box = {"gameId": game_id, "teams": []}
         leaders_by_team = {ld[4]: ld for ld in leaders_data if len(ld) > 4}
 
+        # BoxScoreTraditionalV3 team_stats column indices
+        _TEAM_ID = 1
+        _CITY = 2
+        _NAME = 3
+        _FGM = 7
+        _FGA = 8
+        _FG_PCT = 9
+        _TPM = 10
+        _TPA = 11
+        _TP_PCT = 12
+        _FTM = 13
+        _FTA = 14
+        _FT_PCT = 15
+        _OREB = 16
+        _REB = 18
+        _AST = 19
+        _STL = 20
+        _BLK = 21
+        _TOV = 22
+        _PF = 23
+        _PTS = 24
+
         for i, team in enumerate(team_stats):
             leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
-            team_id = team[1]  # TEAM_ID from boxscore
+            team_id = team[_TEAM_ID]
             ld = leaders_by_team.get(team_id)
             if ld:
                 leader = {
@@ -265,22 +288,22 @@ def fetch_single_boxscore(game_id, leaders_data):
 
             game_box["teams"].append(
                 {
-                    "name": f"{team[2]} {team[3]}",
-                    "score": team[-2],
+                    "name": f"{team[_CITY]} {team[_NAME]}",
+                    "score": team[_PTS],
                     "stats": {
-                        "fg": f"{team[7]}/{team[8]}",
-                        "fgPct": team[9],
-                        "threePt": f"{team[10]}/{team[11]}",
-                        "threePtPct": team[12],
-                        "ft": f"{team[13]}/{team[14]}",
-                        "ftPct": team[15],
-                        "rebounds": team[18],
-                        "offRebounds": team[16],
-                        "assists": team[19],
-                        "steals": team[20],
-                        "blocks": team[21],
-                        "turnovers": team[22],
-                        "fouls": team[23],
+                        "fg": f"{team[_FGM]}/{team[_FGA]}",
+                        "fgPct": team[_FG_PCT],
+                        "threePt": f"{team[_TPM]}/{team[_TPA]}",
+                        "threePtPct": team[_TP_PCT],
+                        "ft": f"{team[_FTM]}/{team[_FTA]}",
+                        "ftPct": team[_FT_PCT],
+                        "rebounds": team[_REB],
+                        "offRebounds": team[_OREB],
+                        "assists": team[_AST],
+                        "steals": team[_STL],
+                        "blocks": team[_BLK],
+                        "turnovers": team[_TOV],
+                        "fouls": team[_PF],
                     },
                     "leader": leader,
                 }

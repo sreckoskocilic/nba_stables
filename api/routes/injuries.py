@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 
@@ -13,7 +14,7 @@ CBS_INJURIES_FILE = os.path.join(
 
 
 @router.get("/api/injuries")
-def get_injuries():
+async def get_injuries():
     """Get NBA injury report from CBS Sports"""
     cached = cache.get("injuries")
     if cached:
@@ -21,11 +22,15 @@ def get_injuries():
 
     if not os.path.exists(CBS_INJURIES_FILE):
         raise HTTPException(status_code=503, detail="CBS injuries data not available")
-    try:
+
+    def _sync():
         with open(CBS_INJURIES_FILE, "r", encoding="utf-8") as f:
-            result = json.load(f)
+            return json.load(f)
+
+    try:
+        result = await asyncio.to_thread(_sync)
         cache.set("injuries", result, CACHE_TTL["injuries"])
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch injuries")

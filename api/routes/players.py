@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException, Query
-from helpers.common import CACHE_TTL, STATS_PROXY, cache, executor
+import asyncio
+
+from fastapi import APIRouter, HTTPException, Path, Query
+from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache, executor
 from helpers.logger import log_exceptions
 from helpers.stats import (
     fix_encoding,
@@ -36,11 +38,11 @@ def search_players(q: str = Query(..., min_length=2)):
         return {"players": results[:20]}  # Limit to 20 results
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to search players")
 
 
 @router.get("/api/players/stats")
-def get_player_stats(ids: str = Query(..., description="Comma-separated player IDs")):
+async def get_player_stats(ids: str = Query(..., description="Comma-separated player IDs")):
     """Get live stats for specific players"""
     players_ids = set()
     for pid in ids.split(","):
@@ -50,12 +52,16 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
     if not players_ids:
         return {"players": []}
 
+    if len(players_ids) > 25:
+        raise HTTPException(status_code=400, detail="Too many player IDs (max 25)")
+
+
     cache_key = f"player_stats_{','.join(str(x) for x in sorted(players_ids))}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
-    try:
+    def _sync():
         players_dict = load_players_dict()
 
         # Get team IDs for requested players
@@ -140,7 +146,10 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
                             }
                         )
 
-        result = {"players": results}
+        return {"players": results}
+
+    try:
+        result = await asyncio.to_thread(_sync)
         cache.set(cache_key, result, CACHE_TTL["player_stats"])
         return result
     except ValueError as err:  # pragma: no cover
@@ -148,18 +157,20 @@ def get_player_stats(ids: str = Query(..., description="Comma-separated player I
         raise HTTPException(status_code=400, detail="Invalid player IDs format")
     except Exception as e:  # pragma: no cover
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch player stats")
 
 
 @router.get("/api/games/{game_id}/players")
-def get_game_players(game_id: str):
+async def get_game_players(
+    game_id: str = Path(..., pattern=r"^00[12]\d{7}$"),
+):
     """Get all player stats for a specific game with advanced metrics"""
     cache_key = f"game_players_{game_id}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
-    try:
+    def _sync():
         bs = get_cached_live_boxscore(game_id)
 
         teams = []
@@ -221,11 +232,14 @@ def get_game_players(game_id: str):
             teams.append(team_data)
 
         game_status = bs["game"]["gameStatusText"]
-        result = {
+        return {
             "gameId": game_id,
             "status": game_status,
             "teams": teams,
-        }
+        }, game_status
+
+    try:
+        result, game_status = await asyncio.to_thread(_sync)
         ttl = (
             CACHE_TTL["historical"]
             if "Final" in game_status
@@ -235,12 +249,12 @@ def get_game_players(game_id: str):
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch game players")
 
 
 @router.get("/api/players/{player_id}/last-n-games")
-def get_last_n_games_stats(
-    player_id: int,
+async def get_last_n_games_stats(
+    player_id: int = Path(..., gt=0),
     n: int = Query(default=5, ge=1, le=15),
 ):
     """Get last N games stats for a specific player"""
@@ -249,7 +263,7 @@ def get_last_n_games_stats(
     if cached:
         return cached
 
-    try:
+    def _sync():
         players_dict = load_players_dict()
         player = players_dict.get(player_id)
         if not player:
@@ -264,7 +278,7 @@ def get_last_n_games_stats(
             for attempt in range(2):
                 try:
                     cc = cumestatsteamgames.CumeStatsTeamGames(
-                        team_id=team_id, proxy=STATS_PROXY
+                        team_id=team_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
                     )
                     game_rows_all = cc.cume_stats_team_games.get_dict()["data"]
                     break
@@ -314,31 +328,34 @@ def get_last_n_games_stats(
 
         games = [r for r in (_get_result(f) for f in futures) if r is not None]
 
-        result = {
+        return {
             "playerId": player_id,
             "playerName": player_name,
             "games": games,
         }
+
+    try:
+        result = await asyncio.to_thread(_sync)
         cache.set(cache_key, result, CACHE_TTL["historical"])
         return result
     except HTTPException:
         raise
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch last N games")
 
 
 @router.get("/api/players/{player_id}/season-avg")
-def get_player_season_avg(player_id: int):
+async def get_player_season_avg(player_id: int = Path(..., gt=0)):
     """Get current season averages for a player"""
     cache_key = f"season_avg_{player_id}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
-    try:
+    def _sync():
         career = playercareerstats.PlayerCareerStats(
-            player_id=player_id, proxy=STATS_PROXY
+            player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
         )
         season_data = career.season_totals_regular_season.get_dict()
         headers = season_data["headers"]
@@ -358,7 +375,7 @@ def get_player_season_avg(player_id: int):
             val = row[h[key]]
             return round(val * 100, 1) if val else 0.0
 
-        result = {
+        return {
             "season": row[h["SEASON_ID"]],
             "gp": gp,
             "minutes": avg("MIN"),
@@ -380,10 +397,12 @@ def get_player_season_avg(player_id: int):
             "ftPct": pct("FT_PCT"),
         }
 
+    try:
+        result = await asyncio.to_thread(_sync)
         cache.set(cache_key, result, CACHE_TTL["season_leaders"])
         return result
     except HTTPException:
         raise
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch season averages")

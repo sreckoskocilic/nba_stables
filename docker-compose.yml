@@ -36,7 +36,9 @@ services:
     image: ghcr.io/umami-software/umami:postgresql-latest
     environment:
       DATABASE_URL: postgresql://umami:umami@umami-db:5432/umami
-      APP_SECRET: f33e192facd89a902cd5cdec46d742320c6510a1231d508d
+      APP_SECRET_FILE: /run/secrets/umami_password
+    secrets:
+      - umami_password
     depends_on:
       umami-db:
         condition: service_healthy
@@ -50,7 +52,9 @@ services:
     environment:
       POSTGRES_DB: umami
       POSTGRES_USER: umami
-      POSTGRES_PASSWORD: umami
+      POSTGRES_PASSWORD_FILE: /run/secrets/umami_pg
+    secrets:
+      - umami_pg
     volumes:
       - umami_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -62,3 +66,9 @@ services:
 
 volumes:
   umami_pgdata:
+
+secrets:
+  umami_password:
+    file: ./secrets/umami_pwd
+  umami_pg:
+    file: ./secrets/umami_pg

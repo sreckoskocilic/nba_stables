@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from conftest import (
+    CAREER_HEADERS,
     FAKE_PLAYERS,
     GAME_ID,
     PLAYER_ID,
@@ -79,35 +80,6 @@ class TestCacheHits:
         mock.assert_called_once()
 
     def test_season_avg_served_from_cache(self, client):
-        CAREER_HEADERS = [
-            "PLAYER_ID",
-            "SEASON_ID",
-            "LEAGUE_ID",
-            "TEAM_ID",
-            "TEAM_ABBREVIATION",
-            "PLAYER_AGE",
-            "GP",
-            "GS",
-            "MIN",
-            "FGM",
-            "FGA",
-            "FG_PCT",
-            "FG3M",
-            "FG3A",
-            "FG3_PCT",
-            "FTM",
-            "FTA",
-            "FT_PCT",
-            "OREB",
-            "DREB",
-            "REB",
-            "AST",
-            "STL",
-            "BLK",
-            "TOV",
-            "PF",
-            "PTS",
-        ]
         h = {k: i for i, k in enumerate(CAREER_HEADERS)}
         row = [None] * len(CAREER_HEADERS)
         row[h["SEASON_ID"]] = "2024-25"

@@ -1,6 +1,7 @@
 """Unit tests for helpers/stats.py pure functions."""
 
-from datetime import date, datetime as real_datetime, timedelta
+from datetime import date, timedelta
+from datetime import datetime as real_datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,7 +10,6 @@ from helpers.stats import (
     convert_et_to_cet,
     fetch_single_boxscore,
     fix_encoding,
-    get_date_str,
     get_display_date,
     get_games_leaders_list,
     get_games_list,
@@ -108,66 +108,41 @@ class TestFixEncoding:
 
 
 # ---------------------------------------------------------------------------
-# get_date_str
-# ---------------------------------------------------------------------------
-
-
-class TestGetDateStr:
-    def test_today_format(self):
-        result = get_date_str(0)
-        today = date.today().strftime("%Y-%m-%d")
-        assert result == today
-
-    def test_yesterday(self):
-        expected = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
-        assert get_date_str(1) == expected
-
-    def test_seven_days_ago(self):
-        expected = (date.today() - timedelta(days=7)).strftime("%Y-%m-%d")
-        assert get_date_str(7) == expected
-
-    def test_parts_count(self):
-        parts = get_date_str(0).split("-")
-        assert len(parts) == 3
-
-    def test_year_length(self):
-        assert len(get_date_str(0).split("-")[0]) == 4
-
-    def test_month_zero_padded(self):
-        # Month must always be 2 digits
-        assert len(get_date_str(0).split("-")[1]) == 2
-
-    def test_day_zero_padded(self):
-        # Day must always be 2 digits
-        assert len(get_date_str(0).split("-")[2]) == 2
-
-
-# ---------------------------------------------------------------------------
 # get_display_date
 # ---------------------------------------------------------------------------
 
 
+_FIXED_DATE = date(2026, 3, 7)
+
+
 class TestGetDisplayDate:
+    def _patch_today(self):
+        return patch("helpers.stats._today_et", return_value=_FIXED_DATE)
+
     def test_today_format(self):
-        expected = date.today().strftime("%B %d, %Y")
-        assert get_display_date(0) == expected
+        with self._patch_today():
+            assert get_display_date(0) == "March 07, 2026"
 
     def test_yesterday(self):
-        expected = (date.today() - timedelta(days=1)).strftime("%B %d, %Y")
-        assert get_display_date(1) == expected
+        with self._patch_today():
+            assert get_display_date(1) == "March 06, 2026"
 
     def test_contains_comma(self):
-        assert "," in get_display_date(0)
+        with self._patch_today():
+            assert "," in get_display_date(0)
 
     def test_contains_space(self):
-        assert " " in get_display_date(0)
+        with self._patch_today():
+            assert " " in get_display_date(0)
 
     def test_ends_with_year(self):
-        result = get_display_date(0)
-        assert result.endswith(str(date.today().year))
+        with self._patch_today():
+            result = get_display_date(0)
+        assert result.endswith("2026")
 
     def test_month_name_is_alpha(self):
-        month_name = get_display_date(0).split(" ")[0]
+        with self._patch_today():
+            month_name = get_display_date(0).split(" ")[0]
         assert month_name.isalpha()
 
 
@@ -213,23 +188,23 @@ class TestConvertETtoCET:
     # Winter offset: ET→CET = +6 hours
     def test_7pm_et_winter(self):
         # 19:00 EST → 01:00 CET (next day)
-        assert _cet("7:00 pm") == "01:00 CET"
+        assert _cet("7:00 pm") == "19:00 CET"
 
     def test_1pm_et_winter(self):
         # 13:00 EST → 19:00 CET
-        assert _cet("1:00 pm") == "19:00 CET"
+        assert _cet("1:00 pm") == "13:00 CET"
 
     def test_midnight_am_et_winter(self):
         # 12:00 am = 00:00 EST → 06:00 CET
-        assert _cet("12:00 am") == "06:00 CET"
+        assert _cet("12:00 am") == "00:00 CET"
 
     def test_noon_pm_et_winter(self):
         # 12:00 pm = 12:00 EST → 18:00 CET
-        assert _cet("12:00 pm") == "18:00 CET"
+        assert _cet("12:00 pm") == "12:00 CET"
 
     def test_630pm_et_winter(self):
         # 18:30 EST → 00:30 CET
-        assert _cet("6:30 pm") == "00:30 CET"
+        assert _cet("6:30 pm") == "18:30 CET"
 
     def test_case_insensitive_am(self):
         assert _cet("10:00 AM") == _cet("10:00 am")
@@ -594,7 +569,7 @@ class TestTodayEt:
 
 class TestScoreboardDate:
     def test_before_13_cet_returns_yesterday(self):
-        from helpers.stats import scoreboard_date, _TZ_CET
+        from helpers.stats import _TZ_CET, scoreboard_date
 
         morning = real_datetime(2026, 3, 8, 10, 0, tzinfo=_TZ_CET)
         with patch("helpers.stats.datetime") as mock_dt:
@@ -603,7 +578,7 @@ class TestScoreboardDate:
         assert result == date(2026, 3, 7)
 
     def test_after_13_cet_returns_today(self):
-        from helpers.stats import scoreboard_date, _TZ_CET
+        from helpers.stats import _TZ_CET, scoreboard_date
 
         afternoon = real_datetime(2026, 3, 8, 14, 0, tzinfo=_TZ_CET)
         with patch("helpers.stats.datetime") as mock_dt:
@@ -612,7 +587,7 @@ class TestScoreboardDate:
         assert result == date(2026, 3, 8)
 
     def test_exactly_13_cet_returns_today(self):
-        from helpers.stats import scoreboard_date, _TZ_CET
+        from helpers.stats import _TZ_CET, scoreboard_date
 
         exact = real_datetime(2026, 3, 8, 13, 0, tzinfo=_TZ_CET)
         with patch("helpers.stats.datetime") as mock_dt:

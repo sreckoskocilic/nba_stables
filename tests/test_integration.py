@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 from conftest import (
+    CAREER_HEADERS,
     FAKE_PLAYERS,
     GAME_ID,
     PLAYER_ID,
@@ -87,37 +88,6 @@ def make_player_stats_row(person_id=PLAYER_ID, minutes="28:00"):
     return row
 
 
-CAREER_HEADERS = [
-    "PLAYER_ID",
-    "SEASON_ID",
-    "LEAGUE_ID",
-    "TEAM_ID",
-    "TEAM_ABBREVIATION",
-    "PLAYER_AGE",
-    "GP",
-    "GS",
-    "MIN",
-    "FGM",
-    "FGA",
-    "FG_PCT",
-    "FG3M",
-    "FG3A",
-    "FG3_PCT",
-    "FTM",
-    "FTA",
-    "FT_PCT",
-    "OREB",
-    "DREB",
-    "REB",
-    "AST",
-    "STL",
-    "BLK",
-    "TOV",
-    "PF",
-    "PTS",
-]
-
-
 def make_career_row(gp=60):
     h = {k: i for i, k in enumerate(CAREER_HEADERS)}
     row = [None] * len(CAREER_HEADERS)
@@ -155,6 +125,7 @@ class TestHealth:
     def test_shape(self, client):
         body = client.get("/api/health").json()
         assert body["status"] == "healthy"
+        assert body["cache_ok"] is True
         assert "date" in body and len(body["date"]) > 5
 
 
@@ -280,6 +251,16 @@ class TestScoreboard:
         home = r.json()["games"][0]["homeTeam"]
         assert home["leader"]["points"] == 28
         assert home["leader"]["rebounds"] == 8
+
+    def test_live_et_time_converted(self, client):
+        """Live scoreboard game with ET time gets converted to CET."""
+        live_game = make_live_game(gameStatusText="7:00 pm ET")
+        with (
+            self._patch_sb([make_live_game(gameStatusText="Q2 5:30")]),
+            patch("routes.scores.get_cached_scoreboard", return_value=[live_game]),
+        ):
+            r = client.get("/api/scoreboard")
+        assert "CET" in r.json()["games"][0]["status"]
 
     def test_missing_line_score_fallback(self, client):
         """Game in header but no matching line_score rows -> empty team fallback."""
@@ -648,6 +629,11 @@ class TestPlayerStats:
             r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
         assert r.json()["players"] == []
 
+    def test_rejects_too_many_ids(self, client):
+        ids = ",".join(str(i) for i in range(26))
+        r = client.get(f"/api/players/stats?ids={ids}")
+        assert r.status_code == 400
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/games/{game_id}/players
@@ -688,6 +674,10 @@ class TestGamePlayers:
             "ft",
         ):
             assert key in p
+
+    def test_rejects_invalid_game_id(self, client):
+        r = client.get("/api/games/INVALID/players")
+        assert r.status_code == 422
 
 
 # ─────────────────────────────────────────────────────────────────────────────
