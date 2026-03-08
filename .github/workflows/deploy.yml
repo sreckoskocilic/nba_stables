@@ -6,6 +6,7 @@ on:
       - "api/static/*.json"
       - ".github/workflows/**"
     branches: [main]
+  workflow_dispatch: # allow manual trigger
 
 
 jobs:
