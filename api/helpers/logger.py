@@ -8,7 +8,6 @@ ERROR_LOG_FILE = os.path.join(
 os.makedirs(os.path.dirname(ERROR_LOG_FILE), exist_ok=True)
 
 logger = logging.getLogger(__name__)
-handler = logging.StreamHandler()
 rotating_logfile_handler = RotatingFileHandler(
     ERROR_LOG_FILE,
     maxBytes=2 * 1024 * 1024,

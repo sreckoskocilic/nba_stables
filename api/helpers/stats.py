@@ -5,7 +5,14 @@ import threading
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from helpers.common import CACHE_TTL, SEASON_CUTOFF_DAY, SEASON_CUTOFF_MONTH, STATS_PROXY, STATS_TIMEOUT, cache
+from helpers.common import (
+    CACHE_TTL,
+    SEASON_CUTOFF_DAY,
+    SEASON_CUTOFF_MONTH,
+    STATS_PROXY,
+    STATS_TIMEOUT,
+    cache,
+)
 from helpers.logger import log_exceptions
 from nba_api.live.nba.endpoints import boxscore as live_boxscore
 from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
@@ -51,7 +58,14 @@ def get_display_date(days_offset: int = 0) -> str:
 def get_current_season() -> str:
     today = _today_et()
     # NBA regular season starts mid-October
-    year = today.year if (today.month > SEASON_CUTOFF_MONTH or (today.month == SEASON_CUTOFF_MONTH and today.day >= SEASON_CUTOFF_DAY)) else today.year - 1
+    year = (
+        today.year
+        if (
+            today.month > SEASON_CUTOFF_MONTH
+            or (today.month == SEASON_CUTOFF_MONTH and today.day >= SEASON_CUTOFF_DAY)
+        )
+        else today.year - 1
+    )
     return f"{year}-{str(year + 1)[-2:]}"
 
 
@@ -227,7 +241,7 @@ def get_games_leaders_list(days_offset: int = 1):
     return g_dict
 
 
-def get_cached_boxscore_v3(game_id):
+def get_cached_boxscore_v3(game_id, historical=True):
     """Return a cached BoxScoreTraditionalV3 response for the given game_id."""
     cache_key = f"raw_boxscore_{game_id}"
     cached = cache.get(cache_key)
@@ -238,7 +252,8 @@ def get_cached_boxscore_v3(game_id):
         proxy=STATS_PROXY,
         timeout=STATS_TIMEOUT,
     )
-    cache.set(cache_key, bs_stats, CACHE_TTL["historical"])
+    ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["boxscores"]
+    cache.set(cache_key, bs_stats, ttl)
     return bs_stats
 
 

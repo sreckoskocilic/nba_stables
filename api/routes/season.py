@@ -195,4 +195,6 @@ async def get_triple_double_games(player_id: int = Path(..., gt=0)):
         return result
     except Exception as e:
         log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch triple-double games")
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch triple-double games"
+        )

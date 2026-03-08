@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import tempfile
 import time
 from datetime import datetime, timezone
 
@@ -33,7 +34,12 @@ def scrape_cbs_injuries():
             response.raise_for_status()
             break
         except requests.RequestException as e:
-            logger.warning("CBS injuries request failed (attempt %d/%d): %s", attempt + 1, MAX_RETRIES, e)
+            logger.warning(
+                "CBS injuries request failed (attempt %d/%d): %s",
+                attempt + 1,
+                MAX_RETRIES,
+                e,
+            )
             if attempt < MAX_RETRIES - 1:
                 time.sleep(RETRY_DELAY)
             else:
@@ -82,7 +88,9 @@ def scrape_cbs_injuries():
             injuries_by_team.append({"team": team_name, "players": players})
 
     if not injuries_by_team:
-        logger.warning("Parsed 0 teams with injuries — CBS HTML structure may have changed")
+        logger.warning(
+            "Parsed 0 teams with injuries — CBS HTML structure may have changed"
+        )
         return
 
     result = {
@@ -90,8 +98,15 @@ def scrape_cbs_injuries():
         "source": "CBS Sports",
         "lastUpdated": datetime.now(timezone.utc).strftime("%B %d, %Y %H:%M UTC"),
     }
-    with open(CBS_INJURIES_FILE, "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, indent=2)
+    dir_name = os.path.dirname(CBS_INJURIES_FILE)
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, CBS_INJURIES_FILE)
+    except BaseException:
+        os.unlink(tmp_path)
+        raise
 
     logger.info("Updated CBS injuries: %d teams", len(injuries_by_team))
 

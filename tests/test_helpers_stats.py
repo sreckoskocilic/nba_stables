@@ -114,9 +114,6 @@ class TestFixEncoding:
 _FIXED_DATE = date(2026, 3, 7)
 
 
-_FIXED_DATE = date(2026, 3, 7)
-
-
 class TestGetDisplayDate:
     def _patch_today(self):
         return patch("helpers.stats._today_et", return_value=_FIXED_DATE)

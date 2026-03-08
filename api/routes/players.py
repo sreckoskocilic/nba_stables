@@ -42,7 +42,9 @@ def search_players(q: str = Query(..., min_length=2)):
 
 
 @router.get("/api/players/stats")
-async def get_player_stats(ids: str = Query(..., description="Comma-separated player IDs")):
+async def get_player_stats(
+    ids: str = Query(..., description="Comma-separated player IDs"),
+):
     """Get live stats for specific players"""
     players_ids = set()
     for pid in ids.split(","):
@@ -54,7 +56,6 @@ async def get_player_stats(ids: str = Query(..., description="Comma-separated pl
 
     if len(players_ids) > 25:
         raise HTTPException(status_code=400, detail="Too many player IDs (max 25)")
-
 
     cache_key = f"player_stats_{','.join(str(x) for x in sorted(players_ids))}"
     cached = cache.get(cache_key)

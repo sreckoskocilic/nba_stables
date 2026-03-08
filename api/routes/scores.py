@@ -2,7 +2,16 @@ import asyncio
 from concurrent.futures import as_completed
 
 from fastapi import APIRouter, HTTPException, Query
-from helpers.common import CACHE_TTL, DAYS_OFFSET_MAX, DAYS_OFFSET_MIN, STATS_PROXY, STATS_TIMEOUT, TEAMS, cache, executor
+from helpers.common import (
+    CACHE_TTL,
+    DAYS_OFFSET_MAX,
+    DAYS_OFFSET_MIN,
+    STATS_PROXY,
+    STATS_TIMEOUT,
+    TEAMS,
+    cache,
+    executor,
+)
 from helpers.logger import log_exceptions
 from helpers.stats import (
     convert_et_to_cet,
@@ -46,7 +55,9 @@ async def get_date_labels():
 
 
 @router.get("/api/boxscores")
-async def get_boxscores(days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX)):
+async def get_boxscores(
+    days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
+):
     """Get detailed box scores for games"""
     cache_key = f"boxscores_{days_offset}"
     cached = cache.get(cache_key)
@@ -240,7 +251,9 @@ def _scoreboard_from_v3(sb):
 
 
 @router.get("/api/leaders")
-async def get_daily_leaders(days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX)):
+async def get_daily_leaders(
+    days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
+):
     """Get daily leaders across statistical categories"""
     cache_key = f"leaders_{days_offset}"
     cached = cache.get(cache_key)
@@ -317,7 +330,9 @@ def _fetch_standings_teams():
     cached = cache.get("raw_standings")
     if cached is not None:  # pragma: no cover
         return cached
-    standings = leaguestandings.LeagueStandings(proxy=STATS_PROXY, timeout=STATS_TIMEOUT).get_dict()
+    standings = leaguestandings.LeagueStandings(
+        proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+    ).get_dict()
     teams = standings["resultSets"][0]["rowSet"]
     cache.set("raw_standings", teams, CACHE_TTL["standings"])
     return teams
@@ -440,7 +455,9 @@ async def get_playoff_picture():
 
 
 @router.get("/api/doubledoubles")
-async def get_double_doubles(days_offset: int = Query(default=0, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX)):
+async def get_double_doubles(
+    days_offset: int = Query(default=0, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
+):
     """Get players with double-doubles or triple-doubles for a given day"""
     cache_key = f"doubledoubles_{days_offset}"
     cached = cache.get(cache_key)
@@ -449,8 +466,14 @@ async def get_double_doubles(days_offset: int = Query(default=0, ge=DAYS_OFFSET_
 
     def _sync():
         if days_offset == 0:
-            # Use live scoreboard for today
-            game_ids = [g["gameId"] for g in get_cached_scoreboard()]
+            sb_date = scoreboard_date()
+            from helpers.stats import _today_et
+
+            offset = (_today_et() - sb_date).days
+            if offset == 0:
+                game_ids = [g["gameId"] for g in get_cached_scoreboard()]
+            else:
+                game_ids = get_games_list(offset)
         else:
             game_ids = get_games_list(days_offset)
 

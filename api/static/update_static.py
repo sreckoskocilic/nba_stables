@@ -1,6 +1,8 @@
 import json
 import os
+import tempfile
 
+from helpers.common import STATS_PROXY, STATS_TIMEOUT
 from helpers.logger import log_exceptions
 from helpers.stats import get_games_list
 from nba_api.stats.endpoints import boxscoretraditionalv3
@@ -22,10 +24,13 @@ def update_players():
         players_with_teamid = json.load(file)
 
     players_dict = {p[0]: p for p in players_with_teamid}
+    changed = False
 
     for game in get_games_list(date_offset):
         try:
-            bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(game_id=game)
+            bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(
+                game_id=game, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+            )
         except Exception as ex:
             log_exceptions(ex)
             continue
@@ -36,8 +41,18 @@ def update_players():
                 if player[_COMMENT] == "":
                     if p[2] != player[_TEAM_ID]:
                         p[2] = player[_TEAM_ID]
-    with open(PLAYERS_FILE, "w") as ffile:
-        json.dump(players_with_teamid, ffile, indent=4)
+                        changed = True
+
+    if changed:
+        dir_name = os.path.dirname(PLAYERS_FILE)
+        fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".json")
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(players_with_teamid, f, indent=4)
+            os.replace(tmp_path, PLAYERS_FILE)
+        except BaseException:
+            os.unlink(tmp_path)
+            raise
 
 
 if __name__ == "__main__":

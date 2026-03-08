@@ -259,8 +259,9 @@ def make_scoreboard_v3(games=None):
     return sb
 
 
-def make_standings_row(rank, city, name, conf, wins, losses):
+def make_standings_row(rank, city, name, conf, wins, losses, team_id=1610612738):
     row = [None] * 40
+    row[2] = team_id
     row[3] = city
     row[4] = name
     row[5] = conf

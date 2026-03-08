@@ -63,8 +63,11 @@ app.include_router(season_router)
 LOG_CONFIG_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "log_config.yml"
 )
-with open(LOG_CONFIG_FILE, "r") as f:
-    logging.config.dictConfig(yaml.safe_load(f.read()))
+try:
+    with open(LOG_CONFIG_FILE, "r") as f:
+        logging.config.dictConfig(yaml.safe_load(f.read()))
+except OSError:  # pragma: no cover
+    logging.basicConfig(level=logging.WARNING)
 
 
 @app.get("/api/health")
@@ -73,7 +76,11 @@ async def health_check():
     test_key = "_health_probe"
     _common.cache.set(test_key, True, 5)
     cache_ok = _common.cache.get(test_key) is True
-    return {"status": "healthy" if cache_ok else "degraded", "date": get_display_date(0), "cache_ok": cache_ok}
+    return {
+        "status": "healthy" if cache_ok else "degraded",
+        "date": get_display_date(0),
+        "cache_ok": cache_ok,
+    }
 
 
 # Serve web files
