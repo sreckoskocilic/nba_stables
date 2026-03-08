@@ -1,6 +1,6 @@
 """Unit tests for helpers/stats.py pure functions."""
 
-from datetime import date, timedelta
+from datetime import date
 from datetime import datetime as real_datetime
 from unittest.mock import MagicMock, patch
 
@@ -110,6 +110,8 @@ class TestFixEncoding:
 # ---------------------------------------------------------------------------
 # get_display_date
 # ---------------------------------------------------------------------------
+
+_FIXED_DATE = date(2026, 3, 7)
 
 
 _FIXED_DATE = date(2026, 3, 7)
