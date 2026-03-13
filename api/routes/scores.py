@@ -210,15 +210,11 @@ def _scoreboard_from_v3(sb):
     line_score = sb.line_score.get_dict()
 
     # Build team lookup from line_score: {(gameId, teamId): row}
-    team_rows = {}
-    for row in line_score["data"]:
-        team_rows[(row[0], row[1])] = row
+    team_rows = {(row[0], row[1]): row for row in line_score["data"]}
 
     # Build leaders lookup
     leaders_data = sb.game_leaders.get_dict()
-    leaders_by = {}  # {(gameId, teamId): row}
-    for ld in leaders_data["data"]:
-        leaders_by[(ld[0], ld[1])] = ld
+    leaders_by = {(ld[0], ld[1]): ld for ld in leaders_data["data"]}
 
     games = []
     for g in header["data"]:

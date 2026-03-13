@@ -69,7 +69,8 @@ SEASON_CUTOFF_DAY = 15
 
 # Shared singleton instances
 cache = SimpleCache()
-executor = ThreadPoolExecutor(max_workers=10)
+_DEFAULT_WORKERS = int(os.environ.get("EXECUTOR_WORKERS", "10"))
+executor = ThreadPoolExecutor(max_workers=_DEFAULT_WORKERS)
 atexit.register(executor.shutdown, wait=False)
 STATS_PROXY = os.environ.get("STATS_PROXY", None)
 STATS_TIMEOUT = int(os.environ.get("STATS_TIMEOUT", "30"))

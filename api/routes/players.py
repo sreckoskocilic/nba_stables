@@ -67,10 +67,7 @@ async def get_player_stats(
     ids: str = Query(..., description="Comma-separated player IDs"),
 ):
     """Get live stats for specific players"""
-    players_ids = set()
-    for pid in ids.split(","):
-        if pid.strip().isdigit():
-            players_ids.add(int(pid.strip()))
+    players_ids = {int(pid.strip()) for pid in ids.split(",") if pid.strip().isdigit()}
 
     if not players_ids:
         return {"players": []}
@@ -78,7 +75,8 @@ async def get_player_stats(
     if len(players_ids) > 25:
         raise HTTPException(status_code=400, detail="Too many player IDs (max 25)")
 
-    cache_key = f"player_stats_{','.join(str(x) for x in sorted(players_ids))}"
+    ids_normalized = ",".join(str(x) for x in sorted(players_ids))
+    cache_key = f"player_stats_{ids_normalized}"
     cached = cache.get(cache_key)
     if cached:
         return cached
@@ -96,6 +94,7 @@ async def get_player_stats(
                 log_exceptions(ex)
                 return None
 
+        # executor.map keeps submission overhead low and maintains order
         boxscores = list(executor.map(fetch_player_boxscore, relevant_game_ids))
 
         for bs in boxscores:

@@ -22,15 +22,17 @@ def client():
 
 
 def test_log_exceptions_with_context(monkeypatch):
-    called = {}
+    called = {"args": None}
 
     def fake_exception(*args, **kwargs):
         called["args"] = args
         called["kwargs"] = kwargs
 
     monkeypatch.setattr(logger, "exception", fake_exception)
+    monkeypatch.setattr(logger, "isEnabledFor", lambda level: True)
     log_exceptions(Exception("boom"), "ctx123")
-    assert "ctx123" in called["args"]
+    assert called["args"] is not None
+    assert any("ctx123" in str(a) for a in called["args"])
 
 
 def test_fetch_players_parses_name_and_team(monkeypatch):
