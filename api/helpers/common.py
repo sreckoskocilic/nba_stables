@@ -12,6 +12,7 @@ CACHE_TTL = {
     "leaders": 300,  # 5 minutes
     "standings": 3600,  # 1 hour - doesn't change often
     "player_stats": 30,  # 30 seconds
+    "players": 12 * 3600,  # 12 hours - roster changes are infrequent
     "historical": 86400,  # 24 hours - days_offset >= 2 never changes
     "injuries": 7200,  # 2 hours - injury reports don't change often, avoid rate limits
     "trades": 12 * 3600,  # 12 hours

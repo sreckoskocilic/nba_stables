@@ -593,3 +593,20 @@ class TestScoreboardDate:
             mock_dt.now.return_value = exact
             result = scoreboard_date()
         assert result == date(2026, 3, 8)
+
+
+# ---------------------------------------------------------------------------
+# load_players_file stale-while-error
+# ---------------------------------------------------------------------------
+
+
+class TestLoadPlayersFile:
+    def test_uses_stale_cache_on_error(self):
+        import helpers.stats as hs
+
+        with patch("helpers.stats._fetch_players") as fetch_mock:
+            fetch_mock.side_effect = [[[1, "Player One", 1]], RuntimeError("boom")]
+            first = hs.load_players_file()
+            second = hs.load_players_file()
+        assert first == [[1, "Player One", 1]]
+        assert second == [[1, "Player One", 1]]

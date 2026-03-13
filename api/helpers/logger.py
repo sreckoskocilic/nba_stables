@@ -21,5 +21,8 @@ rotating_logfile_handler.setFormatter(formatter)
 logger.addHandler(rotating_logfile_handler)
 
 
-def log_exceptions(exception: Exception):
-    logger.exception(exception)
+def log_exceptions(exception: Exception, context: str | None = None):
+    if context:
+        logger.exception("%s | context=%s", exception, context)
+    else:
+        logger.exception(exception)

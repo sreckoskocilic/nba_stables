@@ -1,4 +1,5 @@
 import asyncio
+from datetime import date
 from concurrent.futures import as_completed
 
 from fastapi import APIRouter, HTTPException, Query
@@ -107,7 +108,11 @@ async def get_scoreboard():
         started_ids = {g[0] for g in header["data"] if g[2] >= 2}
         games = _scoreboard_from_v3(sb)
         if started_ids:
-            live_by_id = {g["gameId"]: g for g in _scoreboard_from_live()}
+            try:
+                live_by_id = {g["gameId"]: g for g in _scoreboard_from_live()}
+            except Exception as ex:  # pragma: no cover
+                log_exceptions(ex)
+                live_by_id = {}
             games = [
                 live_by_id.get(g["gameId"], g) if g["gameId"] in started_ids else g
                 for g in games
@@ -467,13 +472,12 @@ async def get_double_doubles(
     def _sync():
         if days_offset == 0:
             sb_date = scoreboard_date()
-            from helpers.stats import _today_et
-
-            offset = (_today_et() - sb_date).days
-            if offset == 0:
+            today_local = date.today()
+            if sb_date == today_local:
                 game_ids = [g["gameId"] for g in get_cached_scoreboard()]
             else:
-                game_ids = get_games_list(offset)
+                offset = (today_local - sb_date).days
+                game_ids = get_games_list(offset if offset > 0 else 1)
         else:
             game_ids = get_games_list(days_offset)
 

@@ -43,9 +43,14 @@ app = FastAPI(
 )
 
 # Enable CORS for frontend
-_cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
-if _cors_origins == ["*"]:
-    logger.warning("CORS_ORIGINS not set — falling back to allow-all wildcard (*)")
+_default_cors = ["http://localhost:3000", "http://127.0.0.1:3000"]
+_cors_env = os.environ.get("CORS_ORIGINS")
+if _cors_env:
+    _cors_origins = _cors_env.split(",")
+    if _cors_origins == ["*"]:
+        logger.warning("CORS_ORIGINS explicitly set to wildcard (*)")
+else:
+    _cors_origins = _default_cors
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,

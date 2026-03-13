@@ -525,6 +525,25 @@ class TestPlayerErrorHandlers:
             r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
         assert r.status_code == 500
 
+    def test_last_n_games_503_when_feeds_unavailable(self, client):
+        with (
+            patch(
+                "routes.players.load_players_dict",
+                return_value={PLAYER_ID: [PLAYER_ID, "LeBron James", TEAM_ID_LAL]},
+            ),
+            patch(
+                "routes.players.cumestatsteamgames.CumeStatsTeamGames",
+                side_effect=Exception("team feed down"),
+            ),
+            patch(
+                "routes.players.playergamelog.PlayerGameLog",
+                side_effect=Exception("player feed down"),
+            ),
+            patch("routes.players.log_exceptions"),
+        ):
+            r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
+        assert r.status_code == 503
+
     def test_season_avg_500_on_unexpected_error(self, client):
         with (
             patch(

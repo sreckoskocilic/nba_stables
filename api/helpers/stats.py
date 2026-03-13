@@ -1,7 +1,6 @@
-import json
-import os
 import re
 import threading
+import time
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -18,11 +17,8 @@ from nba_api.live.nba.endpoints import boxscore as live_boxscore
 from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
 from nba_api.stats.endpoints import (
     boxscoretraditionalv3,
+    commonallplayers,
     scoreboardv3,
-)
-
-PLAYERS_FILE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../static/players_with_teamid.json"
 )
 
 _TZ_ET = ZoneInfo("US/Eastern")
@@ -103,24 +99,79 @@ def fix_encoding(s: str) -> str:
         return s
 
 
+def _with_retry(fn, attempts: int = 3, delay: float = 0.2):
+    """Run `fn` with simple retry/backoff."""
+    last_err = None
+    for i in range(attempts):
+        try:
+            return fn()
+        except Exception as ex:  # pragma: no cover
+            last_err = ex
+            if i == attempts - 1:
+                break
+            time.sleep(delay)
+    if last_err:
+        raise last_err
+
+
 _players_cache = None
-_players_cache_mtime = 0
 _players_dict_cache = None
+_players_cache_expires = 0
 _players_lock = threading.Lock()
 
 
+def _fetch_players():
+    """Fetch active players with their current team IDs from the NBA stats API."""
+    cap = commonallplayers.CommonAllPlayers(
+        is_only_current_season=1, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+    )
+    data = cap.common_all_players.get_dict()
+    players = []
+
+    # Column indices within the `common_all_players` dataset
+    _PERSON_ID = 0
+    _DISPLAY_LAST_COMMA_FIRST = 1
+    _TEAM_ID = 7
+
+    for row in data.get("data", []):
+        person_id = row[_PERSON_ID]
+        name_raw = row[_DISPLAY_LAST_COMMA_FIRST]
+
+        # Convert "Last, First" to "First Last" for friendlier search
+        if "," in name_raw:
+            last, first = [part.strip() for part in name_raw.split(",", 1)]
+            name = f"{first} {last}"
+        else:
+            name = name_raw
+
+        team_id = row[_TEAM_ID] if len(row) > _TEAM_ID else None
+        players.append([person_id, fix_encoding(name), team_id])
+
+    return players
+
+
 def load_players_file():  # pragma: no cover
-    global _players_cache, _players_cache_mtime, _players_dict_cache
+    """Return cached list of active players fetched from the NBA stats API."""
+    global _players_cache, _players_dict_cache, _players_cache_expires
     with _players_lock:
+        if _players_cache and time.time() < _players_cache_expires:
+            return _players_cache
+
         try:
-            mtime = os.path.getmtime(PLAYERS_FILE)
-        except OSError:
-            mtime = 0
-        if _players_cache is None or mtime != _players_cache_mtime:
-            with open(PLAYERS_FILE, "r") as f:
-                _players_cache = json.load(f)
+            _players_cache = _fetch_players()
             _players_dict_cache = {p[0]: p for p in _players_cache}
-            _players_cache_mtime = mtime
+            _players_cache_expires = time.time() + CACHE_TTL["players"]
+        except Exception as ex:
+            log_exceptions(ex)
+            # Keep serving the previous cache if available (stale-while-error).
+            if _players_cache:
+                _players_cache_expires = time.time() + 300  # short extension
+                return _players_cache
+            # Fallback to an empty cache if there is nothing to serve.
+            _players_cache = []
+            _players_dict_cache = {}
+            _players_cache_expires = time.time() + CACHE_TTL["players"]
+
         return _players_cache
 
 
@@ -135,7 +186,11 @@ def get_cached_scoreboard():  # pragma: no cover
     cached = cache.get("raw_scoreboard")
     if cached is not None:  # pragma: no cover
         return cached
-    data = live_scoreboard.ScoreBoard().games.data
+    data = _with_retry(
+        lambda: live_scoreboard.ScoreBoard().games.data,
+        attempts=3,
+        delay=0.2,
+    )
     cache.set("raw_scoreboard", data, CACHE_TTL["scoreboard"])
     return data
 
@@ -146,7 +201,11 @@ def get_cached_live_boxscore(game_id):  # pragma: no cover
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    data = live_boxscore.BoxScore(game_id=game_id).get_dict()
+    data = _with_retry(
+        lambda: live_boxscore.BoxScore(game_id=game_id).get_dict(),
+        attempts=3,
+        delay=0.2,
+    )
     status = data.get("game", {}).get("gameStatusText", "")
     ttl = CACHE_TTL["historical"] if "Final" in status else CACHE_TTL["boxscores"]
     cache.set(cache_key, data, ttl)
@@ -166,10 +225,14 @@ def get_scoreboard_v3_by_date(game_date: date, historical: bool = False):
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
-    sb = scoreboardv3.ScoreboardV3(
-        game_date=date_str,
-        proxy=STATS_PROXY,
-        timeout=STATS_TIMEOUT,
+    sb = _with_retry(
+        lambda: scoreboardv3.ScoreboardV3(
+            game_date=date_str,
+            proxy=STATS_PROXY,
+            timeout=STATS_TIMEOUT,
+        ),
+        attempts=3,
+        delay=0.2,
     )
     ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["scoreboard"]
     cache.set(cache_key, sb, ttl)
@@ -247,10 +310,14 @@ def get_cached_boxscore_v3(game_id, historical=True):
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
-    bs_stats = boxscoretraditionalv3.BoxScoreTraditionalV3(
-        game_id=game_id,
-        proxy=STATS_PROXY,
-        timeout=STATS_TIMEOUT,
+    bs_stats = _with_retry(
+        lambda: boxscoretraditionalv3.BoxScoreTraditionalV3(
+            game_id=game_id,
+            proxy=STATS_PROXY,
+            timeout=STATS_TIMEOUT,
+        ),
+        attempts=3,
+        delay=0.2,
     )
     ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["boxscores"]
     cache.set(cache_key, bs_stats, ttl)

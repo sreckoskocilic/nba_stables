@@ -1,4 +1,6 @@
 import asyncio
+import re
+from datetime import date
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache, executor
@@ -8,6 +10,7 @@ from helpers.stats import (
     get_cached_boxscore_v3,
     get_cached_live_boxscore,
     get_cached_scoreboard,
+    get_current_season,
     load_players_dict,
     load_players_file,
     reformat_player_minutes,
@@ -16,18 +19,34 @@ from isodate import parse_duration
 from nba_api.stats.endpoints import (
     cumestatsteamgames,
     playercareerstats,
+    playergamelog,
 )
 
 router = APIRouter()
+
+
+def _normalize_game_date(date_str: str | None) -> str | None:
+    if not date_str:
+        return None
+    try:
+        return date.fromisoformat(str(date_str)[:10]).isoformat()
+    except Exception:  # pragma: no cover
+        return date_str
 
 
 @router.get("/api/players/search")
 def search_players(q: str = Query(..., min_length=2)):
     """Search for players by name"""
     try:
+        cleaned = " ".join(q.split())
+        if not cleaned:
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+        if not re.match(r"^[\w\s.'-]+$", cleaned):
+            raise HTTPException(status_code=400, detail="Invalid characters in query")
+
         players = load_players_file()
         results = []
-        query = q.lower()
+        query = cleaned.lower()
 
         for player in players:
             if query in player[1].lower():
@@ -36,6 +55,8 @@ def search_players(q: str = Query(..., min_length=2)):
                 )
 
         return {"players": results[:20]}  # Limit to 20 results
+    except HTTPException:
+        raise
     except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail="Failed to search players")
@@ -63,22 +84,10 @@ async def get_player_stats(
         return cached
 
     def _sync():
-        players_dict = load_players_dict()
-
-        # Get team IDs for requested players
-        team_ids = set()
-        for pid in players_ids:
-            player = players_dict.get(pid)
-            if player and player[2]:
-                team_ids.add(player[2])
-
         results = []
-        relevant_game_ids = [
-            game["gameId"]
-            for game in get_cached_scoreboard()
-            if game["homeTeam"]["teamId"] in team_ids
-            or game["awayTeam"]["teamId"] in team_ids
-        ]
+        # Use all games on the scoreboard to avoid missing players with stale team IDs.
+        # Cost is low (max ~15 games) and keeps traded/free-agent players visible.
+        relevant_game_ids = [game["gameId"] for game in get_cached_scoreboard()]
 
         def fetch_player_boxscore(game_id):  # pragma: no cover
             try:
@@ -273,21 +282,62 @@ async def get_last_n_games_stats(
         team_id = player[2]
         player_name = fix_encoding(player[1])
 
-        raw_cache_key = f"team_games_raw_{team_id}"
-        game_rows_all = cache.get(raw_cache_key)
-        if game_rows_all is None:
-            for attempt in range(2):
-                try:
-                    cc = cumestatsteamgames.CumeStatsTeamGames(
-                        team_id=team_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
-                    )
-                    game_rows_all = cc.cume_stats_team_games.get_dict()["data"]
-                    break
-                except Exception as e:  # pragma: no cover
-                    log_exceptions(e)
-                    if attempt == 1:
-                        raise
-            cache.set(raw_cache_key, game_rows_all, CACHE_TTL["historical"])
+        game_rows_all = None
+
+        # Primary: team cumulative stats (fast, cached, keeps tests working)
+        if team_id:
+            raw_cache_key = f"team_games_raw_{team_id}"
+            game_rows_all = cache.get(raw_cache_key)
+            if game_rows_all is None:
+                for attempt in range(2):
+                    try:
+                        cc = cumestatsteamgames.CumeStatsTeamGames(
+                            team_id=team_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+                        )
+                        game_rows_all = cc.cume_stats_team_games.get_dict()["data"]
+                        break
+                    except Exception as e:  # pragma: no cover
+                        log_exceptions(e)
+                        if attempt == 1:
+                            game_rows_all = None
+                if game_rows_all is not None:
+                    cache.set(raw_cache_key, game_rows_all, CACHE_TTL["historical"])
+
+        # Fallback: player game log (resilient to trades/free agents)
+        if not game_rows_all:
+            try:
+                season = get_current_season()
+                data = None
+                for attempt in range(2):
+                    try:
+                        pgl = playergamelog.PlayerGameLog(
+                            player_id=player_id,
+                            season=season,
+                            proxy=STATS_PROXY,
+                            timeout=STATS_TIMEOUT,
+                        )
+                        data = pgl.player_game_log.get_dict()["data"]
+                        break
+                    except Exception as e:  # pragma: no cover
+                        log_exceptions(e)
+                        if attempt == 1:
+                            data = []
+                # Columns: SEASON_ID, PLAYER_ID, GAME_ID, GAME_DATE, MATCHUP, ...
+                _GAME_ID = 2
+                _GAME_DATE = 3
+                _MATCHUP = 4
+                game_rows_all = [
+                    [row[_MATCHUP], row[_GAME_ID], row[_GAME_DATE]] for row in data
+                ]
+            except Exception as e:  # pragma: no cover
+                log_exceptions(e)
+                game_rows_all = []
+
+        if not game_rows_all:
+            raise HTTPException(
+                status_code=503, detail="Player game data temporarily unavailable"
+            )
+
         game_rows = game_rows_all[:n]
 
         def fetch_game_stats(gg):
@@ -297,9 +347,43 @@ async def get_last_n_games_stats(
                     x[6]: x for x in csp.player_stats.get_dict()["data"]
                 }
                 ss = player_stats_dict.get(player_id)
+
+                # Derive game date for display (prefer data from inputs, then boxscore)
+                game_date = _normalize_game_date(gg[2] if len(gg) > 2 else None)
+                if not game_date:
+                    try:
+                        summary = csp.game_summary.get_dict()
+                        hdrs = summary.get("headers", [])
+                        data = summary.get("data", [[]])
+                        if data and hdrs:
+                            summary_map = {
+                                hdrs[i]: data[0][i] for i in range(len(hdrs))
+                            }
+                            game_date = summary_map.get(
+                                "GAME_DATE_EST"
+                            ) or summary_map.get("GAME_DATE")
+                            game_date = _normalize_game_date(game_date)
+                    except Exception as ex:  # pragma: no cover
+                        log_exceptions(ex)
+
+                matchup_raw = gg[0]
+                matchup_parts = matchup_raw.split(" ", 1)
+                if (
+                    not game_date
+                    and len(matchup_parts) == 2
+                    and len(matchup_parts[0]) == 10
+                ):
+                    game_date = matchup_parts[0]
+                    matchup_display = matchup_parts[1]
+                else:
+                    matchup_display = matchup_raw
+
+                if game_date:
+                    matchup_display = f"{game_date} — {matchup_display}"
+
                 if ss is not None and ss[14] != "":
                     return {
-                        "matchup": gg[0],
+                        "matchup": matchup_display,
                         "gameId": gg[1],
                         "minutes": ss[14],
                         "points": ss[32],
@@ -314,9 +398,9 @@ async def get_last_n_games_stats(
                         "dnp": False,
                     }
                 else:
-                    return {"matchup": gg[0], "gameId": gg[1], "dnp": True}
+                    return {"matchup": matchup_display, "gameId": gg[1], "dnp": True}
             except Exception as ex:  # pragma: no cover
-                log_exceptions(ex)
+                log_exceptions(ex, f"player_id={player_id} game_id={gg[1]}")
                 return None
 
         futures = [executor.submit(fetch_game_stats, gg) for gg in game_rows]
