@@ -3,6 +3,7 @@ import atexit
 import os
 import threading
 import time
+import heapq
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, Optional
 
@@ -22,15 +23,17 @@ CACHE_TTL = {
 
 # Simple in-memory cache
 class SimpleCache:
-    _EVICT_EVERY = 50
+    _EVICT_EVERY = 200
 
     def __init__(self):
         self._cache: Dict[str, Dict[str, Any]] = {}
+        self._heap = []  # (expires, key)
         self._call_count = 0
         self._lock = threading.Lock()
 
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
+            self._evict_expired()
             if key in self._cache:
                 entry = self._cache[key]
                 if time.time() < entry["expires"]:
@@ -44,7 +47,9 @@ class SimpleCache:
 
     def set(self, key: str, data: Any, ttl_seconds: int):
         with self._lock:
-            self._cache[key] = {"data": data, "expires": time.time() + ttl_seconds}
+            expires = time.time() + ttl_seconds
+            self._cache[key] = {"data": data, "expires": expires}
+            heapq.heappush(self._heap, (expires, key))
             self._call_count += 1
             if self._call_count >= self._EVICT_EVERY:
                 self._evict_expired()
@@ -52,13 +57,16 @@ class SimpleCache:
 
     def _evict_expired(self):
         now = time.time()
-        expired = [k for k, v in self._cache.items() if now >= v["expires"]]
-        for k in expired:  # pragma: no cover
-            del self._cache[k]
+        while self._heap and self._heap[0][0] <= now:
+            expires, key = heapq.heappop(self._heap)
+            entry = self._cache.get(key)
+            if entry and entry["expires"] <= now:
+                del self._cache[key]
 
     def clear(self):
         with self._lock:
             self._cache.clear()
+            self._heap.clear()
 
 
 # Named constants
@@ -108,3 +116,6 @@ TEAMS = {
     1610612762: ("UTA", "Utah Jazz"),
     1610612764: ("WAS", "Washington Wizards"),
 }
+
+# Precompute tricode → (team_id, full name)
+TEAMS_BY_TRICODE = {v[0]: (k, v[1]) for k, v in TEAMS.items()}

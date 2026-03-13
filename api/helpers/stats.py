@@ -2,6 +2,7 @@ import re
 import threading
 import time
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 from zoneinfo import ZoneInfo
 
 from helpers.common import (
@@ -26,9 +27,14 @@ _TZ_CET = ZoneInfo("Europe/Berlin")
 
 
 # Helper functions
+@lru_cache(maxsize=1)
+def _today_et_cached(now: datetime) -> date:
+    return now.astimezone(_TZ_ET).date()
+
+
 def _today_et() -> date:
     """Return today's date in US/Eastern (NBA schedule timezone)."""
-    return datetime.now(_TZ_ET).date()
+    return _today_et_cached(datetime.now(_TZ_ET))
 
 
 def scoreboard_date() -> date:
@@ -47,8 +53,13 @@ def _target_date(days_offset: int = 0) -> date:
     return _today_et() - timedelta(days=days_offset)
 
 
+@lru_cache(maxsize=32)
+def _display_date_cached(days_offset: int, today: date) -> str:
+    return (today - timedelta(days=days_offset)).strftime("%B %d, %Y")
+
+
 def get_display_date(days_offset: int = 0) -> str:
-    return _target_date(days_offset).strftime("%B %d, %Y")
+    return _display_date_cached(days_offset, _today_et())
 
 
 def get_current_season() -> str:
@@ -109,9 +120,14 @@ def _with_retry(fn, attempts: int = 3, delay: float = 0.2):
             last_err = ex
             if i == attempts - 1:
                 break
-            time.sleep(delay)
+            time.sleep(delay * (1 + 0.1 * i))
     if last_err:
         raise last_err
+
+
+def _wrap_upstream_error(ex: Exception, context: str) -> Exception:
+    """Normalize nba_api/network errors to HTTP-friendly exceptions."""
+    return Exception(f"{context}: {ex}")
 
 
 _players_cache = None
@@ -187,7 +203,11 @@ def get_cached_scoreboard():  # pragma: no cover
     if cached is not None:  # pragma: no cover
         return cached
     data = _with_retry(
-        lambda: live_scoreboard.ScoreBoard().games.data,
+        lambda: (
+            live_scoreboard.ScoreBoard(
+                proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+            ).games.data
+        ),
         attempts=3,
         delay=0.2,
     )
@@ -202,7 +222,9 @@ def get_cached_live_boxscore(game_id):  # pragma: no cover
     if cached is not None:
         return cached
     data = _with_retry(
-        lambda: live_boxscore.BoxScore(game_id=game_id).get_dict(),
+        lambda: live_boxscore.BoxScore(
+            game_id=game_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+        ).get_dict(),
         attempts=3,
         delay=0.2,
     )

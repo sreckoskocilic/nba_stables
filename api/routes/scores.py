@@ -10,6 +10,7 @@ from helpers.common import (
     STATS_PROXY,
     STATS_TIMEOUT,
     TEAMS,
+    TEAMS_BY_TRICODE,
     cache,
     executor,
 )
@@ -25,6 +26,7 @@ from helpers.stats import (
     get_games_leaders_list,
     get_games_list,
     get_scoreboard_v3_by_date,
+    _wrap_upstream_error,
     scoreboard_date,
 )
 from nba_api.stats.endpoints import leaguestandings
@@ -60,6 +62,7 @@ async def get_boxscores(
     days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
 ):
     """Get detailed box scores for games"""
+    days_offset = max(DAYS_OFFSET_MIN, min(DAYS_OFFSET_MAX, days_offset))
     cache_key = f"boxscores_{days_offset}"
     cached = cache.get(cache_key)
     if cached:
@@ -111,7 +114,7 @@ async def get_scoreboard():
             try:
                 live_by_id = {g["gameId"]: g for g in _scoreboard_from_live()}
             except Exception as ex:  # pragma: no cover
-                log_exceptions(ex)
+                log_exceptions(_wrap_upstream_error(ex, "scoreboard_live_merge"))
                 live_by_id = {}
             games = [
                 live_by_id.get(g["gameId"], g) if g["gameId"] in started_ids else g
@@ -216,8 +219,8 @@ def _scoreboard_from_v3(sb):
     leaders_data = sb.game_leaders.get_dict()
     leaders_by = {(ld[0], ld[1]): ld for ld in leaders_data["data"]}
 
-    games = []
-    for g in header["data"]:
+    games = [None] * len(header["data"])
+    for idx, g in enumerate(header["data"]):
         game_id = g[0]
         game_code = g[1]  # e.g. "20260307/ORLMIN"
         status_text = g[3]
@@ -238,15 +241,13 @@ def _scoreboard_from_v3(sb):
         home_row, home_team_id = game_teams.get(home_tri, (None, None))
         away_row, away_team_id = game_teams.get(away_tri, (None, None))
 
-        games.append(
-            {
-                "gameId": game_id,
-                "status": status_text,
-                "gameEt": g[7] or "",
-                "homeTeam": _build_team(home_row, home_team_id, game_id, leaders_by),
-                "awayTeam": _build_team(away_row, away_team_id, game_id, leaders_by),
-            }
-        )
+        games[idx] = {
+            "gameId": game_id,
+            "status": status_text,
+            "gameEt": g[7] or "",
+            "homeTeam": _build_team(home_row, home_team_id, game_id, leaders_by),
+            "awayTeam": _build_team(away_row, away_team_id, game_id, leaders_by),
+        }
 
     return games
 
@@ -256,6 +257,7 @@ async def get_daily_leaders(
     days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
 ):
     """Get daily leaders across statistical categories"""
+    days_offset = max(DAYS_OFFSET_MIN, min(DAYS_OFFSET_MAX, days_offset))
     cache_key = f"leaders_{days_offset}"
     cached = cache.get(cache_key)
     if cached:
@@ -460,6 +462,7 @@ async def get_double_doubles(
     days_offset: int = Query(default=0, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
 ):
     """Get players with double-doubles or triple-doubles for a given day"""
+    days_offset = max(DAYS_OFFSET_MIN, min(DAYS_OFFSET_MAX, days_offset))
     cache_key = f"doubledoubles_{days_offset}"
     cached = cache.get(cache_key)
     if cached:
@@ -484,7 +487,7 @@ async def get_double_doubles(
             try:
                 return get_cached_live_boxscore(gid)
             except Exception as ex:
-                log_exceptions(ex)
+                log_exceptions(_wrap_upstream_error(ex, f"doubledoubles gid={gid}"))
                 return {}
 
         boxscore_results = list(executor.map(fetch_dd_boxscore, game_ids))

@@ -1,6 +1,7 @@
 import asyncio
 import re
 from datetime import date
+from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache, executor
@@ -11,6 +12,7 @@ from helpers.stats import (
     get_cached_live_boxscore,
     get_cached_scoreboard,
     get_current_season,
+    _wrap_upstream_error,
     load_players_dict,
     load_players_file,
     reformat_player_minutes,
@@ -25,6 +27,7 @@ from nba_api.stats.endpoints import (
 router = APIRouter()
 
 
+@lru_cache(maxsize=128)
 def _normalize_game_date(date_str: str | None) -> str | None:
     if not date_str:
         return None
@@ -47,9 +50,10 @@ def search_players(q: str = Query(..., min_length=2)):
         players = load_players_file()
         results = []
         query = cleaned.lower()
+        players_with_lower = [(p, p[1].lower()) for p in players]
 
-        for player in players:
-            if query in player[1].lower():
+        for player, player_lower in players_with_lower:
+            if query in player_lower:
                 results.append(
                     {"id": player[0], "name": player[1], "teamId": player[2]}
                 )
@@ -67,7 +71,8 @@ async def get_player_stats(
     ids: str = Query(..., description="Comma-separated player IDs"),
 ):
     """Get live stats for specific players"""
-    players_ids = {int(pid.strip()) for pid in ids.split(",") if pid.strip().isdigit()}
+    ids_clean = ",".join(pid.strip() for pid in ids.split(",") if pid.strip())
+    players_ids = {int(pid) for pid in ids_clean.split(",") if pid.isdigit()}
 
     if not players_ids:
         return {"players": []}
@@ -91,7 +96,7 @@ async def get_player_stats(
             try:
                 return get_cached_live_boxscore(game_id)
             except Exception as ex:
-                log_exceptions(ex)
+                log_exceptions(_wrap_upstream_error(ex, f"game_id={game_id}"))
                 return None
 
         # executor.map keeps submission overhead low and maintains order

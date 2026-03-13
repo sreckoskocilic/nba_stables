@@ -2,6 +2,7 @@ import importlib
 import os
 import sys
 from unittest.mock import MagicMock
+from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,6 +14,8 @@ from helpers.common import cache  # noqa: E402
 from helpers.logger import logger, log_exceptions  # noqa: E402
 from main import app  # noqa: E402
 from conftest import PLAYER_ID  # noqa: E402
+from helpers.common import SimpleCache  # noqa: E402
+from helpers.stats import _target_date  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -166,3 +169,21 @@ def test_cors_wildcard_allowed_when_env_set(monkeypatch):
         m for m in app_mod.app.user_middleware if m.cls.__name__ == "CORSMiddleware"
     )
     assert cors.kwargs.get("allow_origins") == ["*"]
+
+
+def test_simple_cache_expiry_and_eviction():
+    sc = SimpleCache()
+    sc.set("a", 1, ttl_seconds=0)
+    assert sc.get("a") is None  # expired path deletes entry
+    # Force an expired cache entry with empty heap to exercise line 41 deletion
+    sc._cache["stale"] = {"data": 1, "expires": 0}
+    sc._heap.clear()
+    assert sc.get("stale") is None
+    for i in range(sc._EVICT_EVERY + 1):
+        sc.set(f"k{i}", i, ttl_seconds=1)
+    assert sc.get("k0") == 0
+
+
+def test_target_date_covered():
+    d = _target_date(1)
+    assert isinstance(d, date)
