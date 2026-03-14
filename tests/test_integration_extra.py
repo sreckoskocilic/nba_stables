@@ -63,16 +63,16 @@ class TestCacheHits:
         standings_mock.assert_called_once()
 
     def test_last_n_games_served_from_cache(self, client):
-        cumestats = MagicMock()
-        cumestats.cume_stats_team_games.get_dict.return_value = {"data": []}
+        gamelog = MagicMock()
+        gamelog.player_game_log.get_dict.return_value = {"data": []}
         with (
             patch(
                 "routes.players.load_players_dict",
                 return_value={p[0]: p for p in FAKE_PLAYERS},
             ),
             patch(
-                "routes.players.cumestatsteamgames.CumeStatsTeamGames",
-                return_value=cumestats,
+                "routes.players.playergamelog.PlayerGameLog",
+                return_value=gamelog,
             ) as mock,
         ):
             client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
@@ -530,10 +530,6 @@ class TestPlayerErrorHandlers:
             patch(
                 "routes.players.load_players_dict",
                 return_value={PLAYER_ID: [PLAYER_ID, "LeBron James", TEAM_ID_LAL]},
-            ),
-            patch(
-                "routes.players.cumestatsteamgames.CumeStatsTeamGames",
-                side_effect=Exception("team feed down"),
             ),
             patch(
                 "routes.players.playergamelog.PlayerGameLog",

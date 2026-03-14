@@ -7,19 +7,18 @@ from fastapi import APIRouter, HTTPException, Path, Query
 from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache, executor
 from helpers.logger import log_exceptions
 from helpers.stats import (
+    _wrap_upstream_error,
     fix_encoding,
     get_cached_boxscore_v3,
     get_cached_live_boxscore,
     get_cached_scoreboard,
     get_current_season,
-    _wrap_upstream_error,
     load_players_dict,
     load_players_file,
     reformat_player_minutes,
 )
 from isodate import parse_duration
 from nba_api.stats.endpoints import (
-    cumestatsteamgames,
     playercareerstats,
     playergamelog,
 )
@@ -283,59 +282,34 @@ async def get_last_n_games_stats(
         if not player:
             raise HTTPException(status_code=404, detail="Player not found")
 
-        team_id = player[2]
         player_name = fix_encoding(player[1])
 
-        game_rows_all = None
-
-        # Primary: team cumulative stats (fast, cached, keeps tests working)
-        if team_id:
-            raw_cache_key = f"team_games_raw_{team_id}"
-            game_rows_all = cache.get(raw_cache_key)
-            if game_rows_all is None:
-                for attempt in range(2):
-                    try:
-                        cc = cumestatsteamgames.CumeStatsTeamGames(
-                            team_id=team_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
-                        )
-                        game_rows_all = cc.cume_stats_team_games.get_dict()["data"]
-                        break
-                    except Exception as e:  # pragma: no cover
-                        log_exceptions(e)
-                        if attempt == 1:
-                            game_rows_all = None
-                if game_rows_all is not None:
-                    cache.set(raw_cache_key, game_rows_all, CACHE_TTL["historical"])
-
-        # Fallback: player game log (resilient to trades/free agents)
-        if not game_rows_all:
-            try:
-                season = get_current_season()
-                data = None
-                for attempt in range(2):
-                    try:
-                        pgl = playergamelog.PlayerGameLog(
-                            player_id=player_id,
-                            season=season,
-                            proxy=STATS_PROXY,
-                            timeout=STATS_TIMEOUT,
-                        )
-                        data = pgl.player_game_log.get_dict()["data"]
-                        break
-                    except Exception as e:  # pragma: no cover
-                        log_exceptions(e)
-                        if attempt == 1:
-                            data = []
-                # Columns: SEASON_ID, PLAYER_ID, GAME_ID, GAME_DATE, MATCHUP, ...
-                _GAME_ID = 2
-                _GAME_DATE = 3
-                _MATCHUP = 4
-                game_rows_all = [
-                    [row[_MATCHUP], row[_GAME_ID], row[_GAME_DATE]] for row in data
-                ]
-            except Exception as e:  # pragma: no cover
-                log_exceptions(e)
-                game_rows_all = []
+        # Load player game log (works for all players including traded/free agents)
+        raw_cache_key = f"player_games_raw_{player_id}"
+        game_rows_all = cache.get(raw_cache_key)
+        if game_rows_all is None:
+            season = get_current_season()
+            data = []
+            for attempt in range(2):
+                try:
+                    pgl = playergamelog.PlayerGameLog(
+                        player_id=player_id,
+                        season=season,
+                        proxy=STATS_PROXY,
+                        timeout=STATS_TIMEOUT,
+                    )
+                    data = pgl.player_game_log.get_dict()["data"]
+                    break
+                except Exception as e:  # pragma: no cover
+                    log_exceptions(e)
+            # Columns: SEASON_ID, PLAYER_ID, GAME_ID, GAME_DATE, MATCHUP, ...
+            _GAME_ID = 2
+            _GAME_DATE = 3
+            _MATCHUP = 4
+            game_rows_all = [
+                [row[_MATCHUP], row[_GAME_ID], row[_GAME_DATE]] for row in data
+            ]
+            cache.set(raw_cache_key, game_rows_all, CACHE_TTL["historical"])
 
         if not game_rows_all:
             raise HTTPException(

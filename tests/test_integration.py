@@ -686,10 +686,10 @@ class TestGamePlayers:
 
 
 class TestLastNGames:
-    def _cumestats(self):
+    def _gamelog(self):
         m = MagicMock()
-        m.cume_stats_team_games.get_dict.return_value = {
-            "data": [["2025-02-27 vs BOS", GAME_ID]]
+        m.player_game_log.get_dict.return_value = {
+            "data": [[None, None, GAME_ID, "2025-02-27", "LAL vs BOS"]]
         }
         return m
 
@@ -707,8 +707,8 @@ class TestLastNGames:
                 return_value={p[0]: p for p in FAKE_PLAYERS},
             ),
             patch(
-                "routes.players.cumestatsteamgames.CumeStatsTeamGames",
-                return_value=self._cumestats(),
+                "routes.players.playergamelog.PlayerGameLog",
+                return_value=self._gamelog(),
             ),
             patch(
                 "routes.players.get_cached_boxscore_v3",
@@ -741,8 +741,8 @@ class TestLastNGames:
                 return_value={p[0]: p for p in FAKE_PLAYERS},
             ),
             patch(
-                "routes.players.cumestatsteamgames.CumeStatsTeamGames",
-                return_value=self._cumestats(),
+                "routes.players.playergamelog.PlayerGameLog",
+                return_value=self._gamelog(),
             ),
             patch(
                 "routes.players.get_cached_boxscore_v3",

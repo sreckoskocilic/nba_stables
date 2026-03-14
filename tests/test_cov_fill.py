@@ -182,8 +182,108 @@ def test_simple_cache_expiry_and_eviction():
     for i in range(sc._EVICT_EVERY + 1):
         sc.set(f"k{i}", i, ttl_seconds=1)
     assert sc.get("k0") == 0
+    # Trigger eviction branch (lines 44-45) by bumping call count to threshold
+    sc._call_count = sc._EVICT_EVERY
+    assert sc.get("nonexistent") is None
+    assert sc._call_count == 0
 
 
 def test_target_date_covered():
     d = _target_date(1)
     assert isinstance(d, date)
+
+
+def _make_stats_row(pid):
+    row = [0] * 40
+    row[6] = pid
+    row[14] = "28:00"
+    row[15] = 5
+    row[16] = 10
+    row[18] = 2
+    row[19] = 5
+    row[21] = 4
+    row[22] = 4
+    row[26] = 8
+    row[27] = 6
+    row[28] = 1
+    row[29] = 2
+    row[31] = 3
+    row[32] = 20
+    return row
+
+
+def test_last_n_games_game_summary_date_path(monkeypatch, client):
+    """Cover lines 32, 332-343: row has no date, game_summary provides it."""
+    fake_pid = 9991
+    cache._cache.pop(f"last_n_games_{fake_pid}_1", None)
+    cache._cache.pop(f"player_games_raw_{fake_pid}", None)
+
+    monkeypatch.setattr(
+        "routes.players.load_players_dict",
+        lambda: {fake_pid: [fake_pid, "Test Player C", None]},
+    )
+    mock_pgl = MagicMock()
+    mock_pgl.player_game_log.get_dict.return_value = {
+        "data": [[None, None, "0022309991", "", "LAL vs BOS"]]
+    }
+    monkeypatch.setattr(
+        "routes.players.playergamelog.PlayerGameLog", lambda **_: mock_pgl
+    )
+
+    bs = MagicMock()
+    bs.player_stats.get_dict.return_value = {"data": [_make_stats_row(fake_pid)]}
+    bs.game_summary.get_dict.return_value = {
+        "headers": ["GAME_DATE_EST"],
+        "data": [["2025-02-27"]],
+    }
+    monkeypatch.setattr("routes.players.get_cached_boxscore_v3", lambda gid: bs)
+
+    r = client.get(f"/api/players/{fake_pid}/last-n-games?n=1")
+    assert r.status_code == 200
+    assert "2025-02-27" in r.json()["games"][0]["matchup"]
+
+
+def test_last_n_games_matchup_date_prefix_path(monkeypatch, client):
+    """Cover lines 354-355: no date from row or summary, matchup has YYYY-MM-DD prefix."""
+    fake_pid = 9992
+    cache._cache.pop(f"last_n_games_{fake_pid}_1", None)
+    cache._cache.pop(f"player_games_raw_{fake_pid}", None)
+
+    monkeypatch.setattr(
+        "routes.players.load_players_dict",
+        lambda: {fake_pid: [fake_pid, "Test Player D", None]},
+    )
+    mock_pgl = MagicMock()
+    mock_pgl.player_game_log.get_dict.return_value = {
+        "data": [[None, None, "0022309992", "", "2025-02-27 vs BOS"]]
+    }
+    monkeypatch.setattr(
+        "routes.players.playergamelog.PlayerGameLog", lambda **_: mock_pgl
+    )
+
+    bs = MagicMock()
+    bs.player_stats.get_dict.return_value = {"data": [_make_stats_row(fake_pid)]}
+    bs.game_summary.get_dict.return_value = {"headers": [], "data": []}
+    monkeypatch.setattr("routes.players.get_cached_boxscore_v3", lambda gid: bs)
+
+    r = client.get(f"/api/players/{fake_pid}/last-n-games?n=1")
+    assert r.status_code == 200
+    matchup = r.json()["games"][0]["matchup"]
+    assert matchup.startswith("2025-02-27 —")
+    assert "vs BOS" in matchup
+
+
+def test_get_cached_boxscore_v3_cache_miss(monkeypatch):
+    """Cover stats.py 331-346: get_cached_boxscore_v3 body on cache miss."""
+    from helpers.stats import get_cached_boxscore_v3
+
+    fake_game_id = "TESTGAME001"
+    cache._cache.pop(f"raw_boxscore_{fake_game_id}", None)
+
+    mock_bs = MagicMock()
+    monkeypatch.setattr(
+        "helpers.stats.boxscoretraditionalv3.BoxScoreTraditionalV3",
+        lambda **_: mock_bs,
+    )
+    result = get_cached_boxscore_v3(fake_game_id)
+    assert result is mock_bs
