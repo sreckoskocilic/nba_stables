@@ -350,37 +350,17 @@ def fetch_single_boxscore(game_id, leaders_data):
     """Fetch boxscore for a single game (for parallel execution)"""
     game_box = {}
     try:
-        bs_stats = get_cached_boxscore_v3(game_id)
-
-        team_stats = bs_stats.team_stats.get_dict()["data"]
+        data = get_cached_live_boxscore(game_id)
+        game = data.get("game", {})
         game_box = {"gameId": game_id, "teams": []}
         leaders_by_team = {ld[4]: ld for ld in leaders_data if len(ld) > 4}
 
-        # BoxScoreTraditionalV3 team_stats column indices
-        _TEAM_ID = 1
-        _CITY = 2
-        _NAME = 3
-        _FGM = 7
-        _FGA = 8
-        _FG_PCT = 9
-        _TPM = 10
-        _TPA = 11
-        _TP_PCT = 12
-        _FTM = 13
-        _FTA = 14
-        _FT_PCT = 15
-        _OREB = 16
-        _REB = 18
-        _AST = 19
-        _STL = 20
-        _BLK = 21
-        _TOV = 22
-        _PF = 23
-        _PTS = 24
+        for team_key in ["homeTeam", "awayTeam"]:
+            team = game[team_key]
+            team_id = team["teamId"]
+            s = team["statistics"]
 
-        for i, team in enumerate(team_stats):
             leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
-            team_id = team[_TEAM_ID]
             ld = leaders_by_team.get(team_id)
             if ld:
                 leader = {
@@ -392,22 +372,22 @@ def fetch_single_boxscore(game_id, leaders_data):
 
             game_box["teams"].append(
                 {
-                    "name": f"{team[_CITY]} {team[_NAME]}",
-                    "score": team[_PTS],
+                    "name": f"{team['teamCity']} {team['teamName']}",
+                    "score": team["score"],
                     "stats": {
-                        "fg": f"{team[_FGM]}/{team[_FGA]}",
-                        "fgPct": team[_FG_PCT],
-                        "threePt": f"{team[_TPM]}/{team[_TPA]}",
-                        "threePtPct": team[_TP_PCT],
-                        "ft": f"{team[_FTM]}/{team[_FTA]}",
-                        "ftPct": team[_FT_PCT],
-                        "rebounds": team[_REB],
-                        "offRebounds": team[_OREB],
-                        "assists": team[_AST],
-                        "steals": team[_STL],
-                        "blocks": team[_BLK],
-                        "turnovers": team[_TOV],
-                        "fouls": team[_PF],
+                        "fg": f"{s['fieldGoalsMade']}/{s['fieldGoalsAttempted']}",
+                        "fgPct": s["fieldGoalsPercentage"],
+                        "threePt": f"{s['threePointersMade']}/{s['threePointersAttempted']}",
+                        "threePtPct": s["threePointersPercentage"],
+                        "ft": f"{s['freeThrowsMade']}/{s['freeThrowsAttempted']}",
+                        "ftPct": s["freeThrowsPercentage"],
+                        "rebounds": s["reboundsTotal"],
+                        "offRebounds": s["reboundsOffensive"],
+                        "assists": s["assists"],
+                        "steals": s["steals"],
+                        "blocks": s["blocks"],
+                        "turnovers": s["turnovers"],
+                        "fouls": s["foulsPersonal"],
                     },
                     "leader": leader,
                 }

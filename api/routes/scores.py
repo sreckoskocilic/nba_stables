@@ -10,7 +10,6 @@ from helpers.common import (
     STATS_PROXY,
     STATS_TIMEOUT,
     TEAMS,
-    TEAMS_BY_TRICODE,
     cache,
     executor,
 )

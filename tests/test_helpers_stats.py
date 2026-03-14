@@ -242,7 +242,7 @@ def _leader_row(game_id, team_id, player_name, pts, reb, ast):
     return row
 
 
-def _team_row(
+def _team_dict(
     team_id,
     city,
     name,
@@ -264,32 +264,31 @@ def _team_row(
     to=10,
     fouls=18,
 ):
-    """boxscore team_stats row matching the column indices used in stats.py.
-
-    Length 26 so that row[-2] == row[24] == score.
-    """
-    row = [None] * 26
-    row[1] = team_id
-    row[2] = city
-    row[3] = name
-    row[7] = fgm
-    row[8] = fga
-    row[9] = fg_pct
-    row[10] = tpm
-    row[11] = tpa
-    row[12] = tp_pct
-    row[13] = ftm
-    row[14] = fta
-    row[15] = ft_pct
-    row[16] = off_reb
-    row[18] = reb
-    row[19] = ast
-    row[20] = stl
-    row[21] = blk
-    row[22] = to
-    row[23] = fouls
-    row[24] = score  # team[-2]
-    return row
+    """Live boxscore team dict matching the structure returned by get_cached_live_boxscore."""
+    return {
+        "teamId": team_id,
+        "teamCity": city,
+        "teamName": name,
+        "score": score,
+        "statistics": {
+            "fieldGoalsMade": fgm,
+            "fieldGoalsAttempted": fga,
+            "fieldGoalsPercentage": fg_pct,
+            "threePointersMade": tpm,
+            "threePointersAttempted": tpa,
+            "threePointersPercentage": tp_pct,
+            "freeThrowsMade": ftm,
+            "freeThrowsAttempted": fta,
+            "freeThrowsPercentage": ft_pct,
+            "reboundsOffensive": off_reb,
+            "reboundsTotal": reb,
+            "assists": ast,
+            "steals": stl,
+            "blocks": blk,
+            "turnovers": to,
+            "foulsPersonal": fouls,
+        },
+    }
 
 
 def _scoreboard_mock(games_data, leaders_data=None):
@@ -417,7 +416,7 @@ class TestGetGamesLeadersList:
 
 
 class TestFetchSingleBoxscore:
-    _TEAM_A = _team_row(
+    _TEAM_A = _team_dict(
         101,
         "Los Angeles",
         "Lakers",
@@ -439,7 +438,7 @@ class TestFetchSingleBoxscore:
         to=11,
         fouls=20,
     )
-    _TEAM_B = _team_row(
+    _TEAM_B = _team_dict(
         202,
         "Golden State",
         "Warriors",
@@ -462,16 +461,12 @@ class TestFetchSingleBoxscore:
         fouls=19,
     )
 
-    def _mock_bs(self, teams_data):
-        bs = MagicMock()
-        bs.team_stats.get_dict.return_value = {"data": teams_data}
-        return bs
+    def _mock_live_bs(self, home, away):
+        return {"game": {"homeTeam": home, "awayTeam": away}}
 
     def _call(self, leaders_data=None):
-        bs = self._mock_bs([self._TEAM_A, self._TEAM_B])
-        with patch(
-            "helpers.stats.boxscoretraditionalv3.BoxScoreTraditionalV3", return_value=bs
-        ):
+        data = self._mock_live_bs(self._TEAM_A, self._TEAM_B)
+        with patch("helpers.stats.get_cached_live_boxscore", return_value=data):
             return fetch_single_boxscore("0022300001", leaders_data or [])
 
     def test_returns_game_id(self):
@@ -546,7 +541,7 @@ class TestFetchSingleBoxscore:
 
     def test_returns_empty_dict_on_exception(self):
         with patch(
-            "helpers.stats.boxscoretraditionalv3.BoxScoreTraditionalV3",
+            "helpers.stats.get_cached_live_boxscore",
             side_effect=Exception("API error"),
         ):
             result = fetch_single_boxscore("0022300001", [])
