@@ -27,6 +27,11 @@ loggers:
     handlers:
       - access
     propagate: no
+  perf:
+    level: INFO
+    handlers:
+      - access
+    propagate: no
 root:
   level: ERROR
   handlers:

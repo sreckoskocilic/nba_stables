@@ -24,6 +24,7 @@ from nba_api.stats.endpoints import (
 
 _TZ_ET = ZoneInfo("US/Eastern")
 _TZ_CET = ZoneInfo("Europe/Berlin")
+_ET_TIME_RE = re.compile(r"(\d{1,2}):(\d{2})\s*(am|pm)", re.IGNORECASE)
 
 
 # Helper functions
@@ -79,7 +80,7 @@ def get_current_season() -> str:
 def convert_et_to_cet(time_str: str) -> str:
     """Convert NBA game time from US/Eastern to CET (e.g. '7:00 pm ET' -> '23:00 CET')"""
     try:
-        m = re.match(r"(\d{1,2}):(\d{2})\s*(am|pm)", time_str.strip(), re.IGNORECASE)
+        m = _ET_TIME_RE.match(time_str.strip())
         if not m:
             return time_str
         hour, minute, ampm = int(m.group(1)), int(m.group(2)), m.group(3).lower()
@@ -102,6 +103,7 @@ def reformat_player_minutes(total_seconds: int) -> str:
     return f"{minutes}:{seconds:02d}"
 
 
+@lru_cache(maxsize=1024)
 def fix_encoding(s: str) -> str:
     """Fix nba_api mojibake: UTF-8 bytes decoded as Latin-1"""
     try:

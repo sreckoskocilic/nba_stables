@@ -125,6 +125,31 @@ class TestSimpleCache:
         assert self.cache.get("short") is None
         assert self.cache.get("long") == "here"
 
+    # ------------------------------------------------------------------
+    # Periodic eviction (_evict_expired via call-count threshold)
+    # ------------------------------------------------------------------
+
+    def test_periodic_eviction_removes_expired_entry(self):
+        # Set a short-lived entry, let it expire, then trigger periodic eviction
+        self.cache.set("stale", "val", ttl_seconds=1)
+        time.sleep(1.05)
+        self.cache._call_count = SimpleCache._EVICT_EVERY - 1
+        self.cache.get("anything")  # pushes count to threshold → _evict_expired runs
+        assert "stale" not in self.cache._cache
+
+    def test_periodic_eviction_keeps_refreshed_entry(self):
+        # Overwriting a key leaves a stale heap pointer for the old TTL.
+        # When _evict_expired pops that pointer the cache entry has a newer expiry,
+        # so it must NOT be deleted (line 62 guard).
+        self.cache.set("key", "old", ttl_seconds=1)
+        self.cache.set(
+            "key", "new", ttl_seconds=60
+        )  # refreshes cache; old heap entry remains
+        time.sleep(1.05)
+        self.cache._call_count = SimpleCache._EVICT_EVERY - 1
+        self.cache.get("anything")
+        assert self.cache.get("key") == "new"
+
 
 class TestLogExceptions:
     def test_calls_logger_exception(self):

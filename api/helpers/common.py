@@ -33,7 +33,6 @@ class SimpleCache:
 
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
-            self._evict_expired()
             if key in self._cache:
                 entry = self._cache[key]
                 if time.time() < entry["expires"]:

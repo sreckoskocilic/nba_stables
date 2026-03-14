@@ -6,11 +6,12 @@ FastAPI backend for live NBA statistics
 import logging
 import logging.config
 import os
+import time
 from contextlib import asynccontextmanager
 
 import uvicorn
 import yaml
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,9 +22,28 @@ from routes.players import router as players_router
 from routes.scores import router
 from routes.season import router as season_router
 from routes.trades import router as trades_router
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
 logger = logging.getLogger(__name__)
+_perf_logger = logging.getLogger("perf")
+
+
+class TimingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = (time.perf_counter() - start) * 1000
+        path = request.url.path
+        if not path.startswith("/web/"):
+            _perf_logger.info(
+                "%-7s %-40s %d  %.0fms",
+                request.method,
+                path,
+                response.status_code,
+                duration_ms,
+            )
+        return response
 
 
 @asynccontextmanager
@@ -58,6 +78,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(TimingMiddleware)
 
 app.include_router(router)
 app.include_router(players_router)
