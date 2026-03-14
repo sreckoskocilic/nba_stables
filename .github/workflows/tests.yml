@@ -19,14 +19,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: "requirements-dev.txt"
 
       - name: Install dependencies
-        run: | 
+        run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
       - name: Run tests with coverage
-        run: pytest tests/ --cov=api --cov-report=xml
+        run: pytest tests/ --cov=api --cov-report=xml -n auto
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
