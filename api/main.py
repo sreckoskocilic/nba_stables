@@ -9,13 +9,13 @@ import os
 import time
 from contextlib import asynccontextmanager
 
+import helpers.common as _common
 import uvicorn
 import yaml
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-import helpers.common as _common
 from helpers.stats import get_display_date
 from routes.injuries import router as injuries_router
 from routes.players import router as players_router
@@ -131,6 +131,12 @@ async def serve_frontend():  # pragma: no cover
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return {"message": "NBA Stables API", "docs": "/docs"}
+
+
+@app.get("/rasicujebemtiboga")
+async def serve_soccer():  # pragma: no cover
+    soccer_path = os.path.join(static_dir, "soccer.html")
+    return FileResponse(soccer_path)
 
 
 if __name__ == "__main__":
