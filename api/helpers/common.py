@@ -24,12 +24,14 @@ CACHE_TTL = {
 # Simple in-memory cache
 class SimpleCache:
     _EVICT_EVERY = 200
+    _DEFAULT_MAXSIZE = 2000
 
-    def __init__(self):
+    def __init__(self, maxsize: int = _DEFAULT_MAXSIZE):
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._heap = []  # (expires, key)
         self._call_count = 0
         self._lock = threading.Lock()
+        self._maxsize = maxsize
 
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
@@ -50,9 +52,18 @@ class SimpleCache:
             self._cache[key] = {"data": data, "expires": expires}
             heapq.heappush(self._heap, (expires, key))
             self._call_count += 1
-            if self._call_count >= self._EVICT_EVERY:
+            if (
+                self._call_count >= self._EVICT_EVERY
+                or len(self._cache) > self._maxsize
+            ):
                 self._evict_expired()
                 self._call_count = 0
+                # If still over maxsize after expiry eviction, drop oldest entries
+                while len(self._cache) > self._maxsize and self._heap:
+                    expires, oldest_key = heapq.heappop(self._heap)
+                    entry = self._cache.get(oldest_key)
+                    if entry and entry["expires"] == expires:
+                        del self._cache[oldest_key]
 
     def _evict_expired(self):
         now = time.time()
@@ -78,7 +89,7 @@ SEASON_CUTOFF_DAY = 15
 cache = SimpleCache()
 _DEFAULT_WORKERS = int(os.environ.get("EXECUTOR_WORKERS", "10"))
 executor = ThreadPoolExecutor(max_workers=_DEFAULT_WORKERS)
-atexit.register(executor.shutdown, wait=False)
+atexit.register(executor.shutdown, wait=True, cancel_futures=True)
 STATS_PROXY = os.environ.get("STATS_PROXY", None)
 STATS_TIMEOUT = int(os.environ.get("STATS_TIMEOUT", "30"))
 

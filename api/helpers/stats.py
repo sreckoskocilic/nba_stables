@@ -113,7 +113,7 @@ def fix_encoding(s: str) -> str:
 
 
 def _with_retry(fn, attempts: int = 3, delay: float = 0.2):
-    """Run `fn` with simple retry/backoff."""
+    """Run `fn` with exponential backoff retry."""
     last_err = None
     for i in range(attempts):
         try:
@@ -122,14 +122,9 @@ def _with_retry(fn, attempts: int = 3, delay: float = 0.2):
             last_err = ex
             if i == attempts - 1:
                 break
-            time.sleep(delay * (1 + 0.1 * i))
+            time.sleep(delay * (2**i))
     if last_err:
         raise last_err
-
-
-def _wrap_upstream_error(ex: Exception, context: str) -> Exception:
-    """Normalize nba_api/network errors to HTTP-friendly exceptions."""
-    return Exception(f"{context}: {ex}")
 
 
 _players_cache = None
@@ -188,7 +183,7 @@ def load_players_file():  # pragma: no cover
             # Fallback to an empty cache if there is nothing to serve.
             _players_cache = []
             _players_dict_cache = {}
-            _players_cache_expires = time.time() + CACHE_TTL["players"]
+            _players_cache_expires = time.time() + 300
 
         return _players_cache
 
@@ -210,8 +205,6 @@ def get_cached_scoreboard():  # pragma: no cover
                 proxy=STATS_PROXY, timeout=STATS_TIMEOUT
             ).games.data
         ),
-        attempts=3,
-        delay=0.2,
     )
     cache.set("raw_scoreboard", data, CACHE_TTL["scoreboard"])
     return data
@@ -227,8 +220,6 @@ def get_cached_live_boxscore(game_id):  # pragma: no cover
         lambda: live_boxscore.BoxScore(
             game_id=game_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
         ).get_dict(),
-        attempts=3,
-        delay=0.2,
     )
     status = data.get("game", {}).get("gameStatusText", "")
     ttl = CACHE_TTL["historical"] if "Final" in status else CACHE_TTL["boxscores"]
@@ -255,8 +246,6 @@ def get_scoreboard_v3_by_date(game_date: date, historical: bool = False):
             proxy=STATS_PROXY,
             timeout=STATS_TIMEOUT,
         ),
-        attempts=3,
-        delay=0.2,
     )
     ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["scoreboard"]
     cache.set(cache_key, sb, ttl)
@@ -340,8 +329,6 @@ def get_cached_boxscore_v3(game_id, historical=True):
             proxy=STATS_PROXY,
             timeout=STATS_TIMEOUT,
         ),
-        attempts=3,
-        delay=0.2,
     )
     ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["boxscores"]
     cache.set(cache_key, bs_stats, ttl)

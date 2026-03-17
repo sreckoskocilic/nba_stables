@@ -2,6 +2,7 @@
 
 from datetime import date
 from datetime import datetime as real_datetime
+from zoneinfo import ZoneInfo
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -151,7 +152,7 @@ class TestGetDisplayDate:
 # Pin datetime.now() to a fixed winter date (January 15 2026, EST active)
 # so DST cannot affect results. Winter: EST=UTC-5, CET=UTC+1 → +6h offset.
 
-WINTER_NOW = real_datetime(2026, 1, 15, 12, 0, 0)
+WINTER_NOW = real_datetime(2026, 1, 15, 12, 0, 0, tzinfo=ZoneInfo("US/Eastern"))
 
 
 def _cet(time_str):
@@ -187,23 +188,23 @@ class TestConvertETtoCET:
     # Winter offset: ET→CET = +6 hours
     def test_7pm_et_winter(self):
         # 19:00 EST → 01:00 CET (next day)
-        assert _cet("7:00 pm") == "19:00 CET"
+        assert _cet("7:00 pm") == "01:00 CET"
 
     def test_1pm_et_winter(self):
         # 13:00 EST → 19:00 CET
-        assert _cet("1:00 pm") == "13:00 CET"
+        assert _cet("1:00 pm") == "19:00 CET"
 
     def test_midnight_am_et_winter(self):
         # 12:00 am = 00:00 EST → 06:00 CET
-        assert _cet("12:00 am") == "00:00 CET"
+        assert _cet("12:00 am") == "06:00 CET"
 
     def test_noon_pm_et_winter(self):
         # 12:00 pm = 12:00 EST → 18:00 CET
-        assert _cet("12:00 pm") == "12:00 CET"
+        assert _cet("12:00 pm") == "18:00 CET"
 
     def test_630pm_et_winter(self):
         # 18:30 EST → 00:30 CET
-        assert _cet("6:30 pm") == "18:30 CET"
+        assert _cet("6:30 pm") == "00:30 CET"
 
     def test_case_insensitive_am(self):
         assert _cet("10:00 AM") == _cet("10:00 am")
@@ -599,9 +600,13 @@ class TestLoadPlayersFile:
     def test_uses_stale_cache_on_error(self):
         import helpers.stats as hs
 
+        hs._players_cache = None
+        hs._players_cache_expires = 0
         with patch("helpers.stats._fetch_players") as fetch_mock:
             fetch_mock.side_effect = [[[1, "Player One", 1]], RuntimeError("boom")]
             first = hs.load_players_file()
+            hs._players_cache_expires = 0  # expire cache to force second fetch
             second = hs.load_players_file()
+        assert fetch_mock.call_count == 2
         assert first == [[1, "Player One", 1]]
         assert second == [[1, "Player One", 1]]

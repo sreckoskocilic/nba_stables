@@ -150,6 +150,36 @@ class TestSimpleCache:
         self.cache.get("anything")
         assert self.cache.get("key") == "new"
 
+    # ------------------------------------------------------------------
+    # Maxsize eviction
+    # ------------------------------------------------------------------
+
+    def test_maxsize_eviction_drops_oldest_entry(self):
+        # Fill a tiny cache to capacity then add one more entry.
+        # The oldest entry should be evicted to stay within maxsize.
+        small = SimpleCache(maxsize=3)
+        small.set("a", 1, ttl_seconds=60)
+        small.set("b", 2, ttl_seconds=60)
+        small.set("c", 3, ttl_seconds=60)
+        small.set("d", 4, ttl_seconds=60)  # triggers maxsize eviction
+        assert len(small._cache) <= 3
+
+    def test_maxsize_eviction_spares_rewritten_key(self):
+        # "a" is overwritten, leaving a stale heap entry with ttl=1 (smallest expiry).
+        # "b" has ttl=30, sitting between "a"'s stale (1) and valid (60) entries.
+        # When eviction pops the stale (t+1, "a") entry, the expires-match guard
+        # must skip it rather than deleting "a"'s live data. The loop then pops
+        # (t+30, "b") and evicts that instead.
+        small = SimpleCache(maxsize=2)
+        small.set("a", "old", ttl_seconds=1)  # stale heap entry: (t+1, "a")
+        small.set("a", "new", ttl_seconds=60)  # valid heap entry: (t+60, "a")
+        small.set("b", 2, ttl_seconds=30)  # heap entry: (t+30, "b")
+        small.set("c", 3, ttl_seconds=60)  # triggers eviction
+        # Guard must prevent "a" from being deleted via its stale pointer;
+        # "b" (next oldest) is evicted instead.
+        assert small.get("a") == "new"
+        assert len(small._cache) <= 2
+
 
 class TestLogExceptions:
     def test_calls_logger_exception(self):

@@ -944,7 +944,7 @@ class TestSeasonErrorHandlers:
 
     def test_trades_500_on_unexpected_error(self, client):
         with (
-            patch("routes.trades.requests.get", side_effect=TypeError("unexpected")),
+            patch("routes.trades._session.get", side_effect=TypeError("unexpected")),
             patch("routes.trades.load_players_dict", return_value={}),
             patch("routes.trades.log_exceptions"),
         ):

@@ -15,6 +15,7 @@ from helpers.common import (
 )
 from helpers.logger import log_exceptions
 from helpers.stats import (
+    _with_retry,
     convert_et_to_cet,
     fetch_single_boxscore,
     find_category_leaders,
@@ -25,7 +26,6 @@ from helpers.stats import (
     get_games_leaders_list,
     get_games_list,
     get_scoreboard_v3_by_date,
-    _wrap_upstream_error,
     scoreboard_date,
 )
 from nba_api.stats.endpoints import leaguestandings
@@ -61,7 +61,6 @@ async def get_boxscores(
     days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
 ):
     """Get detailed box scores for games"""
-    days_offset = max(DAYS_OFFSET_MIN, min(DAYS_OFFSET_MAX, days_offset))
     cache_key = f"boxscores_{days_offset}"
     cached = cache.get(cache_key)
     if cached:
@@ -75,9 +74,13 @@ async def get_boxscores(
             for game_id, leaders_data in leaders_by_game.items()
         }
         for future in as_completed(futures):
-            result = future.result()
-            if result:
-                boxscores_list.append(result)
+            game_id = futures[future]
+            try:
+                result = future.result()
+                if result:
+                    boxscores_list.append(result)
+            except Exception as ex:
+                log_exceptions(ex, f"game_id={game_id}")
         boxscores_list.sort(key=lambda x: x.get("gameId", ""))
         return {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
 
@@ -113,7 +116,7 @@ async def get_scoreboard():
             try:
                 live_by_id = {g["gameId"]: g for g in _scoreboard_from_live()}
             except Exception as ex:  # pragma: no cover
-                log_exceptions(_wrap_upstream_error(ex, "scoreboard_live_merge"))
+                log_exceptions(ex, "scoreboard_live_merge")
                 live_by_id = {}
             games = [
                 live_by_id.get(g["gameId"], g) if g["gameId"] in started_ids else g
@@ -256,7 +259,6 @@ async def get_daily_leaders(
     days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
 ):
     """Get daily leaders across statistical categories"""
-    days_offset = max(DAYS_OFFSET_MIN, min(DAYS_OFFSET_MAX, days_offset))
     cache_key = f"leaders_{days_offset}"
     cached = cache.get(cache_key)
     if cached:
@@ -332,9 +334,11 @@ def _fetch_standings_teams():
     cached = cache.get("raw_standings")
     if cached is not None:  # pragma: no cover
         return cached
-    standings = leaguestandings.LeagueStandings(
-        proxy=STATS_PROXY, timeout=STATS_TIMEOUT
-    ).get_dict()
+    standings = _with_retry(
+        lambda: leaguestandings.LeagueStandings(
+            proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+        ).get_dict()
+    )
     teams = standings["resultSets"][0]["rowSet"]
     cache.set("raw_standings", teams, CACHE_TTL["standings"])
     return teams
@@ -461,7 +465,6 @@ async def get_double_doubles(
     days_offset: int = Query(default=0, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
 ):
     """Get players with double-doubles or triple-doubles for a given day"""
-    days_offset = max(DAYS_OFFSET_MIN, min(DAYS_OFFSET_MAX, days_offset))
     cache_key = f"doubledoubles_{days_offset}"
     cached = cache.get(cache_key)
     if cached:
@@ -486,7 +489,7 @@ async def get_double_doubles(
             try:
                 return get_cached_live_boxscore(gid)
             except Exception as ex:
-                log_exceptions(_wrap_upstream_error(ex, f"doubledoubles gid={gid}"))
+                log_exceptions(ex, f"doubledoubles gid={gid}")
                 return {}
 
         boxscore_results = list(executor.map(fetch_dd_boxscore, game_ids))

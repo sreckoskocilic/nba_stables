@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Path
 from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache
 from helpers.logger import log_exceptions
 from helpers.stats import (
+    _with_retry,
     find_category_leaders,
     fix_encoding,
     get_current_season,
@@ -23,11 +24,13 @@ async def get_season_highs():
 
     def _sync():
         season = get_current_season()
-        log = leaguegamelog.LeagueGameLog(
-            season=season,
-            player_or_team_abbreviation="P",
-            proxy=STATS_PROXY,
-            timeout=STATS_TIMEOUT,
+        log = _with_retry(
+            lambda: leaguegamelog.LeagueGameLog(
+                season=season,
+                player_or_team_abbreviation="P",
+                proxy=STATS_PROXY,
+                timeout=STATS_TIMEOUT,
+            )
         )
         data = log.get_dict()
         headers = data["resultSets"][0]["headers"]
@@ -95,10 +98,12 @@ async def get_season_doubles():
         return cached
 
     def _sync():
-        stats = leaguedashplayerstats.LeagueDashPlayerStats(
-            per_mode_detailed="Totals",
-            proxy=STATS_PROXY,
-            timeout=STATS_TIMEOUT,
+        stats = _with_retry(
+            lambda: leaguedashplayerstats.LeagueDashPlayerStats(
+                per_mode_detailed="Totals",
+                proxy=STATS_PROXY,
+                timeout=STATS_TIMEOUT,
+            )
         )
         data = stats.get_dict()
         headers = data["resultSets"][0]["headers"]
@@ -150,11 +155,13 @@ async def get_triple_double_games(player_id: int = Path(..., gt=0)):
 
     def _sync():
         season = get_current_season()
-        log = playergamelog.PlayerGameLog(
-            player_id=player_id,
-            season=season,
-            proxy=STATS_PROXY,
-            timeout=STATS_TIMEOUT,
+        log = _with_retry(
+            lambda: playergamelog.PlayerGameLog(
+                player_id=player_id,
+                season=season,
+                proxy=STATS_PROXY,
+                timeout=STATS_TIMEOUT,
+            )
         )
         data = log.get_dict()
         headers = data["resultSets"][0]["headers"]
@@ -191,7 +198,7 @@ async def get_triple_double_games(player_id: int = Path(..., gt=0)):
 
     try:
         result = await asyncio.to_thread(_sync)
-        cache.set(cache_key, result, CACHE_TTL["season_leaders"])
+        cache.set(cache_key, result, CACHE_TTL["historical"])
         return result
     except Exception as e:
         log_exceptions(e)

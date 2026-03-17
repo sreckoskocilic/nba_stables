@@ -1,7 +1,7 @@
 import importlib
 import os
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from datetime import date
 
 import pytest
@@ -287,3 +287,55 @@ def test_get_cached_boxscore_v3_cache_miss(monkeypatch):
     )
     result = get_cached_boxscore_v3(fake_game_id)
     assert result is mock_bs
+
+
+def test_boxscores_future_exception_logged(monkeypatch, client):
+    """Cover scores.py 82-83: exception from a boxscore future is logged, not raised."""
+    leaders = {"0022300001": []}
+    monkeypatch.setattr("routes.scores.get_games_leaders_list", lambda _: leaders)
+    monkeypatch.setattr(
+        "routes.scores.fetch_single_boxscore",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("api down")),
+    )
+    with patch("routes.scores.log_exceptions") as mock_log:
+        r = client.get("/api/boxscores?days_offset=1")
+    assert r.status_code == 200
+    assert r.json()["boxscores"] == []
+    mock_log.assert_called_once()
+
+
+def test_lifespan_warns_invalid_workers(monkeypatch, caplog):
+    """Cover main.py 56: warning when EXECUTOR_WORKERS is out of range."""
+    import helpers.common as _common
+    import logging
+
+    monkeypatch.setattr(_common, "_DEFAULT_WORKERS", 0)
+    with caplog.at_level(logging.WARNING, logger="main"):
+        with TestClient(app):
+            pass
+    assert "EXECUTOR_WORKERS" in caplog.text
+    assert "outside reasonable range" in caplog.text
+
+
+def test_lifespan_warns_invalid_timeout(monkeypatch, caplog):
+    """Cover main.py 59: warning when STATS_TIMEOUT is less than 1."""
+    import helpers.common as _common
+    import logging
+
+    monkeypatch.setattr(_common, "STATS_TIMEOUT", 0)
+    with caplog.at_level(logging.WARNING, logger="main"):
+        with TestClient(app):
+            pass
+    assert "STATS_TIMEOUT" in caplog.text
+    assert "must be >= 1" in caplog.text
+
+
+def test_lifespan_warns_missing_injuries_file(monkeypatch, caplog):
+    """Cover main.py 62: warning when CBS injuries file is absent at startup."""
+    import logging
+
+    monkeypatch.setattr("main.os.path.exists", lambda _: False)
+    with caplog.at_level(logging.WARNING, logger="main"):
+        with TestClient(app):
+            pass
+    assert "CBS injuries file not found" in caplog.text

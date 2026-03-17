@@ -10,6 +10,7 @@ import time
 from contextlib import asynccontextmanager
 
 import helpers.common as _common
+import helpers.stats as _stats
 import uvicorn
 import yaml
 from fastapi import FastAPI, HTTPException, Request
@@ -17,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from helpers.stats import get_display_date
+from routes.injuries import CBS_INJURIES_FILE
 from routes.injuries import router as injuries_router
 from routes.players import router as players_router
 from routes.scores import router
@@ -48,6 +50,18 @@ class TimingMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Validate env var bounds
+    workers = _common._DEFAULT_WORKERS
+    if not (1 <= workers <= 100):
+        logger.warning(
+            "EXECUTOR_WORKERS=%d is outside reasonable range [1, 100]", workers
+        )
+    timeout = _common.STATS_TIMEOUT
+    if timeout < 1:
+        logger.warning("STATS_TIMEOUT=%d must be >= 1", timeout)
+    # Warn if injuries data file is missing
+    if not os.path.exists(CBS_INJURIES_FILE):
+        logger.warning("CBS injuries file not found at startup: %s", CBS_INJURIES_FILE)
     yield
     _common.cache.clear()
 
@@ -102,10 +116,15 @@ async def health_check():
     test_key = "_health_probe"
     _common.cache.set(test_key, True, 5)
     cache_ok = _common.cache.get(test_key) is True
+    nba_api_ok = (
+        bool(_stats._players_cache) and _stats._players_cache_expires > time.time()
+    )
+    status = "healthy" if cache_ok else "degraded"
     return {
-        "status": "healthy" if cache_ok else "degraded",
+        "status": status,
         "date": get_display_date(0),
         "cache_ok": cache_ok,
+        "nba_data_fresh": nba_api_ok,
     }
 
 
@@ -133,7 +152,7 @@ async def serve_frontend():  # pragma: no cover
     return {"message": "NBA Stables API", "docs": "/docs"}
 
 
-@app.get("/rasicujebemtiboga")
+@app.get("/soccer")
 async def serve_soccer():  # pragma: no cover
     soccer_path = os.path.join(static_dir, "soccer.html")
     return FileResponse(soccer_path)

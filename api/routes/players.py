@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Path, Query
 from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache, executor
 from helpers.logger import log_exceptions
 from helpers.stats import (
-    _wrap_upstream_error,
+    _with_retry,
     fix_encoding,
     get_cached_boxscore_v3,
     get_cached_live_boxscore,
@@ -37,7 +37,7 @@ def _normalize_game_date(date_str: str | None) -> str | None:
 
 
 @router.get("/api/players/search")
-def search_players(q: str = Query(..., min_length=2)):
+def search_players(q: str = Query(..., min_length=2, max_length=100)):
     """Search for players by name"""
     try:
         cleaned = " ".join(q.split())
@@ -95,7 +95,7 @@ async def get_player_stats(
             try:
                 return get_cached_live_boxscore(game_id)
             except Exception as ex:
-                log_exceptions(_wrap_upstream_error(ex, f"game_id={game_id}"))
+                log_exceptions(ex, f"game_id={game_id}")
                 return None
 
         # executor.map keeps submission overhead low and maintains order
@@ -289,19 +289,21 @@ async def get_last_n_games_stats(
         game_rows_all = cache.get(raw_cache_key)
         if game_rows_all is None:
             season = get_current_season()
-            data = []
-            for attempt in range(2):
-                try:
-                    pgl = playergamelog.PlayerGameLog(
+            try:
+                pgl = _with_retry(
+                    lambda: playergamelog.PlayerGameLog(
                         player_id=player_id,
                         season=season,
                         proxy=STATS_PROXY,
                         timeout=STATS_TIMEOUT,
                     )
-                    data = pgl.player_game_log.get_dict()["data"]
-                    break
-                except Exception as e:  # pragma: no cover
-                    log_exceptions(e)
+                )
+                data = pgl.player_game_log.get_dict()["data"]
+            except Exception as e:
+                log_exceptions(e)
+                raise HTTPException(
+                    status_code=503, detail="Player game data temporarily unavailable"
+                )
             # Columns: SEASON_ID, PLAYER_ID, GAME_ID, GAME_DATE, MATCHUP, ...
             _GAME_ID = 2
             _GAME_DATE = 3

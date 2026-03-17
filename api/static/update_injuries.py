@@ -50,8 +50,9 @@ def scrape_cbs_injuries():
     team_sections = soup.find_all("div", class_="TableBaseWrapper")
 
     if not team_sections:
-        logger.warning("No team sections found — CBS HTML structure may have changed")
-        return
+        raise RuntimeError(
+            "No team sections found — CBS HTML structure may have changed"
+        )
 
     injuries_by_team = []
 
@@ -88,10 +89,9 @@ def scrape_cbs_injuries():
             injuries_by_team.append({"team": team_name, "players": players})
 
     if not injuries_by_team:
-        logger.warning(
+        raise RuntimeError(
             "Parsed 0 teams with injuries — CBS HTML structure may have changed"
         )
-        return
 
     result = {
         "injuries": injuries_by_team,

@@ -22,6 +22,9 @@ _NBA_HEADERS = {
     "x-nba-stats-token": "true",
 }
 
+_session = requests.Session()
+_session.headers.update(_NBA_HEADERS)
+
 
 @router.get("/api/trades")
 async def get_trades():
@@ -31,7 +34,7 @@ async def get_trades():
         return cached
 
     def _sync():
-        resp = requests.get(NBA_PLAYER_MOVEMENT_URL, headers=_NBA_HEADERS, timeout=10)
+        resp = _session.get(NBA_PLAYER_MOVEMENT_URL, timeout=10)
         resp.raise_for_status()
         data = resp.json()
 
