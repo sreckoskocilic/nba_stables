@@ -189,7 +189,10 @@ class TestLogExceptions:
         with patch("helpers.logger.logger") as mock_log:
             log_exceptions(err)
         mock_log.exception.assert_called_once()
-        assert mock_log.exception.call_args[0][0] is err
+        args = mock_log.exception.call_args[0]
+        assert args[0] == "%s: %s"
+        assert args[1] == "ValueError"
+        assert args[2] is err
 
     def test_accepts_any_exception_type(self):
         from helpers.logger import log_exceptions

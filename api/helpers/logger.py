@@ -24,7 +24,8 @@ logger.addHandler(rotating_logfile_handler)
 def log_exceptions(exception: Exception, context: str | None = None):
     if not logger.isEnabledFor(logging.ERROR):
         return
+    exc_type = type(exception).__name__
     if context:
-        logger.exception("%s | context=%s", exception, context)
+        logger.exception("%s: %s | context=%s", exc_type, exception, context)
     else:
-        logger.exception(exception)
+        logger.exception("%s: %s", exc_type, exception)
