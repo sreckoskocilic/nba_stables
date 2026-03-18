@@ -350,10 +350,15 @@ class TestDoubleDoubles:
         }
 
     def _patch_sb_today(self):
-        """Patch scoreboard_date to return today so days_offset=0 uses live scoreboard."""
+        """Patch scoreboard_date and _today_cet to the same date so days_offset=0 uses live scoreboard."""
+        from contextlib import ExitStack
         from datetime import date
 
-        return patch("routes.scores.scoreboard_date", return_value=date.today())
+        today = date(2026, 3, 18)
+        stack = ExitStack()
+        stack.enter_context(patch("routes.scores.scoreboard_date", return_value=today))
+        stack.enter_context(patch("routes.scores._today_cet", return_value=today))
+        return stack
 
     def test_returns_200(self, client):
         with (
@@ -488,6 +493,53 @@ class TestDoubleDoubles:
             r = client.get("/api/doubledoubles?days_offset=0")
         assert r.json()["doubleDoubles"] == []
         assert r.json()["tripleDoubles"] == []
+
+    def test_none_stats_treated_as_zero(self, client):
+        """None stat values from API should not crash the route (treated as 0)."""
+        bs_dict = self._bs(
+            [
+                {
+                    "status": "ACTIVE",
+                    "name": "Player X",
+                    "statistics": {
+                        "points": None,
+                        "reboundsTotal": None,
+                        "assists": None,
+                        "steals": None,
+                        "blocks": None,
+                    },
+                }
+            ],
+            [],
+        )
+        with (
+            self._patch_sb_today(),
+            patch(
+                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
+            ),
+            patch("routes.scores.get_cached_live_boxscore", return_value=bs_dict),
+        ):
+            r = client.get("/api/doubledoubles?days_offset=0")
+        assert r.status_code == 200
+        assert r.json()["doubleDoubles"] == []
+        assert r.json()["tripleDoubles"] == []
+
+    def test_before_1300_cet_uses_historical_offset(self, client):
+        """Before 13:00 CET, scoreboard_date() returns yesterday; route should use get_games_list, not live scoreboard."""
+        from datetime import date, timedelta
+
+        today = date(2026, 3, 18)
+        yesterday = today - timedelta(days=1)
+        with (
+            patch("routes.scores.scoreboard_date", return_value=yesterday),
+            patch("routes.scores._today_cet", return_value=today),
+            patch("routes.scores.get_games_list", return_value=[]) as mock_games_list,
+            patch("routes.scores.get_cached_scoreboard") as mock_live,
+        ):
+            r = client.get("/api/doubledoubles?days_offset=0")
+        assert r.status_code == 200
+        mock_games_list.assert_called_once_with(1)
+        mock_live.assert_not_called()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -38,6 +38,11 @@ def _today_et() -> date:
     return _today_et_cached(datetime.now(_TZ_ET))
 
 
+def _today_cet() -> date:
+    """Return today's date in CET (Europe/Berlin), matching scoreboard_date() timezone."""
+    return datetime.now(_TZ_CET).date()
+
+
 def scoreboard_date() -> date:
     """Return the NBA game date for the scoreboard.
 
@@ -337,7 +342,7 @@ def get_cached_boxscore_v3(game_id, historical=True):
 
 def fetch_single_boxscore(game_id, leaders_data):
     """Fetch boxscore for a single game (for parallel execution)"""
-    game_box = {}
+    game_box = None
     try:
         data = get_cached_live_boxscore(game_id)
         game = data.get("game", {})

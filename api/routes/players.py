@@ -82,7 +82,7 @@ async def get_player_stats(
     ids_normalized = ",".join(str(x) for x in sorted(players_ids))
     cache_key = f"player_stats_{ids_normalized}"
     cached = cache.get(cache_key)
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():
@@ -180,7 +180,7 @@ async def get_game_players(
     """Get all player stats for a specific game with advanced metrics"""
     cache_key = f"game_players_{game_id}"
     cached = cache.get(cache_key)
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():
@@ -273,7 +273,7 @@ async def get_last_n_games_stats(
     """Get last N games stats for a specific player"""
     cache_key = f"last_n_games_{player_id}_{n}"
     cached = cache.get(cache_key)
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():
@@ -415,7 +415,7 @@ async def get_player_season_avg(player_id: int = Path(..., gt=0)):
     """Get current season averages for a player"""
     cache_key = f"season_avg_{player_id}"
     cached = cache.get(cache_key)
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():

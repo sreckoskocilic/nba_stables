@@ -94,6 +94,7 @@ def make_live_player(person_id=PLAYER_ID, name="LeBron James", **stats_kw):
 def make_live_game(**kw):
     game = {
         "gameId": GAME_ID,
+        "gameStatus": 3,
         "gameStatusText": "Final",
         "homeTeam": {
             "teamCity": "Los Angeles",

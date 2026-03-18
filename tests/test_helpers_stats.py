@@ -10,6 +10,7 @@ from helpers.common import cache
 from helpers.stats import (
     convert_et_to_cet,
     fetch_single_boxscore,
+    find_category_leaders,
     fix_encoding,
     get_display_date,
     get_games_leaders_list,
@@ -540,13 +541,69 @@ class TestFetchSingleBoxscore:
         result = self._call(leaders_data=leaders)
         assert result["teams"][0]["leader"]["name"] == ""
 
-    def test_returns_empty_dict_on_exception(self):
+    def test_returns_none_on_exception(self):
         with patch(
             "helpers.stats.get_cached_live_boxscore",
             side_effect=Exception("API error"),
         ):
             result = fetch_single_boxscore("0022300001", [])
-        assert result == {}
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# find_category_leaders
+# ---------------------------------------------------------------------------
+
+
+class TestFindCategoryLeaders:
+    _CATS = [("pts", "Points"), ("reb", "Rebounds"), ("ast", "Assists")]
+
+    def _item(self, name, pts, reb, ast):
+        return {"name": name, "pts": pts, "reb": reb, "ast": ast}
+
+    def test_single_leader(self):
+        items = [self._item("A", 30, 5, 3), self._item("B", 20, 5, 8)]
+        _, entries = find_category_leaders(items, self._CATS)
+        assert entries["pts"] == [items[0]]
+        assert entries["ast"] == [items[1]]
+
+    def test_tied_leaders_both_included(self):
+        items = [self._item("A", 25, 8, 5), self._item("B", 25, 6, 5)]
+        _, entries = find_category_leaders(items, self._CATS)
+        assert len(entries["pts"]) == 2
+        assert len(entries["ast"]) == 2
+
+    def test_all_zeros_returns_empty_leaders(self):
+        """No leaders shown when all values are 0 (val != 0 guard)."""
+        items = [self._item("A", 0, 0, 0), self._item("B", 0, 0, 0)]
+        max_vals, entries = find_category_leaders(items, self._CATS)
+        assert max_vals["pts"] == 0
+        assert entries["pts"] == []
+
+    def test_empty_items(self):
+        max_vals, entries = find_category_leaders([], self._CATS)
+        assert all(v == 0 for v in max_vals.values())
+        assert all(v == [] for v in entries.values())
+
+    def test_none_value_treated_as_zero(self):
+        """item.get(key) or 0 coerces None to 0."""
+        items = [{"name": "A", "pts": None, "reb": 10, "ast": 5}]
+        max_vals, entries = find_category_leaders(items, self._CATS)
+        assert max_vals["pts"] == 0
+        assert entries["pts"] == []
+        assert entries["reb"] == [items[0]]
+
+    def test_max_vals_correct(self):
+        items = [self._item("A", 40, 12, 8), self._item("B", 35, 15, 10)]
+        max_vals, _ = find_category_leaders(items, self._CATS)
+        assert max_vals["pts"] == 40
+        assert max_vals["reb"] == 15
+        assert max_vals["ast"] == 10
+
+    def test_later_item_beats_earlier(self):
+        items = [self._item("A", 20, 5, 5), self._item("B", 30, 5, 5)]
+        _, entries = find_category_leaders(items, self._CATS)
+        assert entries["pts"] == [items[1]]
 
 
 # ---------------------------------------------------------------------------

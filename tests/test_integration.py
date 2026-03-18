@@ -13,6 +13,7 @@ from conftest import (
     FAKE_PLAYERS,
     GAME_ID,
     PLAYER_ID,
+    TEAM_ID_BOS,
     TEAM_ID_LAL,
     make_live_boxscore,
     make_live_game,
@@ -206,7 +207,7 @@ class TestInjuries:
 
 
 class TestScoreboard:
-    def _patch_sb(self, games=None):
+    def _patch_sb(self, games=None, live_raw=None):
         """Return a context manager that mocks the scoreboard endpoint dependencies."""
         from contextlib import ExitStack
         from datetime import date
@@ -218,6 +219,9 @@ class TestScoreboard:
         )
         stack.enter_context(
             patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7))
+        )
+        stack.enter_context(
+            patch("routes.scores.get_cached_scoreboard", return_value=live_raw or [])
         )
         return stack
 
@@ -254,10 +258,9 @@ class TestScoreboard:
 
     def test_live_et_time_converted(self, client):
         """Live scoreboard game with ET time gets converted to CET."""
-        live_game = make_live_game(gameStatusText="7:00 pm ET")
-        with (
-            self._patch_sb([make_live_game(gameStatusText="Q2 5:30")]),
-            patch("routes.scores.get_cached_scoreboard", return_value=[live_game]),
+        live_game = make_live_game(gameStatus=2, gameStatusText="7:00 pm ET")
+        with self._patch_sb(
+            [make_live_game(gameStatusText="Q2 5:30")], live_raw=[live_game]
         ):
             r = client.get("/api/scoreboard")
         assert "CET" in r.json()["games"][0]["status"]
@@ -296,6 +299,7 @@ class TestScoreboard:
         with (
             patch("routes.scores.get_scoreboard_v3_by_date", return_value=sb),
             patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7)),
+            patch("routes.scores.get_cached_scoreboard", return_value=[]),
         ):
             r = client.get("/api/scoreboard")
 
@@ -305,17 +309,62 @@ class TestScoreboard:
         assert g["awayTeam"]["name"] == ""
         assert g["awayTeam"]["score"] == 0
 
-    def test_cached_on_second_call(self, client):
-        with self._patch_sb([]) as stack:
-            mock = stack.enter_context(
-                patch(
-                    "routes.scores.get_scoreboard_v3_by_date",
-                    return_value=make_scoreboard_v3([]),
-                )
-            )
-            client.get("/api/scoreboard")
-            client.get("/api/scoreboard")
-        mock.assert_called_once()
+    def test_two_calls_both_succeed(self, client):
+        with self._patch_sb([]):
+            r1 = client.get("/api/scoreboard")
+            r2 = client.get("/api/scoreboard")
+        assert r1.status_code == 200
+        assert r2.status_code == 200
+
+    def test_get_cached_scoreboard_exception_falls_back(self, client):
+        """If get_cached_scoreboard() raises, started_ids is empty and V3 data is used."""
+        v3_game = make_live_game(gameStatusText="7:00 pm ET")
+        sb_v3 = make_scoreboard_v3([v3_game])
+        with (
+            patch("routes.scores.get_scoreboard_v3_by_date", return_value=sb_v3),
+            patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7)),
+            patch("routes.scores.get_cached_scoreboard", side_effect=Exception("boom")),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/scoreboard")
+        assert r.status_code == 200
+        # Falls back to V3 data (ET time not converted because live merge skipped)
+        assert r.json()["games"][0]["status"] != ""
+
+    def test_mixed_started_unstarted_games(self, client):
+        """Only started games get live data; unstarted games keep V3 data."""
+        started_id = GAME_ID
+        unstarted_id = "0022500001"
+
+        started_live = make_live_game(
+            gameId=started_id, gameStatus=2, gameStatusText="Q2 5:30"
+        )
+        unstarted_live = make_live_game(
+            gameId=unstarted_id, gameStatus=1, gameStatusText="9:00 pm ET"
+        )
+
+        v3_started = make_live_game(gameStatusText="Q1 10:00")
+        v3_unstarted = make_live_game(gameStatusText="9:00 pm ET")
+        # Override gameId for unstarted V3 game
+        v3_unstarted["gameId"] = unstarted_id
+
+        sb_v3 = make_scoreboard_v3([v3_started, v3_unstarted])
+        with (
+            patch("routes.scores.get_scoreboard_v3_by_date", return_value=sb_v3),
+            patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7)),
+            patch(
+                "routes.scores.get_cached_scoreboard",
+                return_value=[started_live, unstarted_live],
+            ),
+        ):
+            r = client.get("/api/scoreboard")
+
+        games = {g["gameId"]: g for g in r.json()["games"]}
+        assert games[started_id]["status"] == "Q2 5:30"
+        assert (
+            "ET" in games[unstarted_id]["status"]
+            or "CET" in games[unstarted_id]["status"]
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -410,6 +459,30 @@ class TestBoxscores:
         with patch("routes.scores.get_games_leaders_list", return_value={}) as mock:
             client.get("/api/boxscores")
         mock.assert_called_once_with(1)
+
+    def test_one_game_fails_others_succeed(self, client):
+        """A future that raises should be skipped; successful games are still returned."""
+        good_id = "0022500001"
+        bad_id = "0022500002"
+        leaders = {
+            good_id: [["LeBron James", 28, 8, 6, TEAM_ID_LAL]],
+            bad_id: [["Jayson Tatum", 32, 9, 4, TEAM_ID_BOS]],
+        }
+
+        def _fetch(game_id, leaders_data):
+            if game_id == bad_id:
+                raise Exception("network error")
+            return _BOXSCORE_RESULT
+
+        with (
+            patch("routes.scores.get_games_leaders_list", return_value=leaders),
+            patch("routes.scores.fetch_single_boxscore", side_effect=_fetch),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/boxscores?days_offset=1")
+
+        assert r.status_code == 200
+        assert len(r.json()["boxscores"]) == 1
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -972,3 +1045,12 @@ class TestTrades:
         ):
             r = client.get("/api/trades")
         assert r.json()["transactions"][0]["date"] == "2026-02-15"
+
+    def test_player_name_falls_back_to_unknown_when_slug_empty(self, client):
+        row = self._row(PLAYER_ID=9999999.0, PLAYER_SLUG="")
+        with (
+            patch("routes.trades._session.get", return_value=self._resp([row])),
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
+            r = client.get("/api/trades")
+        assert r.json()["transactions"][0]["playerName"] == "Unknown Player"

@@ -30,7 +30,7 @@ _session.headers.update(_NBA_HEADERS)
 async def get_trades():
     """Get NBA player movement transactions with resolved team and player names"""
     cached = cache.get("trades")
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():
@@ -55,6 +55,7 @@ async def get_trades():
                 player_row[1]
                 if player_row
                 else row.get("PLAYER_SLUG", "").replace("-", " ").title()
+                or "Unknown Player"
             )
 
             transactions.append(

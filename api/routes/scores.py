@@ -1,5 +1,4 @@
 import asyncio
-from datetime import date
 from concurrent.futures import as_completed
 
 from fastapi import APIRouter, HTTPException, Query
@@ -15,6 +14,7 @@ from helpers.common import (
 )
 from helpers.logger import log_exceptions
 from helpers.stats import (
+    _today_cet,
     _with_retry,
     convert_et_to_cet,
     fetch_single_boxscore,
@@ -37,7 +37,7 @@ router = APIRouter()
 async def get_date_labels():
     """Return display dates and game availability for day offsets 0-7"""
     cached = cache.get("dates")
-    if cached:  # pragma: no cover
+    if cached is not None:  # pragma: no cover
         return cached
 
     def _sync():
@@ -63,7 +63,7 @@ async def get_boxscores(
     """Get detailed box scores for games"""
     cache_key = f"boxscores_{days_offset}"
     cached = cache.get(cache_key)
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():
@@ -77,7 +77,7 @@ async def get_boxscores(
             game_id = futures[future]
             try:
                 result = future.result()
-                if result:
+                if result is not None:
                     boxscores_list.append(result)
             except Exception as ex:
                 log_exceptions(ex, f"game_id={game_id}")
@@ -102,19 +102,20 @@ async def get_scoreboard():
     started (gameStatus >= 2), switches to the live scoreboard API for
     real-time scores and leaders.
     """
-    cached = cache.get("scoreboard")
-    if cached:
-        return cached
 
     def _sync():
         sb_date = scoreboard_date()
         sb = get_scoreboard_v3_by_date(sb_date)
-        header = sb.game_header.get_dict()
-        started_ids = {g[0] for g in header["data"] if g[2] >= 2}
         games = _scoreboard_from_v3(sb)
+        try:
+            live_raw = get_cached_scoreboard()
+            started_ids = {g["gameId"] for g in live_raw if g["gameStatus"] >= 2}
+        except Exception as ex:  # pragma: no cover
+            log_exceptions(ex, "scoreboard_live_merge")
+            started_ids = set()
         if started_ids:
             try:
-                live_by_id = {g["gameId"]: g for g in _scoreboard_from_live()}
+                live_by_id = {g["gameId"]: g for g in _scoreboard_from_live(live_raw)}
             except Exception as ex:  # pragma: no cover
                 log_exceptions(ex, "scoreboard_live_merge")
                 live_by_id = {}
@@ -127,17 +128,16 @@ async def get_scoreboard():
 
     try:
         result = await asyncio.to_thread(_sync)
-        cache.set("scoreboard", result, CACHE_TTL["scoreboard"])
         return result
     except Exception as e:
         log_exceptions(e)
         raise HTTPException(status_code=500, detail="Failed to fetch scoreboard")
 
 
-def _scoreboard_from_live():
+def _scoreboard_from_live(raw_games=None):
     """Build scoreboard game list from the live API (in-progress / finished games)."""
     games = []
-    for game in get_cached_scoreboard():
+    for game in raw_games if raw_games is not None else get_cached_scoreboard():
         home_team = game["homeTeam"]
         away_team = game["awayTeam"]
         home_leaders = game["gameLeaders"]["homeLeaders"]
@@ -261,7 +261,7 @@ async def get_daily_leaders(
     """Get daily leaders across statistical categories"""
     cache_key = f"leaders_{days_offset}"
     cached = cache.get(cache_key)
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():
@@ -367,7 +367,7 @@ def _parse_team_row(team):
 async def get_standings():
     """Get current NBA standings by conference"""
     cached = cache.get("standings")
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():
@@ -404,7 +404,7 @@ async def get_standings():
 async def get_playoff_picture():
     """Get current playoff picture with projected final records"""
     cached = cache.get("playoffs")
-    if cached:  # pragma: no cover
+    if cached is not None:  # pragma: no cover
         return cached
 
     def _sync():
@@ -467,17 +467,17 @@ async def get_double_doubles(
     """Get players with double-doubles or triple-doubles for a given day"""
     cache_key = f"doubledoubles_{days_offset}"
     cached = cache.get(cache_key)
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():
         if days_offset == 0:
             sb_date = scoreboard_date()
-            today_local = date.today()
-            if sb_date == today_local:
+            today_cet = _today_cet()
+            if sb_date == today_cet:
                 game_ids = [g["gameId"] for g in get_cached_scoreboard()]
             else:
-                offset = (today_local - sb_date).days
+                offset = (today_cet - sb_date).days
                 game_ids = get_games_list(offset if offset > 0 else 1)
         else:
             game_ids = get_games_list(days_offset)
@@ -504,11 +504,11 @@ async def get_double_doubles(
                 for player in team["players"]:
                     if player["status"] == "ACTIVE":
                         stats = player["statistics"]
-                        pts = stats["points"]
-                        reb = stats["reboundsTotal"]
-                        ast = stats["assists"]
-                        stl = stats["steals"]
-                        blk = stats["blocks"]
+                        pts = stats["points"] or 0
+                        reb = stats["reboundsTotal"] or 0
+                        ast = stats["assists"] or 0
+                        stl = stats["steals"] or 0
+                        blk = stats["blocks"] or 0
 
                         categories = {
                             "pts": pts,

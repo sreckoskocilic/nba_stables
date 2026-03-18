@@ -17,7 +17,7 @@ CBS_INJURIES_FILE = os.path.join(
 async def get_injuries():
     """Get NBA injury report from CBS Sports"""
     cached = cache.get("injuries")
-    if cached:
+    if cached is not None:
         return cached
 
     if not os.path.exists(CBS_INJURIES_FILE):

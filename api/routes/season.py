@@ -19,7 +19,7 @@ router = APIRouter()
 async def get_season_highs():
     """Get season single-game highs for each statistical category"""
     cached = cache.get("season_highs")
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():
@@ -94,7 +94,7 @@ async def get_season_highs():
 async def get_season_doubles():
     """Get top 10 players by double-doubles and triple-doubles this season"""
     cached = cache.get("season_doubles")
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():
@@ -150,7 +150,7 @@ async def get_triple_double_games(player_id: int = Path(..., gt=0)):
     """Get individual triple-double games for a player this season"""
     cache_key = f"td_games_{player_id}"
     cached = cache.get(cache_key)
-    if cached:
+    if cached is not None:
         return cached
 
     def _sync():
