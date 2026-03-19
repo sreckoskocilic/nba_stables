@@ -1,9 +1,25 @@
 """Unit tests for helpers/common.py — SimpleCache and helpers/logger.py."""
 
-import time
+from contextlib import contextmanager
 from unittest.mock import patch
 
 from helpers.common import SimpleCache
+
+
+@contextmanager
+def fake_clock(start=1000.0):
+    """Patch helpers.common.time.time with a steppable fake clock."""
+    t = [start]
+
+    def now():
+        return t[0]
+
+    def advance(dt):
+        t[0] += dt
+
+    now.advance = advance
+    with patch("helpers.common.time.time", now):
+        yield now
 
 
 class TestSimpleCache:
@@ -60,31 +76,35 @@ class TestSimpleCache:
         assert self.cache.get("key") == "second"
 
     def test_overwrite_extends_ttl(self):
-        self.cache.set("key", "v", ttl_seconds=1)
-        self.cache.set("key", "v", ttl_seconds=60)  # refresh
-        time.sleep(1.05)
-        # Should still be alive because TTL was reset to 60
-        assert self.cache.get("key") == "v"
+        with fake_clock() as clock:
+            self.cache.set("key", "v", ttl_seconds=1)
+            self.cache.set("key", "v", ttl_seconds=60)  # refresh
+            clock.advance(2)  # past original TTL of 1s
+            # Should still be alive because TTL was reset to 60
+            assert self.cache.get("key") == "v"
 
     # ------------------------------------------------------------------
     # Expiry
     # ------------------------------------------------------------------
 
     def test_expired_entry_returns_none(self):
-        self.cache.set("key", "value", ttl_seconds=1)
-        time.sleep(1.1)
-        assert self.cache.get("key") is None
+        with fake_clock() as clock:
+            self.cache.set("key", "value", ttl_seconds=1)
+            clock.advance(2)
+            assert self.cache.get("key") is None
 
     def test_expired_entry_removed_from_cache(self):
-        self.cache.set("key", "value", ttl_seconds=1)
-        time.sleep(1.1)
-        self.cache.get("key")  # triggers eviction
-        assert "key" not in self.cache._cache
+        with fake_clock() as clock:
+            self.cache.set("key", "value", ttl_seconds=1)
+            clock.advance(2)
+            self.cache.get("key")  # triggers eviction
+            assert "key" not in self.cache._cache
 
     def test_non_expired_entry_survives(self):
-        self.cache.set("key", "alive", ttl_seconds=60)
-        time.sleep(0.05)
-        assert self.cache.get("key") == "alive"
+        with fake_clock() as clock:
+            self.cache.set("key", "alive", ttl_seconds=60)
+            clock.advance(0)
+            assert self.cache.get("key") == "alive"
 
     # ------------------------------------------------------------------
     # Clear
@@ -119,11 +139,12 @@ class TestSimpleCache:
         assert self.cache.get("c") == 3
 
     def test_expire_one_key_leaves_others(self):
-        self.cache.set("short", "gone", ttl_seconds=1)
-        self.cache.set("long", "here", ttl_seconds=60)
-        time.sleep(1.1)
-        assert self.cache.get("short") is None
-        assert self.cache.get("long") == "here"
+        with fake_clock() as clock:
+            self.cache.set("short", "gone", ttl_seconds=1)
+            self.cache.set("long", "here", ttl_seconds=60)
+            clock.advance(2)
+            assert self.cache.get("short") is None
+            assert self.cache.get("long") == "here"
 
     # ------------------------------------------------------------------
     # Periodic eviction (_evict_expired via call-count threshold)
@@ -131,24 +152,28 @@ class TestSimpleCache:
 
     def test_periodic_eviction_removes_expired_entry(self):
         # Set a short-lived entry, let it expire, then trigger periodic eviction
-        self.cache.set("stale", "val", ttl_seconds=1)
-        time.sleep(1.05)
-        self.cache._call_count = SimpleCache._EVICT_EVERY - 1
-        self.cache.get("anything")  # pushes count to threshold → _evict_expired runs
-        assert "stale" not in self.cache._cache
+        with fake_clock() as clock:
+            self.cache.set("stale", "val", ttl_seconds=1)
+            clock.advance(2)
+            self.cache._call_count = SimpleCache._EVICT_EVERY - 1
+            self.cache.get(
+                "anything"
+            )  # pushes count to threshold → _evict_expired runs
+            assert "stale" not in self.cache._cache
 
     def test_periodic_eviction_keeps_refreshed_entry(self):
         # Overwriting a key leaves a stale heap pointer for the old TTL.
         # When _evict_expired pops that pointer the cache entry has a newer expiry,
         # so it must NOT be deleted (line 62 guard).
-        self.cache.set("key", "old", ttl_seconds=1)
-        self.cache.set(
-            "key", "new", ttl_seconds=60
-        )  # refreshes cache; old heap entry remains
-        time.sleep(1.05)
-        self.cache._call_count = SimpleCache._EVICT_EVERY - 1
-        self.cache.get("anything")
-        assert self.cache.get("key") == "new"
+        with fake_clock() as clock:
+            self.cache.set("key", "old", ttl_seconds=1)
+            self.cache.set(
+                "key", "new", ttl_seconds=60
+            )  # refreshes cache; old heap entry remains
+            clock.advance(2)
+            self.cache._call_count = SimpleCache._EVICT_EVERY - 1
+            self.cache.get("anything")
+            assert self.cache.get("key") == "new"
 
     # ------------------------------------------------------------------
     # Maxsize eviction
