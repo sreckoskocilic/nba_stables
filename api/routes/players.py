@@ -1,4 +1,5 @@
 import asyncio
+import json
 import re
 from datetime import date
 from functools import lru_cache
@@ -94,6 +95,8 @@ async def get_player_stats(
         def fetch_player_boxscore(game_id):  # pragma: no cover
             try:
                 return get_cached_live_boxscore(game_id)
+            except json.JSONDecodeError:
+                return None
             except Exception as ex:
                 log_exceptions(ex, f"game_id={game_id}")
                 return None
