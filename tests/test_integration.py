@@ -136,6 +136,11 @@ class TestHealth:
 
 
 class TestDates:
+    @pytest.fixture(autouse=True)
+    def mock_games_list(self):
+        with patch("routes.scores.get_games_list", return_value=[]):
+            yield
+
     def test_returns_200(self, client):
         assert client.get("/api/dates").status_code == 200
 
