@@ -225,3 +225,23 @@ class TestLogExceptions:
         with patch("helpers.logger.logger"):
             log_exceptions(RuntimeError("runtime"))
             log_exceptions(KeyError("key"))
+
+
+class TestSafeIntEnv:
+    def test_returns_default_when_unset(self, monkeypatch):
+        from helpers.common import _safe_int_env
+
+        monkeypatch.delenv("_TEST_SAFE_INT", raising=False)
+        assert _safe_int_env("_TEST_SAFE_INT", 42) == 42
+
+    def test_returns_parsed_value(self, monkeypatch):
+        from helpers.common import _safe_int_env
+
+        monkeypatch.setenv("_TEST_SAFE_INT", "7")
+        assert _safe_int_env("_TEST_SAFE_INT", 42) == 7
+
+    def test_returns_default_on_non_numeric(self, monkeypatch):
+        from helpers.common import _safe_int_env
+
+        monkeypatch.setenv("_TEST_SAFE_INT", "abc")
+        assert _safe_int_env("_TEST_SAFE_INT", 42) == 42

@@ -104,7 +104,7 @@ LOG_CONFIG_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "log_config.yml"
 )
 try:
-    with open(LOG_CONFIG_FILE, "r") as f:
+    with open(LOG_CONFIG_FILE, "r", encoding="utf-8") as f:
         logging.config.dictConfig(yaml.safe_load(f.read()))
 except OSError:  # pragma: no cover
     logging.basicConfig(level=logging.WARNING)
@@ -155,7 +155,9 @@ async def serve_frontend():  # pragma: no cover
 @app.get("/soccer")
 async def serve_soccer():  # pragma: no cover
     soccer_path = os.path.join(static_dir, "soccer.html")
-    return FileResponse(soccer_path)
+    if os.path.exists(soccer_path):
+        return FileResponse(soccer_path)
+    raise HTTPException(status_code=404, detail="Page not found")
 
 
 if __name__ == "__main__":

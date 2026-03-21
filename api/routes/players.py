@@ -9,6 +9,7 @@ from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache, executo
 from helpers.logger import log_exceptions
 from helpers.stats import (
     _with_retry,
+    count_double_digits,
     fix_encoding,
     get_cached_boxscore_v3,
     get_cached_live_boxscore,
@@ -26,6 +27,22 @@ from nba_api.stats.endpoints import (
 
 router = APIRouter()
 
+# BoxScoreTraditionalV3 player_stats column indices
+_PS_PLAYER_ID = 6
+_PS_MINUTES = 14
+_PS_FGM = 15
+_PS_FGA = 16
+_PS_FG3M = 18
+_PS_FG3A = 19
+_PS_FTM = 21
+_PS_FTA = 22
+_PS_REB = 26
+_PS_AST = 27
+_PS_BLK = 28
+_PS_STL = 29
+_PS_PF = 31
+_PS_PTS = 32
+
 
 @lru_cache(maxsize=128)
 def _normalize_game_date(date_str: str | None) -> str | None:
@@ -38,7 +55,7 @@ def _normalize_game_date(date_str: str | None) -> str | None:
 
 
 @router.get("/api/players/search")
-def search_players(q: str = Query(..., min_length=2, max_length=100)):
+async def search_players(q: str = Query(..., min_length=2, max_length=100)):
     """Search for players by name"""
     try:
         cleaned = " ".join(q.split())
@@ -47,18 +64,21 @@ def search_players(q: str = Query(..., min_length=2, max_length=100)):
         if not re.match(r"^[\w\s.'-]+$", cleaned):
             raise HTTPException(status_code=400, detail="Invalid characters in query")
 
-        players = load_players_file()
-        results = []
-        query = cleaned.lower()
-        players_with_lower = [(p, p[1].lower()) for p in players]
+        def _sync():
+            players = load_players_file()
+            results = []
+            query = cleaned.lower()
+            players_with_lower = [(p, p[1].lower()) for p in players]
 
-        for player, player_lower in players_with_lower:
-            if query in player_lower:
-                results.append(
-                    {"id": player[0], "name": player[1], "teamId": player[2]}
-                )
+            for player, player_lower in players_with_lower:
+                if query in player_lower:
+                    results.append(
+                        {"id": player[0], "name": player[1], "teamId": player[2]}
+                    )
 
-        return {"players": results[:20]}  # Limit to 20 results
+            return {"players": results[:20]}  # Limit to 20 results
+
+        return await asyncio.to_thread(_sync)
     except HTTPException:
         raise
     except Exception as e:
@@ -71,8 +91,9 @@ async def get_player_stats(
     ids: str = Query(..., description="Comma-separated player IDs"),
 ):
     """Get live stats for specific players"""
-    ids_clean = ",".join(pid.strip() for pid in ids.split(",") if pid.strip())
-    players_ids = {int(pid) for pid in ids_clean.split(",") if pid.isdigit()}
+    players_ids = {
+        int(pid) for pid in (p.strip() for p in ids.split(",")) if pid.isdigit()
+    }
 
     if not players_ids:
         return {"players": []}
@@ -135,9 +156,7 @@ async def get_player_stats(
                         stl = stats["steals"]
                         tov = stats["turnovers"]
 
-                        double_digits = sum(
-                            1 for x in [pts, reb, ast, stl, blk] if x >= 10
-                        )
+                        double_digits = count_double_digits(pts, reb, ast, stl, blk)
 
                         results.append(
                             {
@@ -327,7 +346,7 @@ async def get_last_n_games_stats(
             try:
                 csp = get_cached_boxscore_v3(gg[1])
                 player_stats_dict = {
-                    x[6]: x for x in csp.player_stats.get_dict()["data"]
+                    x[_PS_PLAYER_ID]: x for x in csp.player_stats.get_dict()["data"]
                 }
                 ss = player_stats_dict.get(player_id)
 
@@ -339,9 +358,7 @@ async def get_last_n_games_stats(
                         hdrs = summary.get("headers", [])
                         data = summary.get("data", [[]])
                         if data and hdrs:
-                            summary_map = {
-                                hdrs[i]: data[0][i] for i in range(len(hdrs))
-                            }
+                            summary_map = dict(zip(hdrs, data[0]))
                             game_date = summary_map.get(
                                 "GAME_DATE_EST"
                             ) or summary_map.get("GAME_DATE")
@@ -364,20 +381,20 @@ async def get_last_n_games_stats(
                 if game_date:
                     matchup_display = f"{game_date} — {matchup_display}"
 
-                if ss is not None and ss[14] != "":
+                if ss is not None and ss[_PS_MINUTES] != "":
                     return {
                         "matchup": matchup_display,
                         "gameId": gg[1],
-                        "minutes": ss[14],
-                        "points": ss[32],
-                        "fg": f"{ss[15]}/{ss[16]}",
-                        "threePointers": f"{ss[18]}/{ss[19]}",
-                        "ft": f"{ss[21]}/{ss[22]}",
-                        "rebounds": ss[26],
-                        "assists": ss[27],
-                        "blocks": ss[28],
-                        "steals": ss[29],
-                        "fouls": ss[31],
+                        "minutes": ss[_PS_MINUTES],
+                        "points": ss[_PS_PTS],
+                        "fg": f"{ss[_PS_FGM]}/{ss[_PS_FGA]}",
+                        "threePointers": f"{ss[_PS_FG3M]}/{ss[_PS_FG3A]}",
+                        "ft": f"{ss[_PS_FTM]}/{ss[_PS_FTA]}",
+                        "rebounds": ss[_PS_REB],
+                        "assists": ss[_PS_AST],
+                        "blocks": ss[_PS_BLK],
+                        "steals": ss[_PS_STL],
+                        "fouls": ss[_PS_PF],
                         "dnp": False,
                     }
                 else:
@@ -422,8 +439,10 @@ async def get_player_season_avg(player_id: int = Path(..., gt=0)):
         return cached
 
     def _sync():
-        career = playercareerstats.PlayerCareerStats(
-            player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+        career = _with_retry(
+            lambda: playercareerstats.PlayerCareerStats(
+                player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+            )
         )
         season_data = career.season_totals_regular_season.get_dict()
         headers = season_data["headers"]

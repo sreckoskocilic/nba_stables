@@ -85,13 +85,24 @@ DAYS_OFFSET_MAX = 7
 SEASON_CUTOFF_MONTH = 10
 SEASON_CUTOFF_DAY = 15
 
+
+def _safe_int_env(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 # Shared singleton instances
 cache = SimpleCache()
-_DEFAULT_WORKERS = int(os.environ.get("EXECUTOR_WORKERS", "10"))
+_DEFAULT_WORKERS = _safe_int_env("EXECUTOR_WORKERS", 10)
 executor = ThreadPoolExecutor(max_workers=_DEFAULT_WORKERS)
 atexit.register(executor.shutdown, wait=True, cancel_futures=True)
 STATS_PROXY = os.environ.get("STATS_PROXY", None)
-STATS_TIMEOUT = int(os.environ.get("STATS_TIMEOUT", "30"))
+STATS_TIMEOUT = _safe_int_env("STATS_TIMEOUT", 30)
 
 # NBA team ID → (tricode, full name)
 TEAMS = {
@@ -126,6 +137,3 @@ TEAMS = {
     1610612762: ("UTA", "Utah Jazz"),
     1610612764: ("WAS", "Washington Wizards"),
 }
-
-# Precompute tricode → (team_id, full name)
-TEAMS_BY_TRICODE = {v[0]: (k, v[1]) for k, v in TEAMS.items()}

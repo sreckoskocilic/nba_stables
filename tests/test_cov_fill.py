@@ -1,8 +1,7 @@
 import importlib
 import os
 import sys
-from unittest.mock import MagicMock, patch
-from datetime import date
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,7 +14,6 @@ from helpers.logger import logger, log_exceptions  # noqa: E402
 from main import app  # noqa: E402
 from conftest import PLAYER_ID  # noqa: E402
 from helpers.common import SimpleCache  # noqa: E402
-from helpers.stats import _target_date  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -188,11 +186,6 @@ def test_simple_cache_expiry_and_eviction():
     assert sc._call_count == 0
 
 
-def test_target_date_covered():
-    d = _target_date(1)
-    assert isinstance(d, date)
-
-
 def _make_stats_row(pid):
     row = [0] * 40
     row[6] = pid
@@ -287,21 +280,6 @@ def test_get_cached_boxscore_v3_cache_miss(monkeypatch):
     )
     result = get_cached_boxscore_v3(fake_game_id)
     assert result is mock_bs
-
-
-def test_boxscores_future_exception_logged(monkeypatch, client):
-    """Cover scores.py 82-83: exception from a boxscore future is logged, not raised."""
-    leaders = {"0022300001": []}
-    monkeypatch.setattr("routes.scores.get_games_leaders_list", lambda _: leaders)
-    monkeypatch.setattr(
-        "routes.scores.fetch_single_boxscore",
-        lambda *_: (_ for _ in ()).throw(RuntimeError("api down")),
-    )
-    with patch("routes.scores.log_exceptions") as mock_log:
-        r = client.get("/api/boxscores?days_offset=1")
-    assert r.status_code == 200
-    assert r.json()["boxscores"] == []
-    mock_log.assert_called_once()
 
 
 def test_lifespan_warns_invalid_workers(monkeypatch, caplog):

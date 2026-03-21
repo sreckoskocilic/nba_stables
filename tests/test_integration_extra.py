@@ -954,6 +954,14 @@ class TestInnerExceptionHandlers:
         # All hasGames should be False when exception occurs
         assert not any(r.json()["hasGames"])
 
+    def test_dates_500_on_sync_error(self, client):
+        with (
+            patch("routes.scores.get_display_date", side_effect=RuntimeError("boom")),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/dates")
+        assert r.status_code == 500
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Season and trades error handlers
@@ -996,7 +1004,7 @@ class TestSeasonErrorHandlers:
 
     def test_trades_500_on_unexpected_error(self, client):
         with (
-            patch("routes.trades._session.get", side_effect=TypeError("unexpected")),
+            patch("routes.trades.requests.get", side_effect=TypeError("unexpected")),
             patch("routes.trades.load_players_dict", return_value={}),
             patch("routes.trades.log_exceptions"),
         ):

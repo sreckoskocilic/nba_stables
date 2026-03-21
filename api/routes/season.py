@@ -5,6 +5,7 @@ from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache
 from helpers.logger import log_exceptions
 from helpers.stats import (
     _with_retry,
+    count_double_digits,
     find_category_leaders,
     fix_encoding,
     get_current_season,
@@ -180,7 +181,7 @@ async def get_triple_double_games(player_id: int = Path(..., gt=0)):
             stl = row[h["STL"]] or 0
             blk = row[h["BLK"]] or 0
 
-            double_digit = sum(1 for v in [pts, reb, ast, stl, blk] if v >= 10)
+            double_digit = count_double_digits(pts, reb, ast, stl, blk)
             if double_digit >= 3:
                 games.append(
                     {

@@ -1,5 +1,4 @@
 import asyncio
-from concurrent.futures import as_completed
 
 from fastapi import APIRouter, HTTPException, Query
 from helpers.common import (
@@ -14,6 +13,22 @@ from helpers.common import (
 )
 from helpers.logger import log_exceptions
 from helpers.stats import (
+    _GH_GAME_CODE,
+    _GH_GAME_ET,
+    _GH_GAME_ID,
+    _GH_STATUS_TEXT,
+    _GL_AST,
+    _GL_GAME_ID,
+    _GL_PLAYER_NAME,
+    _GL_PTS,
+    _GL_REB,
+    _GL_TEAM_ID,
+    _LS_GAME_ID,
+    _LS_SCORE,
+    _LS_TEAM_CITY,
+    _LS_TEAM_ID,
+    _LS_TEAM_NAME,
+    _LS_TRICODE,
     _today_cet,
     _with_retry,
     convert_et_to_cet,
@@ -31,6 +46,21 @@ from helpers.stats import (
 from nba_api.stats.endpoints import leaguestandings
 
 router = APIRouter()
+
+# LeagueStandings rowSet column indices
+_ST_TEAM_ID = 2
+_ST_CITY = 3
+_ST_NAME = 4
+_ST_CONF = 5
+_ST_RANK = 7
+_ST_WINS = 12
+_ST_LOSSES = 13
+_ST_WIN_PCT = 14
+_ST_HOME_RECORD = 17
+_ST_AWAY_RECORD = 18
+_ST_L10 = 19
+_ST_STREAK = 36
+_ST_GAMES_BACK = 37
 
 
 @router.get("/api/dates")
@@ -51,9 +81,13 @@ async def get_date_labels():
         has_games = list(executor.map(_has_games, range(8)))
         return {"dates": [get_display_date(i) for i in range(8)], "hasGames": has_games}
 
-    result = await asyncio.to_thread(_sync)
-    cache.set("dates", result, CACHE_TTL["leaders"])
-    return result
+    try:
+        result = await asyncio.to_thread(_sync)
+        cache.set("dates", result, CACHE_TTL["leaders"])
+        return result
+    except Exception as e:
+        log_exceptions(e)
+        raise HTTPException(status_code=500, detail="Failed to fetch date labels")
 
 
 @router.get("/api/boxscores")
@@ -68,19 +102,14 @@ async def get_boxscores(
 
     def _sync():
         leaders_by_game = get_games_leaders_list(days_offset)
-        boxscores_list = []
-        futures = {
-            executor.submit(fetch_single_boxscore, game_id, leaders_data): game_id
-            for game_id, leaders_data in leaders_by_game.items()
-        }
-        for future in as_completed(futures):
-            game_id = futures[future]
-            try:
-                result = future.result()
-                if result is not None:
-                    boxscores_list.append(result)
-            except Exception as ex:
-                log_exceptions(ex, f"game_id={game_id}")
+        results = list(
+            executor.map(
+                fetch_single_boxscore,
+                leaders_by_game.keys(),
+                leaders_by_game.values(),
+            )
+        )
+        boxscores_list = [r for r in results if r is not None]
         boxscores_list.sort(key=lambda x: x.get("gameId", ""))
         return {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
 
@@ -134,10 +163,10 @@ async def get_scoreboard():
         raise HTTPException(status_code=500, detail="Failed to fetch scoreboard")
 
 
-def _scoreboard_from_live(raw_games=None):
+def _scoreboard_from_live(raw_games):
     """Build scoreboard game list from the live API (in-progress / finished games)."""
     games = []
-    for game in raw_games if raw_games is not None else get_cached_scoreboard():
+    for game in raw_games:
         home_team = game["homeTeam"]
         away_team = game["awayTeam"]
         home_leaders = game["gameLeaders"]["homeLeaders"]
@@ -196,15 +225,15 @@ def _build_team(row, team_id, game_id, leaders_by):
     leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
     if ld:
         leader = {
-            "name": fix_encoding(ld[4]) if ld[4] else "",
-            "points": ld[9] or 0,
-            "rebounds": ld[10] or 0,
-            "assists": ld[11] or 0,
+            "name": fix_encoding(ld[_GL_PLAYER_NAME]) if ld[_GL_PLAYER_NAME] else "",
+            "points": ld[_GL_PTS] or 0,
+            "rebounds": ld[_GL_REB] or 0,
+            "assists": ld[_GL_AST] or 0,
         }
     return {
-        "name": f"{row[2]} {row[3]}",
-        "tricode": row[4],
-        "score": row[8] or 0,
+        "name": f"{row[_LS_TEAM_CITY]} {row[_LS_TEAM_NAME]}",
+        "tricode": row[_LS_TRICODE],
+        "score": row[_LS_SCORE] or 0,
         "leader": leader,
     }
 
@@ -215,17 +244,19 @@ def _scoreboard_from_v3(sb):
     line_score = sb.line_score.get_dict()
 
     # Build team lookup from line_score: {(gameId, teamId): row}
-    team_rows = {(row[0], row[1]): row for row in line_score["data"]}
+    team_rows = {
+        (row[_LS_GAME_ID], row[_LS_TEAM_ID]): row for row in line_score["data"]
+    }
 
     # Build leaders lookup
     leaders_data = sb.game_leaders.get_dict()
-    leaders_by = {(ld[0], ld[1]): ld for ld in leaders_data["data"]}
+    leaders_by = {(ld[_GL_GAME_ID], ld[_GL_TEAM_ID]): ld for ld in leaders_data["data"]}
 
-    games = [None] * len(header["data"])
-    for idx, g in enumerate(header["data"]):
-        game_id = g[0]
-        game_code = g[1]  # e.g. "20260307/ORLMIN"
-        status_text = g[3]
+    games = []
+    for g in header["data"]:
+        game_id = g[_GH_GAME_ID]
+        game_code = g[_GH_GAME_CODE]  # e.g. "20260307/ORLMIN"
+        status_text = g[_GH_STATUS_TEXT]
         if "ET" in status_text:
             status_text = convert_et_to_cet(status_text)
 
@@ -236,20 +267,22 @@ def _scoreboard_from_v3(sb):
 
         # Build tricode→(row, team_id) lookup for this game
         game_teams = {
-            row[4]: (row, tid)
+            row[_LS_TRICODE]: (row, tid)
             for (gid, tid), row in team_rows.items()
             if gid == game_id
         }
         home_row, home_team_id = game_teams.get(home_tri, (None, None))
         away_row, away_team_id = game_teams.get(away_tri, (None, None))
 
-        games[idx] = {
-            "gameId": game_id,
-            "status": status_text,
-            "gameEt": g[7] or "",
-            "homeTeam": _build_team(home_row, home_team_id, game_id, leaders_by),
-            "awayTeam": _build_team(away_row, away_team_id, game_id, leaders_by),
-        }
+        games.append(
+            {
+                "gameId": game_id,
+                "status": status_text,
+                "gameEt": g[_GH_GAME_ET] or "",
+                "homeTeam": _build_team(home_row, home_team_id, game_id, leaders_by),
+                "awayTeam": _build_team(away_row, away_team_id, game_id, leaders_by),
+            }
+        )
 
     return games
 
@@ -346,20 +379,18 @@ def _fetch_standings_teams():
 
 def _parse_team_row(team):
     """Extract common fields from a raw LeagueStandings row."""
-    # Indices: 2=TeamID, 3=CityName, 4=TeamName, 7=PlayoffRank, 12=WINS, 13=LOSSES,
-    # 14=WinPCT, 19=L10, 36=strCurrentStreak, 37=ConferenceGamesBack
-    win_pct = team[14] if team[14] is not None else 0
-    team_info = TEAMS.get(team[2])
+    win_pct = team[_ST_WIN_PCT] if team[_ST_WIN_PCT] is not None else 0
+    team_info = TEAMS.get(team[_ST_TEAM_ID])
     return {
-        "rank": team[7] or 0,
-        "name": f"{team[3]} {team[4]}",
-        "tricode": team_info[0] if team_info else (team[3] or "")[:3].upper(),
-        "wins": team[12] or 0,
-        "losses": team[13] or 0,
+        "rank": team[_ST_RANK] or 0,
+        "name": f"{team[_ST_CITY]} {team[_ST_NAME]}",
+        "tricode": team_info[0] if team_info else (team[_ST_CITY] or "")[:3].upper(),
+        "wins": team[_ST_WINS] or 0,
+        "losses": team[_ST_LOSSES] or 0,
         "winPct": round(win_pct, 3) if win_pct else 0,
-        "gamesBack": team[37] if team[37] is not None else "-",
-        "streak": team[36] or "-",
-        "last10": team[19] or "0-0",
+        "gamesBack": team[_ST_GAMES_BACK] if team[_ST_GAMES_BACK] is not None else "-",
+        "streak": team[_ST_STREAK] or "-",
+        "last10": team[_ST_L10] or "0-0",
     }
 
 
@@ -378,10 +409,10 @@ async def get_standings():
 
         for team in teams:
             team_data = _parse_team_row(team)
-            team_data["homeRecord"] = team[17] or "0-0"
-            team_data["awayRecord"] = team[18] or "0-0"
+            team_data["homeRecord"] = team[_ST_HOME_RECORD] or "0-0"
+            team_data["awayRecord"] = team[_ST_AWAY_RECORD] or "0-0"
 
-            if team[5] == "East":
+            if team[_ST_CONF] == "East":
                 east.append(team_data)
             else:
                 west.append(team_data)
@@ -441,7 +472,7 @@ async def get_playoff_picture():
                 }
             )
 
-            if team[5] == "East":
+            if team[_ST_CONF] == "East":
                 east.append(team_data)
             else:
                 west.append(team_data)
@@ -510,16 +541,14 @@ async def get_double_doubles(
                         stl = stats["steals"] or 0
                         blk = stats["blocks"] or 0
 
-                        categories = {
+                        stat_cats = {
                             "pts": pts,
                             "reb": reb,
                             "ast": ast,
                             "stl": stl,
                             "blk": blk,
                         }
-                        double_digit_cats = [
-                            k for k, v in categories.items() if v >= 10
-                        ]
+                        double_digit_cats = [k for k, v in stat_cats.items() if v >= 10]
                         n_cats = len(double_digit_cats)
 
                         if n_cats >= 2:

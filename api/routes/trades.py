@@ -4,7 +4,7 @@ import requests
 from fastapi import APIRouter, HTTPException
 from helpers.common import CACHE_TTL, TEAMS, cache
 from helpers.logger import log_exceptions
-from helpers.stats import load_players_dict
+from helpers.stats import _with_retry, load_players_dict
 
 router = APIRouter()
 
@@ -22,9 +22,6 @@ _NBA_HEADERS = {
     "x-nba-stats-token": "true",
 }
 
-_session = requests.Session()
-_session.headers.update(_NBA_HEADERS)
-
 
 @router.get("/api/trades")
 async def get_trades():
@@ -34,7 +31,11 @@ async def get_trades():
         return cached
 
     def _sync():
-        resp = _session.get(NBA_PLAYER_MOVEMENT_URL, timeout=10)
+        resp = _with_retry(
+            lambda: requests.get(
+                NBA_PLAYER_MOVEMENT_URL, headers=_NBA_HEADERS, timeout=10
+            )
+        )
         resp.raise_for_status()
         data = resp.json()
 
@@ -54,8 +55,10 @@ async def get_trades():
             player_name = (
                 player_row[1]
                 if player_row
-                else row.get("PLAYER_SLUG", "").replace("-", " ").title()
-                or "Unknown Player"
+                else (
+                    row.get("PLAYER_SLUG", "").replace("-", " ").title()
+                    or "Unknown Player"
+                )
             )
 
             transactions.append(

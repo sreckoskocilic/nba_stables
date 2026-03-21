@@ -28,14 +28,23 @@ _ET_TIME_RE = re.compile(r"(\d{1,2}):(\d{2})\s*(am|pm)", re.IGNORECASE)
 
 
 # Helper functions
-@lru_cache(maxsize=1)
-def _today_et_cached(now: datetime) -> date:
-    return now.astimezone(_TZ_ET).date()
+_today_et_date: date | None = None
+_today_et_lock = threading.Lock()
 
 
 def _today_et() -> date:
-    """Return today's date in US/Eastern (NBA schedule timezone)."""
-    return _today_et_cached(datetime.now(_TZ_ET))
+    """Return today's date in US/Eastern (NBA schedule timezone).
+
+    Caches the result and only recomputes when the date rolls over.
+    """
+    global _today_et_date
+    now = datetime.now(_TZ_ET)
+    today = now.date()
+    if _today_et_date == today:
+        return _today_et_date
+    with _today_et_lock:
+        _today_et_date = today
+    return today
 
 
 def _today_cet() -> date:
@@ -53,10 +62,6 @@ def scoreboard_date() -> date:
     if now_cet.hour < 13:
         return now_cet.date() - timedelta(days=1)
     return now_cet.date()
-
-
-def _target_date(days_offset: int = 0) -> date:
-    return _today_et() - timedelta(days=days_offset)
 
 
 @lru_cache(maxsize=32)
@@ -117,6 +122,11 @@ def fix_encoding(s: str) -> str:
         return s
 
 
+def count_double_digits(pts: int, reb: int, ast: int, stl: int, blk: int) -> int:
+    """Count how many of the five stat categories are in double digits (>= 10)."""
+    return sum(1 for v in (pts, reb, ast, stl, blk) if v >= 10)
+
+
 def _with_retry(fn, attempts: int = 3, delay: float = 0.2):
     """Run `fn` with exponential backoff retry."""
     last_err = None
@@ -140,8 +150,10 @@ _players_lock = threading.Lock()
 
 def _fetch_players():
     """Fetch active players with their current team IDs from the NBA stats API."""
-    cap = commonallplayers.CommonAllPlayers(
-        is_only_current_season=1, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+    cap = _with_retry(
+        lambda: commonallplayers.CommonAllPlayers(
+            is_only_current_season=1, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+        )
     )
     data = cap.common_all_players.get_dict()
     players = []
@@ -257,6 +269,31 @@ def get_scoreboard_v3_by_date(game_date: date, historical: bool = False):
     return sb
 
 
+# ScoreboardV3 game_header column indices
+_GH_GAME_ID = 0
+_GH_GAME_CODE = 1
+_GH_GAME_STATUS = 2
+_GH_STATUS_TEXT = 3
+_GH_GAME_ET = 7
+_STATUS_SCHEDULED = 1  # gameStatus: 1=scheduled, 2=in-progress, 3=final
+
+# ScoreboardV3 line_score column indices
+_LS_GAME_ID = 0
+_LS_TEAM_ID = 1
+_LS_TEAM_CITY = 2
+_LS_TEAM_NAME = 3
+_LS_TRICODE = 4
+_LS_SCORE = 8
+
+# ScoreboardV3 game_leaders column indices
+_GL_GAME_ID = 0
+_GL_TEAM_ID = 1
+_GL_PLAYER_NAME = 4
+_GL_PTS = 9
+_GL_REB = 10
+_GL_AST = 11
+
+
 def find_category_leaders(items, categories):
     """Track per-category max values across a list of player dicts.
 
@@ -287,8 +324,8 @@ def get_games_list(days_offset: int = 1):
         sb = get_cached_scoreboard_v3(days_offset)
         games = sb.game_header.get_dict()
         for g in games["data"]:
-            if g[2] > 1:
-                g_set.add(g[0])
+            if g[_GH_GAME_STATUS] > _STATUS_SCHEDULED:
+                g_set.add(g[_GH_GAME_ID])
     except Exception as ex:
         log_exceptions(ex)
     return list(g_set)
@@ -304,19 +341,21 @@ def get_games_leaders_list(days_offset: int = 1):
 
         # Get game IDs
         for g in games["data"]:
-            if g[2] > 1:
-                game_id = g[0]
-                g_dict[game_id] = []
+            if g[_GH_GAME_STATUS] > _STATUS_SCHEDULED:
+                g_dict[g[_GH_GAME_ID]] = []
 
         for ld in leaders["data"]:
-            game_id = ld[0]
+            game_id = ld[_GL_GAME_ID]
             if game_id in g_dict:
-                team_id = ld[1]
-                pts_player = fix_encoding(ld[4])
-                pts = ld[9]
-                reb = ld[10]
-                ast = ld[11]
-                g_dict[game_id].append([pts_player, pts, reb, ast, team_id])
+                g_dict[game_id].append(
+                    [
+                        fix_encoding(ld[_GL_PLAYER_NAME]),
+                        ld[_GL_PTS],
+                        ld[_GL_REB],
+                        ld[_GL_AST],
+                        ld[_GL_TEAM_ID],
+                    ]
+                )
     except Exception as ex:
         log_exceptions(ex)
     return g_dict
