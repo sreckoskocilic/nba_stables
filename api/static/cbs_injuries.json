@@ -1,6 +1,17 @@
 {
   "injuries": [
     {
+      "team": "Atlanta",
+      "players": [
+        {
+          "name": "Jalen Johnson",
+          "updated": "Sun, Mar 22",
+          "injury": "Shoulder",
+          "status": "Game Time Decision"
+        }
+      ]
+    },
+    {
       "team": "Boston",
       "players": [
         {
@@ -21,10 +32,16 @@
       "team": "Brooklyn",
       "players": [
         {
+          "name": "Nicolas Claxton",
+          "updated": "Sat, Mar 21",
+          "injury": "Rest",
+          "status": "Expected to be out until at least Mar 23"
+        },
+        {
           "name": "Noah Clowney",
-          "updated": "Fri, Mar 20",
+          "updated": "Sat, Mar 21",
           "injury": "Wrist",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Mar 23"
         },
         {
           "name": "Terance Mann",
@@ -57,9 +74,9 @@
       "players": [
         {
           "name": "Tidjane Salaun",
-          "updated": "Fri, Mar 20",
+          "updated": "Sun, Mar 22",
           "injury": "Calf",
-          "status": "Expected to be out until at least Mar 24"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -67,7 +84,7 @@
       "team": "Chicago",
       "players": [
         {
-          "name": "Jaden Ivey",
+          "name": "Isaac Okoro",
           "updated": "Thu, Mar 19",
           "injury": "Knee",
           "status": "Game Time Decision"
@@ -79,7 +96,7 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Isaac Okoro",
+          "name": "Jaden Ivey",
           "updated": "Thu, Mar 19",
           "injury": "Knee",
           "status": "Game Time Decision"
@@ -108,28 +125,22 @@
       "team": "Cleveland",
       "players": [
         {
-          "name": "Olivier Sarr",
-          "updated": "Sat, Mar 21",
-          "injury": "Calf",
+          "name": "Jarrett Allen",
+          "updated": "Sun, Mar 22",
+          "injury": "Knee",
           "status": "Game Time Decision"
         },
         {
           "name": "Jaylon Tyson",
-          "updated": "Fri, Mar 20",
+          "updated": "Sat, Mar 21",
           "injury": "Toe",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Donovan Mitchell",
-          "updated": "Thu, Mar 19",
-          "injury": "Eye",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Jarrett Allen",
-          "updated": "Mon, Mar 16",
-          "injury": "Knee",
           "status": "Expected to be out until at least Mar 24"
+        },
+        {
+          "name": "Olivier Sarr",
+          "updated": "Sat, Mar 21",
+          "injury": "Calf",
+          "status": "Game Time Decision"
         },
         {
           "name": "Tyrese Proctor",
@@ -149,16 +160,16 @@
       "team": "Dallas",
       "players": [
         {
+          "name": "Caleb Martin",
+          "updated": "Sat, Mar 21",
+          "injury": "Foot",
+          "status": "Expected to be out until at least Mar 23"
+        },
+        {
           "name": "Brandon Williams",
           "updated": "Fri, Mar 20",
           "injury": "Concussion",
           "status": "Expected to be out until at least Mar 23"
-        },
-        {
-          "name": "Caleb Martin",
-          "updated": "Thu, Mar 19",
-          "injury": "Foot",
-          "status": "Game Time Decision"
         },
         {
           "name": "Kyrie Irving",
@@ -189,10 +200,10 @@
       "team": "Detroit",
       "players": [
         {
-          "name": "Isaiah Stewart",
-          "updated": "Sat, Mar 21",
-          "injury": "Calf",
-          "status": "Expected to be out until at least Mar 28"
+          "name": "Cade Cunningham",
+          "updated": "Fri, Mar 20",
+          "injury": "Chest",
+          "status": "Expected to be out until at least Apr 8"
         },
         {
           "name": "Marcus Sasser",
@@ -201,21 +212,15 @@
           "status": "Game Time Decision"
         },
         {
-          "name": "Kevin Huerter",
-          "updated": "Fri, Mar 20",
-          "injury": "Shoulder",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Cade Cunningham",
-          "updated": "Fri, Mar 20",
-          "injury": "Chest",
-          "status": "Expected to be out until at least Apr 8"
-        },
-        {
           "name": "Wendell Moore Jr.",
           "updated": "Fri, Mar 20",
           "injury": "Knee",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Kevin Huerter",
+          "updated": "Fri, Mar 20",
+          "injury": "Shoulder",
           "status": "Game Time Decision"
         }
       ]
@@ -225,19 +230,7 @@
       "players": [
         {
           "name": "Kristaps Porzingis",
-          "updated": "Sat, Mar 21",
-          "injury": "Back",
-          "status": "Expected to be out until at least Mar 23"
-        },
-        {
-          "name": "De'Anthony Melton",
-          "updated": "Sat, Mar 21",
-          "injury": "Knee",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Draymond Green",
-          "updated": "Sat, Mar 21",
+          "updated": "Sun, Mar 22",
           "injury": "Back",
           "status": "Game Time Decision"
         },
@@ -251,19 +244,7 @@
           "name": "Gary Payton II",
           "updated": "Sat, Mar 21",
           "injury": "Knee",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Malevy Leons",
-          "updated": "Fri, Mar 20",
-          "injury": "Wrist",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Quinten Post",
-          "updated": "Fri, Mar 20",
-          "injury": "Foot",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Mar 23"
         },
         {
           "name": "Stephen Curry",
@@ -295,18 +276,6 @@
       "team": "Houston",
       "players": [
         {
-          "name": "Jae'Sean Tate",
-          "updated": "Sat, Mar 21",
-          "injury": "Knee",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Alperen Sengun",
-          "updated": "Sat, Mar 21",
-          "injury": "Back",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Steven Adams",
           "updated": "Wed, Jan 28",
           "injury": "Ankle",
@@ -324,58 +293,10 @@
       "team": "Indiana",
       "players": [
         {
-          "name": "Ben Sheppard",
-          "updated": "Fri, Mar 20",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Aaron Nesmith",
-          "updated": "Fri, Mar 20",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Quenton Jackson",
-          "updated": "Fri, Mar 20",
-          "injury": "Calf",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Pascal Siakam",
-          "updated": "Fri, Mar 20",
-          "injury": "Knee",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "T.J. McConnell",
-          "updated": "Fri, Mar 20",
-          "injury": "Hamstring",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Ivica Zubac",
           "updated": "Fri, Mar 20",
           "injury": "Ribs",
           "status": "Out for the season"
-        },
-        {
-          "name": "Andrew Nembhard",
-          "updated": "Thu, Mar 19",
-          "injury": "Calf",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Obi Toppin",
-          "updated": "Thu, Mar 19",
-          "injury": "Foot",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Micah Potter",
-          "updated": "Thu, Mar 19",
-          "injury": "Triceps",
-          "status": "Game Time Decision"
         },
         {
           "name": "Johnny Furphy",
@@ -394,12 +315,6 @@
     {
       "team": "L.A. Clippers",
       "players": [
-        {
-          "name": "Kawhi Leonard",
-          "updated": "Thu, Mar 19",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
         {
           "name": "Bennedict Mathurin",
           "updated": "Tue, Mar 17",
@@ -424,16 +339,16 @@
       "team": "L.A. Lakers",
       "players": [
         {
+          "name": "Luka Doncic",
+          "updated": "Sat, Mar 21",
+          "injury": "Suspension",
+          "status": "Expected to be out until at least Mar 25"
+        },
+        {
           "name": "Maxi Kleber",
           "updated": "Sat, Mar 21",
           "injury": "Back",
           "status": "Expected to be out until at least Mar 23"
-        },
-        {
-          "name": "Kobe Bufkin",
-          "updated": "Sat, Mar 21",
-          "injury": "Personal",
-          "status": "Game Time Decision"
         }
       ]
     },
@@ -442,9 +357,15 @@
       "players": [
         {
           "name": "Ja Morant",
-          "updated": "Sat, Mar 21",
+          "updated": "Sun, Mar 22",
           "injury": "Elbow",
-          "status": "Expected to be out until at least Mar 23"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Cedric Coward",
+          "updated": "Sun, Mar 22",
+          "injury": "Personal",
+          "status": "Game Time Decision"
         },
         {
           "name": "Jahmai Mashack",
@@ -453,21 +374,9 @@
           "status": "Expected to be out until at least Mar 23"
         },
         {
-          "name": "DeJon Jarreau",
-          "updated": "Sat, Mar 21",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Ty Jerome",
           "updated": "Sat, Mar 21",
           "injury": "Calf",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Cedric Coward",
-          "updated": "Sat, Mar 21",
-          "injury": "Personal",
           "status": "Expected to be out until at least Mar 23"
         },
         {
@@ -475,12 +384,6 @@
           "updated": "Fri, Mar 20",
           "injury": "Calf",
           "status": "Expected to be out until at least Mar 27"
-        },
-        {
-          "name": "Gregory Jackson",
-          "updated": "Fri, Mar 20",
-          "injury": "Knee",
-          "status": "Game Time Decision"
         },
         {
           "name": "Santi Aldama",
@@ -512,15 +415,15 @@
       "team": "Miami",
       "players": [
         {
-          "name": "Norman Powell",
-          "updated": "Sat, Mar 21",
-          "injury": "Calf",
+          "name": "Jaime Jaquez Jr.",
+          "updated": "Sun, Mar 22",
+          "injury": "Hip",
           "status": "Game Time Decision"
         },
         {
-          "name": "Jaime Jaquez Jr.",
-          "updated": "Fri, Mar 20",
-          "injury": "Hip",
+          "name": "Norman Powell",
+          "updated": "Sat, Mar 21",
+          "injury": "Calf",
           "status": "Expected to be out until at least Mar 23"
         },
         {
@@ -541,16 +444,28 @@
       "team": "Milwaukee",
       "players": [
         {
-          "name": "Gary Harris",
-          "updated": "Fri, Mar 20",
-          "injury": "Groin",
+          "name": "Kyle Kuzma",
+          "updated": "Sat, Mar 21",
+          "injury": "Achilles",
           "status": "Game Time Decision"
         },
         {
           "name": "Kevin Porter",
-          "updated": "Thu, Mar 19",
+          "updated": "Sat, Mar 21",
           "injury": "Knee",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Mar 23"
+        },
+        {
+          "name": "Bobby Portis",
+          "updated": "Sat, Mar 21",
+          "injury": "Ribs",
+          "status": "Expected to be out until at least Mar 23"
+        },
+        {
+          "name": "Gary Harris",
+          "updated": "Sat, Mar 21",
+          "injury": "Groin",
+          "status": "Expected to be out until at least Mar 23"
         },
         {
           "name": "Giannis Antetokounmpo",
@@ -616,15 +531,15 @@
       "players": [
         {
           "name": "Luguentz Dort",
-          "updated": "Sat, Mar 21",
+          "updated": "Sun, Mar 22",
           "injury": "Knee",
-          "status": "Expected to be out until at least Mar 23"
+          "status": "Game Time Decision"
         },
         {
           "name": "Jalen Williams",
-          "updated": "Fri, Mar 20",
+          "updated": "Sun, Mar 22",
           "injury": "Hamstring",
-          "status": "Expected to be out until at least Mar 23"
+          "status": "Game Time Decision"
         },
         {
           "name": "Branden Carlson",
@@ -644,15 +559,15 @@
       "team": "Orlando",
       "players": [
         {
+          "name": "Franz Wagner",
+          "updated": "Sun, Mar 22",
+          "injury": "Ankle",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Jonathan Isaac",
           "updated": "Fri, Mar 20",
           "injury": "Knee",
-          "status": "Expected to be out until at least Mar 23"
-        },
-        {
-          "name": "Franz Wagner",
-          "updated": "Fri, Mar 20",
-          "injury": "Ankle",
           "status": "Expected to be out until at least Mar 23"
         },
         {
@@ -668,9 +583,15 @@
       "players": [
         {
           "name": "Joel Embiid",
-          "updated": "Fri, Mar 20",
+          "updated": "Sun, Mar 22",
           "injury": "Oblique",
-          "status": "Expected to be out until at least Mar 23"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Dom Barlow",
+          "updated": "Sat, Mar 21",
+          "injury": "Ankle",
+          "status": "Game Time Decision"
         },
         {
           "name": "Kelly Oubre Jr.",
@@ -689,6 +610,12 @@
           "updated": "Sun, Feb 22",
           "injury": "Knee",
           "status": "Expected to be out until at least Apr 1"
+        },
+        {
+          "name": "Paul George",
+          "updated": "Sat, Jan 31",
+          "injury": "Suspension",
+          "status": "Expected to be out until at least Mar 25"
         }
       ]
     },
@@ -731,6 +658,12 @@
       "team": "Portland",
       "players": [
         {
+          "name": "Jerami Grant",
+          "updated": "Sat, Mar 21",
+          "injury": "Foot",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Vit Krejci",
           "updated": "Fri, Mar 20",
           "injury": "Calf",
@@ -754,21 +687,15 @@
       "team": "Sacramento",
       "players": [
         {
-          "name": "Nique Clifford",
-          "updated": "Fri, Mar 20",
-          "injury": "Hamstring",
-          "status": "Game Time Decision"
+          "name": "Russell Westbrook",
+          "updated": "Sat, Mar 21",
+          "injury": "Foot",
+          "status": "Expected to be out until at least Mar 22"
         },
         {
-          "name": "Devin Carter",
-          "updated": "Fri, Mar 20",
-          "injury": "Calf",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Malik Monk",
-          "updated": "Thu, Mar 19",
-          "injury": "Shoulder",
+          "name": "Daeqwon Plowden",
+          "updated": "Sat, Mar 21",
+          "injury": "Foot",
           "status": "Game Time Decision"
         },
         {
@@ -807,9 +734,9 @@
       "team": "San Antonio",
       "players": [
         {
-          "name": "Victor Wembanyama",
-          "updated": "Sat, Mar 21",
-          "injury": "Ankle",
+          "name": "Devin Vassell",
+          "updated": "Sun, Mar 22",
+          "injury": "Hamstring",
           "status": "Game Time Decision"
         },
         {
@@ -853,28 +780,22 @@
       "team": "Utah",
       "players": [
         {
-          "name": "Lauri Markkanen",
-          "updated": "Fri, Mar 20",
-          "injury": "Hip",
-          "status": "Expected to be out until at least Apr 10"
-        },
-        {
           "name": "Isaiah Collier",
           "updated": "Fri, Mar 20",
           "injury": "Hamstring",
           "status": "Expected to be out until at least Mar 23"
         },
         {
+          "name": "Lauri Markkanen",
+          "updated": "Fri, Mar 20",
+          "injury": "Hip",
+          "status": "Expected to be out until at least Apr 10"
+        },
+        {
           "name": "Brice Sensabaugh",
           "updated": "Fri, Mar 20",
           "injury": "Illness",
           "status": "Expected to be out until at least Mar 23"
-        },
-        {
-          "name": "John Konchar",
-          "updated": "Thu, Mar 19",
-          "injury": "Quadriceps",
-          "status": "Game Time Decision"
         },
         {
           "name": "Keyonte George",
@@ -912,15 +833,15 @@
           "status": "Expected to be out until at least Mar 22"
         },
         {
-          "name": "Trae Young",
-          "updated": "Fri, Mar 20",
-          "injury": "Quadriceps",
-          "status": "Expected to be out until at least Mar 22"
-        },
-        {
           "name": "Leaky Black",
           "updated": "Fri, Mar 20",
           "injury": "Ankle",
+          "status": "Expected to be out until at least Mar 22"
+        },
+        {
+          "name": "Trae Young",
+          "updated": "Fri, Mar 20",
+          "injury": "Quadriceps",
           "status": "Expected to be out until at least Mar 22"
         },
         {
@@ -951,5 +872,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "March 21, 2026 22:28 UTC"
+  "lastUpdated": "March 22, 2026 10:31 UTC"
 }
