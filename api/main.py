@@ -114,8 +114,10 @@ except OSError:  # pragma: no cover
 async def health_check():
     """Health check endpoint"""
     test_key = "_health_probe"
-    _common.cache.set(test_key, True, 5)
-    cache_ok = _common.cache.get(test_key) is True
+    cache_ok = _common.cache.get(test_key) is not None
+    if not cache_ok:
+        _common.cache.set(test_key, True, 5)
+        cache_ok = True
     nba_api_ok = (
         bool(_stats._players_cache) and _stats._players_cache_expires > time.time()
     )

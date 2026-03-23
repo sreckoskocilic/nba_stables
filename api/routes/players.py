@@ -16,7 +16,7 @@ from helpers.stats import (
     get_cached_scoreboard,
     get_current_season,
     load_players_dict,
-    load_players_file,
+    load_players_with_lower,
     reformat_player_minutes,
 )
 from isodate import parse_duration
@@ -65,12 +65,11 @@ async def search_players(q: str = Query(..., min_length=2, max_length=100)):
             raise HTTPException(status_code=400, detail="Invalid characters in query")
 
         def _sync():
-            players = load_players_file()
+            players = load_players_with_lower()
             results = []
             query = cleaned.lower()
-            players_with_lower = [(p, p[1].lower()) for p in players]
 
-            for player, player_lower in players_with_lower:
+            for player, player_lower in players:
                 if query in player_lower:
                     results.append(
                         {"id": player[0], "name": player[1], "teamId": player[2]}

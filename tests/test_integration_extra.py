@@ -551,7 +551,8 @@ class TestPlayerErrorHandlers:
     def test_search_500_on_unexpected_error(self, client):
         with (
             patch(
-                "routes.players.load_players_file", side_effect=OSError("disk error")
+                "routes.players.load_players_with_lower",
+                side_effect=OSError("disk error"),
             ),
             patch("routes.players.log_exceptions"),
         ):
@@ -1004,7 +1005,7 @@ class TestSeasonErrorHandlers:
 
     def test_trades_500_on_unexpected_error(self, client):
         with (
-            patch("routes.trades.requests.get", side_effect=TypeError("unexpected")),
+            patch("routes.trades._session.get", side_effect=TypeError("unexpected")),
             patch("routes.trades.load_players_dict", return_value={}),
             patch("routes.trades.log_exceptions"),
         ):

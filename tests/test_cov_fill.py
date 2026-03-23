@@ -64,7 +64,7 @@ def test_players_search_http_exception_passthrough(client, monkeypatch):
     from fastapi import HTTPException
 
     monkeypatch.setattr(
-        "routes.players.load_players_file",
+        "routes.players.load_players_with_lower",
         lambda: (_ for _ in ()).throw(HTTPException(status_code=418)),
     )
     r = client.get("/api/players/search?q=LeBron")

@@ -638,13 +638,19 @@ class TestStandings:
 
 class TestPlayerSearch:
     def test_finds_player(self, client):
-        with patch("routes.players.load_players_file", return_value=FAKE_PLAYERS):
+        with patch(
+            "routes.players.load_players_with_lower",
+            return_value=[(p, p[1].lower()) for p in FAKE_PLAYERS],
+        ):
             r = client.get("/api/players/search?q=LeBron")
         assert r.status_code == 200
         assert r.json()["players"][0]["name"] == "LeBron James"
 
     def test_case_insensitive(self, client):
-        with patch("routes.players.load_players_file", return_value=FAKE_PLAYERS):
+        with patch(
+            "routes.players.load_players_with_lower",
+            return_value=[(p, p[1].lower()) for p in FAKE_PLAYERS],
+        ):
             r = client.get("/api/players/search?q=lebron")
         assert r.json()["players"][0]["name"] == "LeBron James"
 
@@ -652,13 +658,19 @@ class TestPlayerSearch:
         assert client.get("/api/players/search?q=L").status_code == 422
 
     def test_no_match_returns_empty(self, client):
-        with patch("routes.players.load_players_file", return_value=FAKE_PLAYERS):
+        with patch(
+            "routes.players.load_players_with_lower",
+            return_value=[(p, p[1].lower()) for p in FAKE_PLAYERS],
+        ):
             r = client.get("/api/players/search?q=Kobe")
         assert r.json()["players"] == []
 
     def test_capped_at_20_results(self, client):
         many = [[i, f"Player {i:02d}", 0] for i in range(30)]
-        with patch("routes.players.load_players_file", return_value=many):
+        with patch(
+            "routes.players.load_players_with_lower",
+            return_value=[(p, p[1].lower()) for p in many],
+        ):
             r = client.get("/api/players/search?q=Player")
         assert len(r.json()["players"]) <= 20
 
@@ -912,7 +924,7 @@ class TestTrades:
 
     def test_returns_200(self, client):
         with (
-            patch("routes.trades.requests.get", return_value=self._resp([])),
+            patch("routes.trades._session.get", return_value=self._resp([])),
             patch("routes.trades.load_players_dict", return_value={}),
         ):
             r = client.get("/api/trades")
@@ -920,7 +932,7 @@ class TestTrades:
 
     def test_response_shape(self, client):
         with (
-            patch("routes.trades.requests.get", return_value=self._resp([])),
+            patch("routes.trades._session.get", return_value=self._resp([])),
             patch("routes.trades.load_players_dict", return_value={}),
         ):
             r = client.get("/api/trades")
@@ -930,7 +942,7 @@ class TestTrades:
 
     def test_team_name_resolved(self, client):
         with (
-            patch("routes.trades.requests.get", return_value=self._resp([self._row()])),
+            patch("routes.trades._session.get", return_value=self._resp([self._row()])),
             patch(
                 "routes.trades.load_players_dict",
                 return_value={PLAYER_ID: [PLAYER_ID, "LeBron James", TEAM_ID_LAL]},
@@ -943,7 +955,7 @@ class TestTrades:
 
     def test_player_name_resolved_from_dict(self, client):
         with (
-            patch("routes.trades.requests.get", return_value=self._resp([self._row()])),
+            patch("routes.trades._session.get", return_value=self._resp([self._row()])),
             patch(
                 "routes.trades.load_players_dict",
                 return_value={PLAYER_ID: [PLAYER_ID, "LeBron James", TEAM_ID_LAL]},
@@ -955,7 +967,7 @@ class TestTrades:
     def test_player_name_falls_back_to_slug(self, client):
         row = self._row(PLAYER_ID=9999999.0, PLAYER_SLUG="grant-nelson")
         with (
-            patch("routes.trades.requests.get", return_value=self._resp([row])),
+            patch("routes.trades._session.get", return_value=self._resp([row])),
             patch("routes.trades.load_players_dict", return_value={}),
         ):
             r = client.get("/api/trades")
@@ -968,7 +980,7 @@ class TestTrades:
             self._row(TRANSACTION_DATE="2026-01-05T00:00:00"),
         ]
         with (
-            patch("routes.trades.requests.get", return_value=self._resp(rows)),
+            patch("routes.trades._session.get", return_value=self._resp(rows)),
             patch("routes.trades.load_players_dict", return_value={}),
         ):
             r = client.get("/api/trades")
@@ -980,7 +992,7 @@ class TestTrades:
             TRANSACTION_DESCRIPTION="Brooklyn Nets signed LeBron James to a 10-Day Contract."
         )
         with (
-            patch("routes.trades.requests.get", return_value=self._resp([row])),
+            patch("routes.trades._session.get", return_value=self._resp([row])),
             patch("routes.trades.load_players_dict", return_value={}),
         ):
             r = client.get("/api/trades")
@@ -992,7 +1004,7 @@ class TestTrades:
     def test_total_matches_row_count(self, client):
         rows = [self._row() for _ in range(5)]
         with (
-            patch("routes.trades.requests.get", return_value=self._resp(rows)),
+            patch("routes.trades._session.get", return_value=self._resp(rows)),
             patch("routes.trades.load_players_dict", return_value={}),
         ):
             r = client.get("/api/trades")
@@ -1001,7 +1013,7 @@ class TestTrades:
     def test_cached_on_second_call(self, client):
         with (
             patch(
-                "routes.trades.requests.get", return_value=self._resp([])
+                "routes.trades._session.get", return_value=self._resp([])
             ) as mock_req,
             patch("routes.trades.load_players_dict", return_value={}),
         ):
@@ -1012,7 +1024,7 @@ class TestTrades:
     def test_503_on_request_error(self, client):
         with (
             patch(
-                "routes.trades.requests.get",
+                "routes.trades._session.get",
                 side_effect=requests.RequestException("timeout"),
             ),
             patch("routes.trades.load_players_dict", return_value={}),
@@ -1024,7 +1036,7 @@ class TestTrades:
     def test_unknown_team_id_returns_unknown(self, client):
         row = self._row(TEAM_ID=9999999.0)
         with (
-            patch("routes.trades.requests.get", return_value=self._resp([row])),
+            patch("routes.trades._session.get", return_value=self._resp([row])),
             patch("routes.trades.load_players_dict", return_value={}),
         ):
             r = client.get("/api/trades")
@@ -1035,7 +1047,7 @@ class TestTrades:
     def test_type_field_preserved(self, client):
         row = self._row(Transaction_Type="Trade")
         with (
-            patch("routes.trades.requests.get", return_value=self._resp([row])),
+            patch("routes.trades._session.get", return_value=self._resp([row])),
             patch("routes.trades.load_players_dict", return_value={}),
         ):
             r = client.get("/api/trades")
@@ -1044,7 +1056,7 @@ class TestTrades:
     def test_date_normalised_to_yyyy_mm_dd(self, client):
         row = self._row(TRANSACTION_DATE="2026-02-15T00:00:00")
         with (
-            patch("routes.trades.requests.get", return_value=self._resp([row])),
+            patch("routes.trades._session.get", return_value=self._resp([row])),
             patch("routes.trades.load_players_dict", return_value={}),
         ):
             r = client.get("/api/trades")
@@ -1053,7 +1065,7 @@ class TestTrades:
     def test_player_name_falls_back_to_unknown_when_slug_empty(self, client):
         row = self._row(PLAYER_ID=9999999.0, PLAYER_SLUG="")
         with (
-            patch("routes.trades.requests.get", return_value=self._resp([row])),
+            patch("routes.trades._session.get", return_value=self._resp([row])),
             patch("routes.trades.load_players_dict", return_value={}),
         ):
             r = client.get("/api/trades")

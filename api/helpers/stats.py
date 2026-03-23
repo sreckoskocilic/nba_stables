@@ -40,11 +40,10 @@ def _today_et() -> date:
     global _today_et_date
     now = datetime.now(_TZ_ET)
     today = now.date()
-    if _today_et_date == today:
-        return _today_et_date
     with _today_et_lock:
-        _today_et_date = today
-    return today
+        if _today_et_date != today:
+            _today_et_date = today
+    return _today_et_date
 
 
 def _today_cet() -> date:
@@ -144,6 +143,7 @@ def _with_retry(fn, attempts: int = 3, delay: float = 0.2):
 
 _players_cache = None
 _players_dict_cache = None
+_players_cache_lower = None
 _players_cache_expires = 0
 _players_lock = threading.Lock()
 
@@ -182,7 +182,11 @@ def _fetch_players():
 
 def load_players_file():  # pragma: no cover
     """Return cached list of active players fetched from the NBA stats API."""
-    global _players_cache, _players_dict_cache, _players_cache_expires
+    global \
+        _players_cache, \
+        _players_dict_cache, \
+        _players_cache_lower, \
+        _players_cache_expires
     with _players_lock:
         if _players_cache and time.time() < _players_cache_expires:
             return _players_cache
@@ -190,16 +194,16 @@ def load_players_file():  # pragma: no cover
         try:
             _players_cache = _fetch_players()
             _players_dict_cache = {p[0]: p for p in _players_cache}
+            _players_cache_lower = [(p, p[1].lower()) for p in _players_cache]
             _players_cache_expires = time.time() + CACHE_TTL["players"]
         except Exception as ex:
             log_exceptions(ex)
-            # Keep serving the previous cache if available (stale-while-error).
             if _players_cache:
-                _players_cache_expires = time.time() + 300  # short extension
+                _players_cache_expires = time.time() + 300
                 return _players_cache
-            # Fallback to an empty cache if there is nothing to serve.
             _players_cache = []
             _players_dict_cache = {}
+            _players_cache_lower = []
             _players_cache_expires = time.time() + 300
 
         return _players_cache
@@ -209,6 +213,12 @@ def load_players_dict():  # pragma: no cover
     """Return {player_id: player_row} dict for O(1) lookups."""
     load_players_file()
     return _players_dict_cache
+
+
+def load_players_with_lower():  # pragma: no cover
+    """Return cached list of (player_row, lowercase_name) tuples."""
+    load_players_file()
+    return _players_cache_lower
 
 
 def get_cached_scoreboard():  # pragma: no cover
