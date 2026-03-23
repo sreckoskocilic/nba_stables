@@ -3,6 +3,7 @@
 import json
 import os
 import tempfile
+import time
 from datetime import date
 from unittest.mock import MagicMock, patch
 
@@ -124,7 +125,11 @@ class TestHealth:
         assert client.get("/api/health").status_code == 200
 
     def test_shape(self, client):
-        body = client.get("/api/health").json()
+        with (
+            patch("main._stats._players_cache", [1]),
+            patch("main._stats._players_cache_expires", time.time() + 300),
+        ):
+            body = client.get("/api/health").json()
         assert body["status"] == "healthy"
         assert body["cache_ok"] is True
         assert "date" in body and len(body["date"]) > 5

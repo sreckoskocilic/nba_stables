@@ -81,7 +81,7 @@ _default_cors = ["http://localhost:3000", "http://127.0.0.1:3000"]
 _cors_env = os.environ.get("CORS_ORIGINS")
 if _cors_env:
     _cors_origins = _cors_env.split(",")
-    if _cors_origins == ["*"]:
+    if "*" in _cors_origins:
         logger.warning("CORS_ORIGINS explicitly set to wildcard (*)")
 else:
     _cors_origins = _default_cors
@@ -121,7 +121,7 @@ async def health_check():
     nba_api_ok = (
         bool(_stats._players_cache) and _stats._players_cache_expires > time.time()
     )
-    status = "healthy" if cache_ok else "degraded"
+    status = "healthy" if cache_ok and nba_api_ok else "degraded"
     return {
         "status": status,
         "date": get_display_date(0),

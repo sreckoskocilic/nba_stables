@@ -243,10 +243,11 @@ def _scoreboard_from_v3(sb):
     header = sb.game_header.get_dict()
     line_score = sb.line_score.get_dict()
 
-    # Build team lookup from line_score: {(gameId, teamId): row}
-    team_rows = {
-        (row[_LS_GAME_ID], row[_LS_TEAM_ID]): row for row in line_score["data"]
-    }
+    # Build tricode→(row, team_id) lookup grouped by game_id
+    teams_by_game: dict[str, dict[str, tuple]] = {}
+    for row in line_score["data"]:
+        gid = row[_LS_GAME_ID]
+        teams_by_game.setdefault(gid, {})[row[_LS_TRICODE]] = (row, row[_LS_TEAM_ID])
 
     # Build leaders lookup
     leaders_data = sb.game_leaders.get_dict()
@@ -265,12 +266,7 @@ def _scoreboard_from_v3(sb):
         away_tri = teams_str[:3]
         home_tri = teams_str[3:]
 
-        # Build tricode→(row, team_id) lookup for this game
-        game_teams = {
-            row[_LS_TRICODE]: (row, tid)
-            for (gid, tid), row in team_rows.items()
-            if gid == game_id
-        }
+        game_teams = teams_by_game.get(game_id, {})
         home_row, home_team_id = game_teams.get(home_tri, (None, None))
         away_row, away_team_id = game_teams.get(away_tri, (None, None))
 

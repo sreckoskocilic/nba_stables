@@ -27,23 +27,9 @@ _TZ_CET = ZoneInfo("Europe/Berlin")
 _ET_TIME_RE = re.compile(r"(\d{1,2}):(\d{2})\s*(am|pm)", re.IGNORECASE)
 
 
-# Helper functions
-_today_et_date: date | None = None
-_today_et_lock = threading.Lock()
-
-
 def _today_et() -> date:
-    """Return today's date in US/Eastern (NBA schedule timezone).
-
-    Caches the result and only recomputes when the date rolls over.
-    """
-    global _today_et_date
-    now = datetime.now(_TZ_ET)
-    today = now.date()
-    with _today_et_lock:
-        if _today_et_date != today:
-            _today_et_date = today
-    return _today_et_date
+    """Return today's date in US/Eastern (NBA schedule timezone)."""
+    return datetime.now(_TZ_ET).date()
 
 
 def _today_cet() -> date:
