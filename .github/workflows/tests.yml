@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TZ: Europe/Berlin
+      STATS_TIMEOUT: 2
     steps:
       - uses: actions/checkout@v6
 
@@ -34,7 +35,7 @@ jobs:
           .venv/bin/pip install -r requirements-dev.txt
 
       - name: Run tests with coverage
-        run: .venv/bin/pytest tests/ --cov=api --cov-report=xml -n auto
+        run: .venv/bin/pytest tests/ --cov=api --cov-report=xml -n auto --dist=loadfile
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
