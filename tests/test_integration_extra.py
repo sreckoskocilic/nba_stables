@@ -989,7 +989,7 @@ class TestSeasonErrorHandlers:
                 "routes.season.leaguegamelog.LeagueGameLog",
                 side_effect=Exception("boom"),
             ),
-            patch("routes.season.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/season/highs")
         assert r.status_code == 500
@@ -1000,7 +1000,7 @@ class TestSeasonErrorHandlers:
                 "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
                 side_effect=Exception("boom"),
             ),
-            patch("routes.season.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/season/doubles")
         assert r.status_code == 500
@@ -1011,7 +1011,7 @@ class TestSeasonErrorHandlers:
                 "routes.season.playergamelog.PlayerGameLog",
                 side_effect=Exception("boom"),
             ),
-            patch("routes.season.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
         assert r.status_code == 500
@@ -1041,3 +1041,78 @@ class TestSeasonErrorHandlers:
             assert r.status_code == 500
         finally:
             os.unlink(tmp)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# executor.map TimeoutError and scoreboard-fallback paths
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestExecutorTimeouts:
+    def test_leaders_boxscore_timeout_returns_empty(self, client):
+        with (
+            patch("routes.scores.get_games_list", return_value=["0022400001"]),
+            patch("routes.scores.executor") as mock_exec,
+            patch("routes.scores.log_exceptions"),
+        ):
+            mock_exec.map.side_effect = TimeoutError("timed out")
+            r = client.get("/api/leaders?days_offset=1")
+        assert r.status_code == 200
+        assert r.json()["leaders"] == {}
+
+    def test_doubledoubles_boxscore_timeout_returns_empty(self, client):
+        with (
+            patch("routes.scores.get_games_list", return_value=["0022400001"]),
+            patch("routes.scores.executor") as mock_exec,
+            patch("routes.scores.log_exceptions"),
+        ):
+            mock_exec.map.side_effect = TimeoutError("timed out")
+            r = client.get("/api/doubledoubles?days_offset=1")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["doubleDoubles"] == []
+        assert data["tripleDoubles"] == []
+
+    def test_player_tracker_scoreboard_error_returns_empty(self, client):
+        with (
+            patch(
+                "routes.players.get_cached_scoreboard", side_effect=Exception("boom")
+            ),
+            patch("routes.players.log_exceptions"),
+        ):
+            r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
+        assert r.status_code == 200
+        assert r.json()["players"] == []
+
+    def test_player_tracker_timeout_returns_empty(self, client):
+        with (
+            patch(
+                "routes.players.get_cached_scoreboard",
+                return_value=[{"gameId": "0022400001"}],
+            ),
+            patch("routes.players.executor") as mock_exec,
+            patch("routes.players.log_exceptions"),
+        ):
+            mock_exec.map.side_effect = TimeoutError("timed out")
+            r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
+        assert r.status_code == 200
+        assert r.json()["players"] == []
+
+    def test_last_n_games_timeout_returns_empty_games(self, client):
+        cache.set(
+            f"player_games_raw_{PLAYER_ID}",
+            [["LAL @ BOS", GAME_ID, "2026-03-01"]],
+            60,
+        )
+        with (
+            patch(
+                "routes.players.load_players_dict",
+                return_value={PLAYER_ID: [PLAYER_ID, "Test Player", TEAM_ID_LAL]},
+            ),
+            patch("routes.players.executor") as mock_exec,
+            patch("routes.players.log_exceptions"),
+        ):
+            mock_exec.map.side_effect = TimeoutError("timed out")
+            r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
+        assert r.status_code == 200
+        assert r.json()["games"] == []

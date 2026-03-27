@@ -120,7 +120,11 @@ async def get_player_stats(
         results = []
         # Use all games on the scoreboard to avoid missing players with stale team IDs.
         # Cost is low (max ~15 games) and keeps traded/free-agent players visible.
-        relevant_game_ids = [game["gameId"] for game in get_cached_scoreboard()]
+        try:
+            relevant_game_ids = [game["gameId"] for game in get_cached_scoreboard()]
+        except Exception as ex:
+            log_exceptions(ex, "player_tracker_scoreboard")
+            relevant_game_ids = []
 
         def fetch_player_boxscore(game_id):  # pragma: no cover
             try:
@@ -132,7 +136,15 @@ async def get_player_stats(
                 return None
 
         # executor.map keeps submission overhead low and maintains order
-        boxscores = list(executor.map(fetch_player_boxscore, relevant_game_ids))
+        try:
+            boxscores = list(
+                executor.map(
+                    fetch_player_boxscore, relevant_game_ids, timeout=STATS_TIMEOUT
+                )
+            )
+        except TimeoutError as ex:
+            log_exceptions(ex, "player_tracker_timeout")
+            boxscores = []
 
         for bs in boxscores:
             if not bs:  # pragma: no cover
@@ -400,11 +412,17 @@ async def get_last_n_games_stats(
                 log_exceptions(ex, f"player_id={player_id} game_id={gg[1]}")
                 return None
 
-        games = [
-            r
-            for r in executor.map(fetch_game_stats, game_rows, timeout=30)
-            if r is not None
-        ]
+        try:
+            games = [
+                r
+                for r in executor.map(
+                    fetch_game_stats, game_rows, timeout=STATS_TIMEOUT
+                )
+                if r is not None
+            ]
+        except TimeoutError as ex:
+            log_exceptions(ex, f"player_games_timeout player_id={player_id}")
+            games = []
 
         return {
             "playerId": player_id,

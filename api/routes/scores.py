@@ -65,6 +65,8 @@ from nba_api.stats.endpoints import leaguestandings
 
 router = APIRouter()
 
+_EMPTY_LEADER = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
+
 
 @router.get("/api/dates")
 @route_error_handler("Failed to fetch date labels")
@@ -215,10 +217,10 @@ def _build_team(row, team_id, game_id, leaders_by) -> dict:
             "name": "",
             "tricode": "",
             "score": 0,
-            "leader": {"name": "", "points": 0, "rebounds": 0, "assists": 0},
+            "leader": _EMPTY_LEADER,
         }
     ld = leaders_by.get((game_id, team_id))
-    leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
+    leader = _EMPTY_LEADER
     if ld:
         leader = {
             "name": fix_encoding(ld[_GL_PLAYER_NAME]) if ld[_GL_PLAYER_NAME] else "",
@@ -301,28 +303,32 @@ async def get_daily_leaders(
                 log_exceptions(ex)
                 return {}
 
-        results = executor.map(fetch_leaders_boxscore, game_ids)
-        for bs in results:
-            if not bs:
-                continue
-            for team_key in ["homeTeam", "awayTeam"]:
-                team = bs["game"][team_key]
-                tricode = team["teamTricode"]
-                for player in team["players"]:
-                    if player["status"] == "ACTIVE":
-                        stats = player["statistics"]
-                        all_players.append(
-                            {
-                                "name": fix_encoding(player["name"]),
-                                "team": tricode,
-                                "points": stats["points"],
-                                "rebounds": stats["reboundsTotal"],
-                                "assists": stats["assists"],
-                                "blocks": stats["blocks"],
-                                "steals": stats["steals"],
-                                "threePointers": stats["threePointersMade"],
-                            }
-                        )
+        try:
+            for bs in executor.map(
+                fetch_leaders_boxscore, game_ids, timeout=STATS_TIMEOUT
+            ):
+                if not bs:
+                    continue
+                for team_key in ["homeTeam", "awayTeam"]:
+                    team = bs["game"][team_key]
+                    tricode = team["teamTricode"]
+                    for player in team["players"]:
+                        if player["status"] == "ACTIVE":
+                            stats = player["statistics"]
+                            all_players.append(
+                                {
+                                    "name": fix_encoding(player["name"]),
+                                    "team": tricode,
+                                    "points": stats["points"],
+                                    "rebounds": stats["reboundsTotal"],
+                                    "assists": stats["assists"],
+                                    "blocks": stats["blocks"],
+                                    "steals": stats["steals"],
+                                    "threePointers": stats["threePointersMade"],
+                                }
+                            )
+        except TimeoutError as ex:
+            log_exceptions(ex, "leaders_boxscore_timeout")
 
         categories = [
             ("points", "Points"),
@@ -514,7 +520,13 @@ async def get_double_doubles(
                 log_exceptions(ex, f"doubledoubles gid={gid}")
                 return {}
 
-        boxscore_results = list(executor.map(fetch_dd_boxscore, game_ids))
+        try:
+            boxscore_results = list(
+                executor.map(fetch_dd_boxscore, game_ids, timeout=STATS_TIMEOUT)
+            )
+        except TimeoutError as ex:
+            log_exceptions(ex, "dd_boxscore_timeout")
+            boxscore_results = []
 
         for bs in boxscore_results:
             if not bs:

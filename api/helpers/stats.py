@@ -290,6 +290,13 @@ _GL_PTS = 9
 _GL_REB = 10
 _GL_AST = 11
 
+# Compact leaders list indices (from get_games_leaders_list: [name, pts, reb, ast, team_id])
+_CL_PLAYER_NAME = 0
+_CL_PTS = 1
+_CL_REB = 2
+_CL_AST = 3
+_CL_TEAM_ID = 4
+
 
 def find_category_leaders(
     items: list[dict], categories: list[tuple[str, str]]
@@ -385,7 +392,9 @@ def fetch_single_boxscore(game_id: str, leaders_data: list) -> dict | None:
         data = get_cached_live_boxscore(game_id)
         game = data.get("game", {})
         game_box = {"gameId": game_id, "teams": []}
-        leaders_by_team = {ld[4]: ld for ld in leaders_data if len(ld) > 4}
+        leaders_by_team = {
+            ld[_CL_TEAM_ID]: ld for ld in leaders_data if len(ld) > _CL_TEAM_ID
+        }
 
         for team_key in ["homeTeam", "awayTeam"]:
             team = game[team_key]
@@ -396,10 +405,10 @@ def fetch_single_boxscore(game_id: str, leaders_data: list) -> dict | None:
             ld = leaders_by_team.get(team_id)
             if ld:
                 leader = {
-                    "name": ld[0],
-                    "points": ld[1],
-                    "rebounds": ld[2],
-                    "assists": ld[3],
+                    "name": ld[_CL_PLAYER_NAME],
+                    "points": ld[_CL_PTS],
+                    "rebounds": ld[_CL_REB],
+                    "assists": ld[_CL_AST],
                 }
 
             game_box["teams"].append(

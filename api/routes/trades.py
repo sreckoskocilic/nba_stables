@@ -2,7 +2,7 @@ import asyncio
 
 import requests
 from fastapi import APIRouter, HTTPException
-from helpers.common import CACHE_TTL, TEAMS, cache
+from helpers.common import CACHE_TTL, STATS_TIMEOUT, TEAMS, cache
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import _with_retry, load_players_dict
@@ -36,7 +36,9 @@ async def get_trades():
         return cached
 
     def _sync():
-        resp = _with_retry(lambda: _session.get(NBA_PLAYER_MOVEMENT_URL, timeout=10))
+        resp = _with_retry(
+            lambda: _session.get(NBA_PLAYER_MOVEMENT_URL, timeout=STATS_TIMEOUT)
+        )
         resp.raise_for_status()
         data = resp.json()
 

@@ -182,7 +182,7 @@ async def serve_soccer():  # pragma: no cover
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
