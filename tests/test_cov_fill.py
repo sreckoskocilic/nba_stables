@@ -317,3 +317,13 @@ def test_lifespan_warns_missing_injuries_file(monkeypatch, caplog):
         with TestClient(app):
             pass
     assert "CBS injuries file not found" in caplog.text
+
+
+def test_security_headers_soccer_route(client):
+    """Cover security.py line 40: /soccer route gets relaxed CSP."""
+    r = client.get("/soccer")
+    assert r.status_code == 200
+    csp = r.headers.get("Content-Security-Policy", "")
+    assert "site.api.espn.com" in csp
+    assert "connect-src" in csp
+    assert "sports.core.api.espn.com" in csp
