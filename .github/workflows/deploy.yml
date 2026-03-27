@@ -5,6 +5,11 @@ on:
     paths-ignore:
       - "api/static/*.json"
       - ".github/workflows/**"
+      - "README.md"
+      - "LICENSE"
+      - "codecov.yml"
+      - "requirements-dev.txt"
+      - ".env.example"
     branches: [main]
   workflow_dispatch: # allow manual trigger
 
