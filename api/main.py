@@ -3,6 +3,7 @@ NBA Stables REST API
 FastAPI backend for live NBA statistics
 """
 
+import asyncio
 import logging
 import logging.config
 import os
@@ -15,9 +16,11 @@ import uvicorn
 import yaml
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from helpers.stats import get_display_date
+from middleware.request_id import RequestIDMiddleware
+from middleware.security import SecurityHeadersMiddleware
 from routes.injuries import CBS_INJURIES_FILE
 from routes.injuries import router as injuries_router
 from routes.players import router as players_router
@@ -50,6 +53,8 @@ class TimingMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Starting NBA Stables API...")
     # Validate env var bounds
     workers = _common._DEFAULT_WORKERS
     if not (1 <= workers <= 100):
@@ -62,8 +67,17 @@ async def lifespan(app: FastAPI):
     # Warn if injuries data file is missing
     if not os.path.exists(CBS_INJURIES_FILE):
         logger.warning("CBS injuries file not found at startup: %s", CBS_INJURIES_FILE)
+    # Pre-warm players cache to avoid slow first request
+    try:
+        await asyncio.to_thread(_stats.load_players_file)
+        logger.info("Players cache warmed")
+    except Exception as e:  # pragma: no cover
+        logger.warning("Failed to warm players cache: %s", e)
     yield
+    # Shutdown - only clear cache, executor shutdown handled by atexit
+    logger.info("Shutting down NBA Stables API...")
     _common.cache.clear()
+    logger.info("Shutdown complete")
 
 
 app = FastAPI(
@@ -89,10 +103,12 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
 )
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(GZipMiddleware, minimum_size=500)
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(TimingMiddleware)
+app.add_middleware(RequestIDMiddleware)
 
 app.include_router(router)
 app.include_router(players_router)
@@ -113,11 +129,8 @@ except OSError:  # pragma: no cover
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
-    test_key = "_health_probe"
-    cache_ok = _common.cache.get(test_key) is not None
-    if not cache_ok:
-        _common.cache.set(test_key, True, 5)
-        cache_ok = True
+    _common.cache.set("_hc", True, 1)
+    cache_ok = _common.cache.get("_hc") is True
     nba_api_ok = (
         bool(_stats._players_cache) and _stats._players_cache_expires > time.time()
     )
@@ -125,8 +138,9 @@ async def health_check():
     return {
         "status": status,
         "date": get_display_date(0),
+        "version": app.version,
         "cache_ok": cache_ok,
-        "nba_data_fresh": nba_api_ok,
+        "nba_api_ok": nba_api_ok,
     }
 
 
@@ -134,6 +148,12 @@ async def health_check():
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 if os.path.exists(static_dir):
     app.mount("/web", StaticFiles(directory=static_dir), name="web")
+
+
+@app.get("/t/a.js")
+async def analytics_stub():  # pragma: no cover
+    """Dev stub — in production Caddy proxies /t/a.js to the analytics server."""
+    return Response(content="", media_type="application/javascript")
 
 
 @app.get("/sitemap.xml")

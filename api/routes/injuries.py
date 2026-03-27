@@ -4,7 +4,7 @@ import os
 
 from fastapi import APIRouter, HTTPException
 from helpers.common import CACHE_TTL, cache
-from helpers.logger import log_exceptions
+from helpers.decorators import route_error_handler
 
 router = APIRouter()
 
@@ -14,6 +14,7 @@ CBS_INJURIES_FILE = os.path.join(
 
 
 @router.get("/api/injuries")
+@route_error_handler("Failed to fetch injuries")
 async def get_injuries():
     """Get NBA injury report from CBS Sports"""
     cached = cache.get("injuries")
@@ -27,10 +28,6 @@ async def get_injuries():
         with open(CBS_INJURIES_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        cache.set("injuries", result, CACHE_TTL["injuries"])
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch injuries")
+    result = await asyncio.to_thread(_sync)
+    cache.set("injuries", result, CACHE_TTL["injuries"])
+    return result

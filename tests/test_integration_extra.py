@@ -62,6 +62,19 @@ class TestCacheHits:
             client.get("/api/standings")
         standings_mock.assert_called_once()
 
+    def test_standings_etag_304(self, client):
+        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
+        standings_mock = MagicMock()
+        standings_mock.return_value.get_dict.return_value = {
+            "resultSets": [{"rowSet": rows}]
+        }
+        with patch("routes.scores.leaguestandings.LeagueStandings", standings_mock):
+            r1 = client.get("/api/standings")
+            etag = r1.headers.get("ETag")
+            assert etag is not None
+            r2 = client.get("/api/standings", headers={"If-None-Match": etag})
+        assert r2.status_code == 304
+
     def test_last_n_games_served_from_cache(self, client):
         gamelog = MagicMock()
         gamelog.player_game_log.get_dict.return_value = {"data": []}
@@ -1022,7 +1035,7 @@ class TestSeasonErrorHandlers:
         try:
             with (
                 patch("routes.injuries.CBS_INJURIES_FILE", tmp),
-                patch("routes.injuries.log_exceptions"),
+                patch("helpers.decorators.log_exceptions"),
             ):
                 r = client.get("/api/injuries")
             assert r.status_code == 500

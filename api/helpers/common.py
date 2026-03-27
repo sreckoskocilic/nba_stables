@@ -1,5 +1,7 @@
 # Cache TTLs (in seconds)
 import atexit
+import hashlib
+import json
 import os
 import threading
 import time
@@ -10,7 +12,7 @@ from typing import Any, Dict, Optional
 CACHE_TTL = {
     "scoreboard": 30,  # 30 seconds - live scores change frequently
     "boxscores": 60,  # 1 minute
-    "leaders": 300,  # 5 minutes
+    "leaders": 60,  # 1 minute - matches boxscores refresh rate
     "standings": 3600,  # 1 hour - doesn't change often
     "player_stats": 30,  # 30 seconds
     "players": 12 * 3600,  # 12 hours - roster changes are infrequent
@@ -23,27 +25,31 @@ CACHE_TTL = {
 
 # Simple in-memory cache
 class SimpleCache:
-    _EVICT_EVERY = 200
     _DEFAULT_MAXSIZE = 2000
+    _EVICT_INTERVAL = 60  # seconds between background eviction sweeps
 
     def __init__(self, maxsize: int = _DEFAULT_MAXSIZE):
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._heap = []  # (expires, key)
-        self._call_count = 0
         self._lock = threading.Lock()
         self._maxsize = maxsize
+        self._evict_thread = threading.Thread(target=self._evict_loop, daemon=True)
+        self._evict_thread.start()
+
+    def _evict_loop(self):
+        while True:
+            time.sleep(self._EVICT_INTERVAL)
+            with self._lock:
+                self._evict_expired()
 
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
-            if key in self._cache:
-                entry = self._cache[key]
-                if time.time() < entry["expires"]:
-                    return entry["data"]
-                del self._cache[key]
-            self._call_count += 1
-            if self._call_count >= self._EVICT_EVERY:
-                self._evict_expired()
-                self._call_count = 0
+            entry = self._cache.get(key)
+            if entry is None:
+                return None
+            if time.time() < entry["expires"]:
+                return entry["data"]
+            del self._cache[key]
             return None
 
     def set(self, key: str, data: Any, ttl_seconds: int):
@@ -51,24 +57,16 @@ class SimpleCache:
             expires = time.time() + ttl_seconds
             self._cache[key] = {"data": data, "expires": expires}
             heapq.heappush(self._heap, (expires, key))
-            self._call_count += 1
-            if (
-                self._call_count >= self._EVICT_EVERY
-                or len(self._cache) > self._maxsize
-            ):
+            if len(self._cache) > self._maxsize:
                 self._evict_expired()
-                self._call_count = 0
-                # If still over maxsize after expiry eviction, drop oldest entries
                 while len(self._cache) > self._maxsize and self._heap:
-                    expires, oldest_key = heapq.heappop(self._heap)
-                    entry = self._cache.get(oldest_key)
-                    if entry and entry["expires"] == expires:
-                        del self._cache[oldest_key]
+                    _, oldest_key = heapq.heappop(self._heap)
+                    self._cache.pop(oldest_key, None)
 
     def _evict_expired(self):
         now = time.time()
         while self._heap and self._heap[0][0] <= now:
-            expires, key = heapq.heappop(self._heap)
+            _, key = heapq.heappop(self._heap)
             entry = self._cache.get(key)
             if entry and entry["expires"] <= now:
                 del self._cache[key]
@@ -77,6 +75,31 @@ class SimpleCache:
         with self._lock:
             self._cache.clear()
             self._heap.clear()
+
+    @staticmethod
+    def _generate_etag(data: Any) -> str:
+        """Generate a fast ETag from cached data using JSON serialization."""
+        try:
+            content = json.dumps(data, sort_keys=True, default=str)
+            return f'"{hashlib.md5(content.encode()).hexdigest()[:16]}"'
+        except Exception:  # pragma: no cover
+            return None
+
+    def get_with_etag(self, key: str) -> tuple[Optional[Any], Optional[str]]:
+        """Get value and stored ETag for conditional requests."""
+        value = self.get(key)
+        if value is None:
+            return None, None
+        etag = self.get(f"_etag:{key}") or self._generate_etag(value)
+        return value, etag
+
+    def set_with_etag(self, key: str, data: Any, ttl_seconds: int) -> str:
+        """Set value, store ETag alongside it, and return the ETag."""
+        etag = self._generate_etag(data)
+        self.set(key, data, ttl_seconds)
+        if etag:
+            self.set(f"_etag:{key}", etag, ttl_seconds)
+        return etag
 
 
 # Named constants
@@ -99,7 +122,10 @@ def _safe_int_env(name: str, default: int) -> int:
 # Shared singleton instances
 cache = SimpleCache()
 _DEFAULT_WORKERS = _safe_int_env("EXECUTOR_WORKERS", 10)
-executor = ThreadPoolExecutor(max_workers=_DEFAULT_WORKERS)
+executor = ThreadPoolExecutor(
+    max_workers=_DEFAULT_WORKERS,
+    thread_name_prefix="nba_stats",
+)
 atexit.register(executor.shutdown, wait=True, cancel_futures=True)
 STATS_PROXY = os.environ.get("STATS_PROXY", None)
 STATS_TIMEOUT = _safe_int_env("STATS_TIMEOUT", 30)

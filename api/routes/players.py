@@ -5,7 +5,27 @@ from datetime import date
 from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Path, Query
+from constants import (
+    BS_AST,
+    BS_BLK,
+    BS_FG3A,
+    BS_FG3M,
+    BS_FGA,
+    BS_FGM,
+    BS_FTA,
+    BS_FTM,
+    BS_MINUTES,
+    BS_PF,
+    BS_PLAYER_ID,
+    BS_PTS,
+    BS_REB,
+    BS_STL,
+    PGL_GAME_DATE,
+    PGL_GAME_ID,
+    PGL_MATCHUP,
+)
 from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache, executor
+from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
     _with_retry,
@@ -27,22 +47,6 @@ from nba_api.stats.endpoints import (
 
 router = APIRouter()
 
-# BoxScoreTraditionalV3 player_stats column indices
-_PS_PLAYER_ID = 6
-_PS_MINUTES = 14
-_PS_FGM = 15
-_PS_FGA = 16
-_PS_FG3M = 18
-_PS_FG3A = 19
-_PS_FTM = 21
-_PS_FTA = 22
-_PS_REB = 26
-_PS_AST = 27
-_PS_BLK = 28
-_PS_STL = 29
-_PS_PF = 31
-_PS_PTS = 32
-
 
 @lru_cache(maxsize=128)
 def _normalize_game_date(date_str: str | None) -> str | None:
@@ -55,37 +59,43 @@ def _normalize_game_date(date_str: str | None) -> str | None:
 
 
 @router.get("/api/players/search")
-async def search_players(q: str = Query(..., min_length=2, max_length=100)):
-    """Search for players by name"""
-    try:
-        cleaned = " ".join(q.split())
-        if not cleaned:
-            raise HTTPException(status_code=400, detail="Query cannot be empty")
-        if not re.match(r"^[\w\s.'-]+$", cleaned):
-            raise HTTPException(status_code=400, detail="Invalid characters in query")
+@route_error_handler("Failed to search players")
+async def search_players(
+    q: str = Query(..., min_length=2, max_length=100),
+    limit: int = Query(default=20, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
+):
+    """Search for players by name with pagination"""
+    cleaned = " ".join(q.split())
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    if not re.match(r"^[\w\s.'-]+$", cleaned):
+        raise HTTPException(status_code=400, detail="Invalid characters in query")
 
-        def _sync():
-            players = load_players_with_lower()
-            results = []
-            query = cleaned.lower()
+    def _sync():
+        players = load_players_with_lower()
+        results = []
+        query = cleaned.lower()
 
-            for player, player_lower in players:
-                if query in player_lower:
+        found = 0
+
+        for player, player_lower in players:
+            if query in player_lower:
+                if found >= offset:
                     results.append(
                         {"id": player[0], "name": player[1], "teamId": player[2]}
                     )
+                    if len(results) >= limit:
+                        break
+                found += 1
 
-            return {"players": results[:20]}  # Limit to 20 results
+        return {"players": results, "total": found, "limit": limit, "offset": offset}
 
-        return await asyncio.to_thread(_sync)
-    except HTTPException:
-        raise
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to search players")
+    return await asyncio.to_thread(_sync)
 
 
 @router.get("/api/players/stats")
+@route_error_handler("Failed to fetch player stats")
 async def get_player_stats(
     ids: str = Query(..., description="Comma-separated player IDs"),
 ):
@@ -189,12 +199,10 @@ async def get_player_stats(
     except ValueError as err:  # pragma: no cover
         log_exceptions(err)
         raise HTTPException(status_code=400, detail="Invalid player IDs format")
-    except Exception as e:  # pragma: no cover
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch player stats")
 
 
 @router.get("/api/games/{game_id}/players")
+@route_error_handler("Failed to fetch game players")
 async def get_game_players(
     game_id: str = Path(..., pattern=r"^00[12]\d{7}$"),
 ):
@@ -272,21 +280,14 @@ async def get_game_players(
             "teams": teams,
         }, game_status
 
-    try:
-        result, game_status = await asyncio.to_thread(_sync)
-        ttl = (
-            CACHE_TTL["historical"]
-            if "Final" in game_status
-            else CACHE_TTL["boxscores"]
-        )
-        cache.set(cache_key, result, ttl)
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch game players")
+    result, game_status = await asyncio.to_thread(_sync)
+    ttl = CACHE_TTL["historical"] if "Final" in game_status else CACHE_TTL["boxscores"]
+    cache.set(cache_key, result, ttl)
+    return result
 
 
 @router.get("/api/players/{player_id}/last-n-games")
+@route_error_handler("Failed to fetch last N games")
 async def get_last_n_games_stats(
     player_id: int = Path(..., gt=0),
     n: int = Query(default=5, ge=1, le=15),
@@ -326,11 +327,8 @@ async def get_last_n_games_stats(
                     status_code=503, detail="Player game data temporarily unavailable"
                 )
             # Columns: SEASON_ID, PLAYER_ID, GAME_ID, GAME_DATE, MATCHUP, ...
-            _GAME_ID = 2
-            _GAME_DATE = 3
-            _MATCHUP = 4
             game_rows_all = [
-                [row[_MATCHUP], row[_GAME_ID], row[_GAME_DATE]] for row in data
+                [row[PGL_MATCHUP], row[PGL_GAME_ID], row[PGL_GAME_DATE]] for row in data
             ]
             cache.set(raw_cache_key, game_rows_all, CACHE_TTL["historical"])
 
@@ -345,7 +343,7 @@ async def get_last_n_games_stats(
             try:
                 csp = get_cached_boxscore_v3(gg[1])
                 player_stats_dict = {
-                    x[_PS_PLAYER_ID]: x for x in csp.player_stats.get_dict()["data"]
+                    x[BS_PLAYER_ID]: x for x in csp.player_stats.get_dict()["data"]
                 }
                 ss = player_stats_dict.get(player_id)
 
@@ -380,20 +378,20 @@ async def get_last_n_games_stats(
                 if game_date:
                     matchup_display = f"{game_date} — {matchup_display}"
 
-                if ss is not None and ss[_PS_MINUTES] != "":
+                if ss is not None and ss[BS_MINUTES] != "":
                     return {
                         "matchup": matchup_display,
                         "gameId": gg[1],
-                        "minutes": ss[_PS_MINUTES],
-                        "points": ss[_PS_PTS],
-                        "fg": f"{ss[_PS_FGM]}/{ss[_PS_FGA]}",
-                        "threePointers": f"{ss[_PS_FG3M]}/{ss[_PS_FG3A]}",
-                        "ft": f"{ss[_PS_FTM]}/{ss[_PS_FTA]}",
-                        "rebounds": ss[_PS_REB],
-                        "assists": ss[_PS_AST],
-                        "blocks": ss[_PS_BLK],
-                        "steals": ss[_PS_STL],
-                        "fouls": ss[_PS_PF],
+                        "minutes": ss[BS_MINUTES],
+                        "points": ss[BS_PTS],
+                        "fg": f"{ss[BS_FGM]}/{ss[BS_FGA]}",
+                        "threePointers": f"{ss[BS_FG3M]}/{ss[BS_FG3A]}",
+                        "ft": f"{ss[BS_FTM]}/{ss[BS_FTA]}",
+                        "rebounds": ss[BS_REB],
+                        "assists": ss[BS_AST],
+                        "blocks": ss[BS_BLK],
+                        "steals": ss[BS_STL],
+                        "fouls": ss[BS_PF],
                         "dnp": False,
                     }
                 else:
@@ -402,15 +400,11 @@ async def get_last_n_games_stats(
                 log_exceptions(ex, f"player_id={player_id} game_id={gg[1]}")
                 return None
 
-        futures = [executor.submit(fetch_game_stats, gg) for gg in game_rows]
-
-        def _get_result(f):
-            try:
-                return f.result(timeout=30)
-            except TimeoutError:  # pragma: no cover
-                return None
-
-        games = [r for r in (_get_result(f) for f in futures) if r is not None]
+        games = [
+            r
+            for r in executor.map(fetch_game_stats, game_rows, timeout=30)
+            if r is not None
+        ]
 
         return {
             "playerId": player_id,
@@ -418,18 +412,13 @@ async def get_last_n_games_stats(
             "games": games,
         }
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        cache.set(cache_key, result, CACHE_TTL["historical"])
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch last N games")
+    result = await asyncio.to_thread(_sync)
+    cache.set(cache_key, result, CACHE_TTL["historical"])
+    return result
 
 
 @router.get("/api/players/{player_id}/season-avg")
+@route_error_handler("Failed to fetch season averages")
 async def get_player_season_avg(player_id: int = Path(..., gt=0)):
     """Get current season averages for a player"""
     cache_key = f"season_avg_{player_id}"
@@ -483,12 +472,6 @@ async def get_player_season_avg(player_id: int = Path(..., gt=0)):
             "ftPct": pct("FT_PCT"),
         }
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        cache.set(cache_key, result, CACHE_TTL["season_leaders"])
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch season averages")
+    result = await asyncio.to_thread(_sync)
+    cache.set(cache_key, result, CACHE_TTL["season_leaders"])
+    return result

@@ -1,9 +1,9 @@
 nba_api==1.11.4
 isodate==0.7.2
-fastapi==0.135.1
+fastapi==0.135.2
 uvicorn[standard]==0.42.0
 beautifulsoup4==4.14.3
-requests[socks]==2.32.5
+requests[socks]==2.33.0
 lxml==6.0.2
 PyYAML==6.0.3
 tzdata==2025.3

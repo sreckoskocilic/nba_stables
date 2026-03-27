@@ -1,8 +1,9 @@
 import asyncio
+import heapq
 
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, Path, Query
 from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache
-from helpers.logger import log_exceptions
+from helpers.decorators import route_error_handler
 from helpers.stats import (
     _with_retry,
     count_double_digits,
@@ -17,17 +18,21 @@ router = APIRouter()
 
 
 @router.get("/api/season/highs")
-async def get_season_highs():
+@route_error_handler("Failed to fetch season highs")
+async def get_season_highs(
+    season: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+):
     """Get season single-game highs for each statistical category"""
-    cached = cache.get("season_highs")
+    resolved_season = season or get_current_season()
+    cache_key = f"season_highs_{resolved_season}"
+    cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
     def _sync():
-        season = get_current_season()
         log = _with_retry(
             lambda: leaguegamelog.LeagueGameLog(
-                season=season,
+                season=resolved_season,
                 player_or_team_abbreviation="P",
                 proxy=STATS_PROXY,
                 timeout=STATS_TIMEOUT,
@@ -80,21 +85,23 @@ async def get_season_highs():
                 ],
             }
 
-        return {"highs": highs, "season": season}
+        return {"highs": highs, "season": resolved_season}
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        cache.set("season_highs", result, CACHE_TTL["season_leaders"])
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch season highs")
+    result = await asyncio.to_thread(_sync)
+    ttl = CACHE_TTL["historical"] if season else CACHE_TTL["season_leaders"]
+    cache.set(cache_key, result, ttl)
+    return result
 
 
 @router.get("/api/season/doubles")
-async def get_season_doubles():
+@route_error_handler("Failed to fetch season doubles")
+async def get_season_doubles(
+    season: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+):
     """Get top 10 players by double-doubles and triple-doubles this season"""
-    cached = cache.get("season_doubles")
+    resolved_season = season or get_current_season()
+    cache_key = f"season_doubles_{resolved_season}"
+    cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
@@ -102,6 +109,7 @@ async def get_season_doubles():
         stats = _with_retry(
             lambda: leaguedashplayerstats.LeagueDashPlayerStats(
                 per_mode_detailed="Totals",
+                season=resolved_season,
                 proxy=STATS_PROXY,
                 timeout=STATS_TIMEOUT,
             )
@@ -130,23 +138,21 @@ async def get_season_doubles():
                     {"name": name, "team": team, "playerId": player_id, "count": td3}
                 )
 
-        dd_list.sort(key=lambda x: x["count"], reverse=True)
-        td_list.sort(key=lambda x: x["count"], reverse=True)
-        dd_list = [{**p, "rank": i + 1} for i, p in enumerate(dd_list[:30])]
-        td_list = [{**p, "rank": i + 1} for i, p in enumerate(td_list[:20])]
+        top_dd = heapq.nlargest(30, dd_list, key=lambda x: x["count"])
+        top_td = heapq.nlargest(20, td_list, key=lambda x: x["count"])
+        dd_list = [{**p, "rank": i + 1} for i, p in enumerate(top_dd)]
+        td_list = [{**p, "rank": i + 1} for i, p in enumerate(top_td)]
 
         return {"doubleDoubles": dd_list, "tripleDoubles": td_list}
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        cache.set("season_doubles", result, CACHE_TTL["season_leaders"])
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch season doubles")
+    result = await asyncio.to_thread(_sync)
+    ttl = CACHE_TTL["historical"] if season else CACHE_TTL["season_leaders"]
+    cache.set(cache_key, result, ttl)
+    return result
 
 
 @router.get("/api/season/triple-double-games/{player_id}")
+@route_error_handler("Failed to fetch triple-double games")
 async def get_triple_double_games(player_id: int = Path(..., gt=0)):
     """Get individual triple-double games for a player this season"""
     cache_key = f"td_games_{player_id}"
@@ -197,12 +203,6 @@ async def get_triple_double_games(player_id: int = Path(..., gt=0)):
 
         return {"playerId": player_id, "playerName": player_name, "games": games}
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        cache.set(cache_key, result, CACHE_TTL["historical"])
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(
-            status_code=500, detail="Failed to fetch triple-double games"
-        )
+    result = await asyncio.to_thread(_sync)
+    cache.set(cache_key, result, CACHE_TTL["historical"])
+    return result

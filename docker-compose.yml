@@ -21,6 +21,12 @@ services:
       - TZ=Europe/Berlin
       - STATS_PROXY=socks5h://host.docker.internal:40001
       - CORS_ORIGINS=https://nbastables.com
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:8000/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     volumes:
       - type: bind
         source: /opt/nba_stables

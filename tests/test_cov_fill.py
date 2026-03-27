@@ -173,17 +173,17 @@ def test_simple_cache_expiry_and_eviction():
     sc = SimpleCache()
     sc.set("a", 1, ttl_seconds=0)
     assert sc.get("a") is None  # expired path deletes entry
-    # Force an expired cache entry with empty heap to exercise line 41 deletion
+    # Force an expired cache entry with empty heap to exercise deletion
     sc._cache["stale"] = {"data": 1, "expires": 0}
     sc._heap.clear()
     assert sc.get("stale") is None
-    for i in range(sc._EVICT_EVERY + 1):
+    for i in range(10):
         sc.set(f"k{i}", i, ttl_seconds=1)
     assert sc.get("k0") == 0
-    # Trigger eviction branch (lines 44-45) by bumping call count to threshold
-    sc._call_count = sc._EVICT_EVERY
+    # Trigger background eviction directly
+    with sc._lock:
+        sc._evict_expired()
     assert sc.get("nonexistent") is None
-    assert sc._call_count == 0
 
 
 def _make_stats_row(pid):

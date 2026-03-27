@@ -3,8 +3,14 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 from functools import lru_cache
+from typing import Any
 from zoneinfo import ZoneInfo
 
+from constants import (
+    CAP_DISPLAY_LAST_COMMA_FIRST,
+    CAP_PERSON_ID,
+    CAP_TEAM_ID,
+)
 from helpers.common import (
     CACHE_TTL,
     SEASON_CUTOFF_DAY,
@@ -114,7 +120,7 @@ def count_double_digits(pts: int, reb: int, ast: int, stl: int, blk: int) -> int
 
 def _with_retry(fn, attempts: int = 3, delay: float = 0.2):
     """Run `fn` with exponential backoff retry."""
-    last_err = None
+    last_err: Exception | None = None
     for i in range(attempts):
         try:
             return fn()
@@ -134,7 +140,7 @@ _players_cache_expires = 0
 _players_lock = threading.Lock()
 
 
-def _fetch_players():
+def _fetch_players() -> list:
     """Fetch active players with their current team IDs from the NBA stats API."""
     cap = _with_retry(
         lambda: commonallplayers.CommonAllPlayers(
@@ -144,14 +150,9 @@ def _fetch_players():
     data = cap.common_all_players.get_dict()
     players = []
 
-    # Column indices within the `common_all_players` dataset
-    _PERSON_ID = 0
-    _DISPLAY_LAST_COMMA_FIRST = 1
-    _TEAM_ID = 7
-
     for row in data.get("data", []):
-        person_id = row[_PERSON_ID]
-        name_raw = row[_DISPLAY_LAST_COMMA_FIRST]
+        person_id = row[CAP_PERSON_ID]
+        name_raw = row[CAP_DISPLAY_LAST_COMMA_FIRST]
 
         # Convert "Last, First" to "First Last" for friendlier search
         if "," in name_raw:
@@ -160,13 +161,13 @@ def _fetch_players():
         else:
             name = name_raw
 
-        team_id = row[_TEAM_ID] if len(row) > _TEAM_ID else None
+        team_id = row[CAP_TEAM_ID] if len(row) > CAP_TEAM_ID else None
         players.append([person_id, fix_encoding(name), team_id])
 
     return players
 
 
-def load_players_file():  # pragma: no cover
+def load_players_file() -> list:  # pragma: no cover
     """Return cached list of active players fetched from the NBA stats API."""
     global \
         _players_cache, \
@@ -195,19 +196,19 @@ def load_players_file():  # pragma: no cover
         return _players_cache
 
 
-def load_players_dict():  # pragma: no cover
+def load_players_dict() -> dict:  # pragma: no cover
     """Return {player_id: player_row} dict for O(1) lookups."""
     load_players_file()
     return _players_dict_cache
 
 
-def load_players_with_lower():  # pragma: no cover
+def load_players_with_lower() -> list:  # pragma: no cover
     """Return cached list of (player_row, lowercase_name) tuples."""
     load_players_file()
     return _players_cache_lower
 
 
-def get_cached_scoreboard():  # pragma: no cover
+def get_cached_scoreboard() -> Any:  # pragma: no cover
     """Return cached live ScoreBoard().games.data."""
     cached = cache.get("raw_scoreboard")
     if cached is not None:  # pragma: no cover
@@ -223,7 +224,7 @@ def get_cached_scoreboard():  # pragma: no cover
     return data
 
 
-def get_cached_live_boxscore(game_id):  # pragma: no cover
+def get_cached_live_boxscore(game_id: str) -> dict | None:  # pragma: no cover
     """Return a cached live BoxScore response dict for the given game_id."""
     cache_key = f"raw_live_boxscore_{game_id}"
     cached = cache.get(cache_key)
@@ -240,13 +241,13 @@ def get_cached_live_boxscore(game_id):  # pragma: no cover
     return data
 
 
-def get_cached_scoreboard_v3(days_offset: int = 1):
+def get_cached_scoreboard_v3(days_offset: int = 1) -> Any:
     """Return a cached ScoreboardV3 object for the given days_offset."""
     target_date = _today_et() - timedelta(days=days_offset)
     return get_scoreboard_v3_by_date(target_date, historical=days_offset >= 2)
 
 
-def get_scoreboard_v3_by_date(game_date: date, historical: bool = False):
+def get_scoreboard_v3_by_date(game_date: date, historical: bool = False) -> Any:
     """Return a cached ScoreboardV3 object for a specific date."""
     date_str = game_date.strftime("%Y-%m-%d")
     cache_key = f"raw_scoreboard_v3_{date_str}"
@@ -290,7 +291,9 @@ _GL_REB = 10
 _GL_AST = 11
 
 
-def find_category_leaders(items, categories):
+def find_category_leaders(
+    items: list[dict], categories: list[tuple[str, str]]
+) -> tuple[dict[str, int], dict[str, list[dict]]]:
     """Track per-category max values across a list of player dicts.
 
     items:      list of dicts, each containing numeric values for every category key
@@ -313,7 +316,7 @@ def find_category_leaders(items, categories):
     return max_vals, max_entries
 
 
-def get_games_list(days_offset: int = 1):
+def get_games_list(days_offset: int = 1) -> list:
     """Get list of game IDs for a given date offset"""
     g_set = set()
     try:
@@ -327,7 +330,7 @@ def get_games_list(days_offset: int = 1):
     return list(g_set)
 
 
-def get_games_leaders_list(days_offset: int = 1):
+def get_games_leaders_list(days_offset: int = 1) -> dict:
     """Get games with their leaders"""
     g_dict = {}
     try:
@@ -357,7 +360,7 @@ def get_games_leaders_list(days_offset: int = 1):
     return g_dict
 
 
-def get_cached_boxscore_v3(game_id, historical=True):
+def get_cached_boxscore_v3(game_id: str, historical: bool = True) -> Any:
     """Return a cached BoxScoreTraditionalV3 response for the given game_id."""
     cache_key = f"raw_boxscore_{game_id}"
     cached = cache.get(cache_key)
@@ -375,7 +378,7 @@ def get_cached_boxscore_v3(game_id, historical=True):
     return bs_stats
 
 
-def fetch_single_boxscore(game_id, leaders_data):
+def fetch_single_boxscore(game_id: str, leaders_data: list) -> dict | None:
     """Fetch boxscore for a single game (for parallel execution)"""
     game_box = None
     try:

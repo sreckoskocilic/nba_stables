@@ -1,6 +1,23 @@
 import asyncio
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import JSONResponse, Response
+from constants import (
+    NBA_REGULAR_SEASON_GAMES,
+    ST_AWAY_RECORD,
+    ST_CITY,
+    ST_CONF,
+    ST_GAMES_BACK,
+    ST_HOME_RECORD,
+    ST_L10,
+    ST_LOSSES,
+    ST_NAME,
+    ST_RANK,
+    ST_STREAK,
+    ST_TEAM_ID,
+    ST_WINS,
+    ST_WIN_PCT,
+)
 from helpers.common import (
     CACHE_TTL,
     DAYS_OFFSET_MAX,
@@ -11,6 +28,7 @@ from helpers.common import (
     cache,
     executor,
 )
+from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
     _GH_GAME_CODE,
@@ -47,50 +65,35 @@ from nba_api.stats.endpoints import leaguestandings
 
 router = APIRouter()
 
-# LeagueStandings rowSet column indices
-_ST_TEAM_ID = 2
-_ST_CITY = 3
-_ST_NAME = 4
-_ST_CONF = 5
-_ST_RANK = 7
-_ST_WINS = 12
-_ST_LOSSES = 13
-_ST_WIN_PCT = 14
-_ST_HOME_RECORD = 17
-_ST_AWAY_RECORD = 18
-_ST_L10 = 19
-_ST_STREAK = 36
-_ST_GAMES_BACK = 37
-
 
 @router.get("/api/dates")
+@route_error_handler("Failed to fetch date labels")
 async def get_date_labels():
     """Return display dates and game availability for day offsets 0-7"""
     cached = cache.get("dates")
     if cached is not None:  # pragma: no cover
         return cached
 
-    def _sync():
-        def _has_games(i):
-            try:
-                return len(get_games_list(i)) > 0
-            except Exception as ex:
-                log_exceptions(ex)
-                return False
+    async def _check_games(i):
+        try:
+            return bool(await asyncio.to_thread(get_games_list, i))
+        except Exception as ex:
+            log_exceptions(ex)
+            return False
 
-        has_games = list(executor.map(_has_games, range(8)))
-        return {"dates": [get_display_date(i) for i in range(8)], "hasGames": has_games}
-
-    try:
-        result = await asyncio.to_thread(_sync)
-        cache.set("dates", result, CACHE_TTL["leaders"])
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch date labels")
+    has_games = list(
+        await asyncio.gather(*[_check_games(i) for i in range(DAYS_OFFSET_MAX + 1)])
+    )
+    result = {
+        "dates": [get_display_date(i) for i in range(DAYS_OFFSET_MAX + 1)],
+        "hasGames": has_games,
+    }
+    cache.set("dates", result, CACHE_TTL["leaders"])
+    return result
 
 
 @router.get("/api/boxscores")
+@route_error_handler("Failed to fetch boxscores")
 async def get_boxscores(
     days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
 ):
@@ -113,17 +116,14 @@ async def get_boxscores(
         boxscores_list.sort(key=lambda x: x.get("gameId", ""))
         return {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
-        cache.set(cache_key, result, ttl)
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch boxscores")
+    result = await asyncio.to_thread(_sync)
+    ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
+    cache.set(cache_key, result, ttl)
+    return result
 
 
 @router.get("/api/scoreboard")
+@route_error_handler("Failed to fetch scoreboard")
 async def get_scoreboard():
     """Get live scoreboard with game results and leading scorers.
 
@@ -155,15 +155,11 @@ async def get_scoreboard():
         display_date = sb_date.strftime("%B %d, %Y")
         return {"games": games, "date": display_date}
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch scoreboard")
+    result = await asyncio.to_thread(_sync)
+    return result
 
 
-def _scoreboard_from_live(raw_games):
+def _scoreboard_from_live(raw_games) -> list[dict]:
     """Build scoreboard game list from the live API (in-progress / finished games)."""
     games = []
     for game in raw_games:
@@ -212,7 +208,7 @@ def _scoreboard_from_live(raw_games):
     return games
 
 
-def _build_team(row, team_id, game_id, leaders_by):
+def _build_team(row, team_id, game_id, leaders_by) -> dict:
     """Build a team dict for the scoreboard from a V3 line_score row."""
     if not row:
         return {
@@ -238,7 +234,7 @@ def _build_team(row, team_id, game_id, leaders_by):
     }
 
 
-def _scoreboard_from_v3(sb):
+def _scoreboard_from_v3(sb) -> list[dict]:
     """Build scoreboard game list from ScoreboardV3 (scheduled / pre-game)."""
     header = sb.game_header.get_dict()
     line_score = sb.line_score.get_dict()
@@ -284,6 +280,7 @@ def _scoreboard_from_v3(sb):
 
 
 @router.get("/api/leaders")
+@route_error_handler("Failed to fetch daily leaders")
 async def get_daily_leaders(
     days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
 ):
@@ -348,17 +345,13 @@ async def get_daily_leaders(
                 }
         return {"leaders": leaders, "date": get_display_date(days_offset)}
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["leaders"]
-        cache.set(cache_key, result, ttl)
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch daily leaders")
+    result = await asyncio.to_thread(_sync)
+    ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["leaders"]
+    cache.set(cache_key, result, ttl)
+    return result
 
 
-def _fetch_standings_teams():
+def _fetch_standings_teams() -> list:
     """Return raw standings team rows, cached to avoid duplicate LeagueStandings calls."""
     cached = cache.get("raw_standings")
     if cached is not None:  # pragma: no cover
@@ -373,29 +366,34 @@ def _fetch_standings_teams():
     return teams
 
 
-def _parse_team_row(team):
+def _parse_team_row(team) -> dict:
     """Extract common fields from a raw LeagueStandings row."""
-    win_pct = team[_ST_WIN_PCT] if team[_ST_WIN_PCT] is not None else 0
-    team_info = TEAMS.get(team[_ST_TEAM_ID])
+    win_pct = team[ST_WIN_PCT] if team[ST_WIN_PCT] is not None else 0
+    team_info = TEAMS.get(team[ST_TEAM_ID])
     return {
-        "rank": team[_ST_RANK] or 0,
-        "name": f"{team[_ST_CITY]} {team[_ST_NAME]}",
-        "tricode": team_info[0] if team_info else (team[_ST_CITY] or "")[:3].upper(),
-        "wins": team[_ST_WINS] or 0,
-        "losses": team[_ST_LOSSES] or 0,
+        "rank": team[ST_RANK] or 0,
+        "name": f"{team[ST_CITY]} {team[ST_NAME]}",
+        "tricode": team_info[0] if team_info else (team[ST_CITY] or "")[:3].upper(),
+        "wins": team[ST_WINS] or 0,
+        "losses": team[ST_LOSSES] or 0,
         "winPct": round(win_pct, 3) if win_pct else 0,
-        "gamesBack": team[_ST_GAMES_BACK] if team[_ST_GAMES_BACK] is not None else "-",
-        "streak": team[_ST_STREAK] or "-",
-        "last10": team[_ST_L10] or "0-0",
+        "gamesBack": team[ST_GAMES_BACK] if team[ST_GAMES_BACK] is not None else "-",
+        "streak": team[ST_STREAK] or "-",
+        "last10": team[ST_L10] or "0-0",
     }
 
 
 @router.get("/api/standings")
-async def get_standings():
+@route_error_handler("Failed to fetch standings")
+async def get_standings(request: Request):
     """Get current NBA standings by conference"""
-    cached = cache.get("standings")
+    cache_key = "standings"
+    cached, etag = cache.get_with_etag(cache_key)
     if cached is not None:
-        return cached
+        client_etag = request.headers.get("If-None-Match")
+        if client_etag and client_etag == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+        return JSONResponse(content=cached, headers={"ETag": etag or ""})
 
     def _sync():
         teams = _fetch_standings_teams()
@@ -405,10 +403,10 @@ async def get_standings():
 
         for team in teams:
             team_data = _parse_team_row(team)
-            team_data["homeRecord"] = team[_ST_HOME_RECORD] or "0-0"
-            team_data["awayRecord"] = team[_ST_AWAY_RECORD] or "0-0"
+            team_data["homeRecord"] = team[ST_HOME_RECORD] or "0-0"
+            team_data["awayRecord"] = team[ST_AWAY_RECORD] or "0-0"
 
-            if team[_ST_CONF] == "East":
+            if team[ST_CONF] == "East":
                 east.append(team_data)
             else:
                 west.append(team_data)
@@ -418,26 +416,26 @@ async def get_standings():
 
         return {"east": east, "west": west}
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        cache.set("standings", result, CACHE_TTL["standings"])
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch standings")
+    result = await asyncio.to_thread(_sync)
+    etag = cache.set_with_etag(cache_key, result, CACHE_TTL["standings"])
+    return JSONResponse(content=result, headers={"ETag": etag})
 
 
 @router.get("/api/playoffs")
-async def get_playoff_picture():
+@route_error_handler("Failed to fetch playoff picture")
+async def get_playoff_picture(request: Request):
     """Get current playoff picture with projected final records"""
-    cached = cache.get("playoffs")
+    cache_key = "playoffs"
+    cached, etag = cache.get_with_etag(cache_key)
     if cached is not None:  # pragma: no cover
-        return cached
+        client_etag = request.headers.get("If-None-Match")
+        if client_etag and client_etag == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+        return JSONResponse(content=cached, headers={"ETag": etag or ""})
 
     def _sync():
         teams = _fetch_standings_teams()
 
-        TOTAL_GAMES = 82
         east = []
         west = []
 
@@ -448,9 +446,9 @@ async def get_playoff_picture():
             losses = team_data["losses"]
             rank = team_data["rank"]
             games_played = wins + losses
-            games_remaining = max(0, TOTAL_GAMES - games_played)
+            games_remaining = max(0, NBA_REGULAR_SEASON_GAMES - games_played)
             projected_wins = round(wins + games_remaining * win_pct)
-            projected_losses = TOTAL_GAMES - projected_wins
+            projected_losses = NBA_REGULAR_SEASON_GAMES - projected_wins
 
             if 1 <= rank <= 6:
                 status = "in"
@@ -468,7 +466,7 @@ async def get_playoff_picture():
                 }
             )
 
-            if team[_ST_CONF] == "East":
+            if team[ST_CONF] == "East":
                 east.append(team_data)
             else:
                 west.append(team_data)
@@ -478,16 +476,13 @@ async def get_playoff_picture():
 
         return {"east": east, "west": west}
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        cache.set("playoffs", result, CACHE_TTL["standings"])
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch playoff picture")
+    result = await asyncio.to_thread(_sync)
+    etag = cache.set_with_etag(cache_key, result, CACHE_TTL["standings"])
+    return JSONResponse(content=result, headers={"ETag": etag})
 
 
 @router.get("/api/doubledoubles")
+@route_error_handler("Failed to fetch double-doubles")
 async def get_double_doubles(
     days_offset: int = Query(default=0, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
 ):
@@ -570,11 +565,7 @@ async def get_double_doubles(
             "date": get_display_date(days_offset),
         }
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
-        cache.set(cache_key, result, ttl)
-        return result
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch double-doubles")
+    result = await asyncio.to_thread(_sync)
+    ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
+    cache.set(cache_key, result, ttl)
+    return result

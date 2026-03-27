@@ -3,6 +3,7 @@ import asyncio
 import requests
 from fastapi import APIRouter, HTTPException
 from helpers.common import CACHE_TTL, TEAMS, cache
+from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import _with_retry, load_players_dict
 
@@ -27,6 +28,7 @@ _session.headers.update(_NBA_HEADERS)
 
 
 @router.get("/api/trades")
+@route_error_handler("Failed to fetch trades")
 async def get_trades():
     """Get NBA player movement transactions with resolved team and player names"""
     cached = cache.get("trades")
@@ -83,6 +85,3 @@ async def get_trades():
         raise HTTPException(
             status_code=503, detail="Failed to fetch player movement data"
         )
-    except Exception as e:
-        log_exceptions(e)
-        raise HTTPException(status_code=500, detail="Failed to fetch trades")
