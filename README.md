@@ -1,7 +1,7 @@
 ## nba_stables - NBA Live Stats & Tables
 
 ![Python](https://img.shields.io/badge/python-3.12+-blue?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.135-009688?logo=fastapi&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
 [![codecov](https://codecov.io/gh/sreckoskocilic/nba_stables/branch/main/graph/badge.svg)](https://codecov.io/gh/sreckoskocilic/nba_stables)
@@ -13,11 +13,14 @@
 - **Daily Leaders** - Top performers per stat category across all games
 - **Player Tracker** - Search and track specific players with live stats and advanced metrics
 - **Last N Games** - Per-player performance over the last N games (up to 15)
+- **Player Season Averages** - Current season averages for any player (points, rebounds, assists, etc.)
+- **Game Players** - Full player stats for any game with advanced metrics (offensive/defensive rebounds, turnovers, fouls)
 - **Playoffs** - Current playoff picture with projected seedings
 - **Standings** - Conference standings with W/L, streak, home/away splits
 - **Injury Report** - Current NBA injury data sourced from CBS Sports
 - **Trades & Player Movement** - Latest NBA transactions (trades, signings, waivers) with 6-month history and color-coded contract highlights
-- **Season Doubles & Triples** - Top 10 double-double and triple-double leaders this season, with expandable per-game triple-double details
+- **Season Highs** - Season single-game highs for each statistical category (points, rebounds, 3-pointers, etc.)
+- **Season Doubles & Triples** - Top 30 double-double and top 20 triple-double leaders this season, with expandable per-game triple-double details
 
 ## Tech Stack
 
