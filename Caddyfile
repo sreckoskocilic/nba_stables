@@ -22,3 +22,8 @@ nbastables.com {
 www.nbastables.com {
     redir https://nbastables.com{uri}
 }
+
+#testing small app temporarily
+sraz.nbastables.com {
+  reverse_proxy localhost:3000
+}
