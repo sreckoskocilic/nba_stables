@@ -25,5 +25,5 @@ www.nbastables.com {
 
 #testing small app temporarily
 sraz.nbastables.com {
-  reverse_proxy localhost:3000
+  reverse_proxy localhost:3001
 }
