@@ -119,12 +119,16 @@ def count_double_digits(pts: int, reb: int, ast: int, stl: int, blk: int) -> int
 
 
 def _with_retry(fn, attempts: int = 3, delay: float = 0.2):
-    """Run `fn` with exponential backoff retry."""
+    """Run `fn` with exponential backoff retry for transient errors."""
     last_err: Exception | None = None
     for i in range(attempts):
         try:
             return fn()
-        except Exception as ex:  # pragma: no cover
+        except (
+            ConnectionError,
+            TimeoutError,
+            OSError,
+        ) as ex:  # pragma: no cover - retry logic for network issues
             last_err = ex
             if i == attempts - 1:
                 break
@@ -206,6 +210,11 @@ def load_players_with_lower() -> list:  # pragma: no cover
     """Return cached list of (player_row, lowercase_name) tuples."""
     load_players_file()
     return _players_cache_lower
+
+
+def is_players_cache_valid() -> bool:
+    """Check if players cache is populated and not expired."""
+    return bool(_players_cache) and _players_cache_expires > time.time()
 
 
 def get_cached_scoreboard() -> Any:  # pragma: no cover

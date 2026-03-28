@@ -541,34 +541,35 @@ async def get_double_doubles(
                 for player in team["players"]:
                     if player["status"] == "ACTIVE":
                         stats = player["statistics"]
-                        pts = stats["points"] or 0
-                        reb = stats["reboundsTotal"] or 0
-                        ast = stats["assists"] or 0
-                        stl = stats["steals"] or 0
-                        blk = stats["blocks"] or 0
+                        pts = stats.get("points") or 0
+                        reb = stats.get("reboundsTotal") or 0
+                        ast = stats.get("assists") or 0
+                        stl = stats.get("steals") or 0
+                        blk = stats.get("blocks") or 0
 
-                        stat_cats = {
-                            "pts": pts,
-                            "reb": reb,
-                            "ast": ast,
-                            "stl": stl,
-                            "blk": blk,
+                        # Build player data with stats in one dict
+                        player_data = {
+                            "name": fix_encoding(player["name"]),
+                            "team": tricode,
+                            "points": pts,
+                            "rebounds": reb,
+                            "assists": ast,
+                            "steals": stl,
+                            "blocks": blk,
                         }
-                        double_digit_cats = [k for k, v in stat_cats.items() if v >= 10]
+
+                        # Determine double/triple doubles
+                        double_digit_cats = [
+                            k
+                            for k, v in player_data.items()
+                            if k
+                            in ("points", "rebounds", "assists", "steals", "blocks")
+                            and v >= 10
+                        ]
                         n_cats = len(double_digit_cats)
 
                         if n_cats >= 2:
-                            player_data = {
-                                "name": fix_encoding(player["name"]),
-                                "team": tricode,
-                                "points": pts,
-                                "rebounds": reb,
-                                "assists": ast,
-                                "steals": stl,
-                                "blocks": blk,
-                                "categories": double_digit_cats,
-                            }
-
+                            player_data["categories"] = double_digit_cats
                             if n_cats >= 3:
                                 triple_doubles.append(player_data)
                             else:
