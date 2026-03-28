@@ -16,6 +16,22 @@ from nba_api.stats.endpoints import leaguedashplayerstats, leaguegamelog, player
 
 router = APIRouter()
 
+# Season highs categories: (API column, output key, display label)
+SEASON_HIGH_CATEGORIES = [
+    ("PTS", "points", "Points"),
+    ("REB", "rebounds", "Rebounds"),
+    ("AST", "assists", "Assists"),
+    ("BLK", "blocks", "Blocks"),
+    ("STL", "steals", "Steals"),
+    ("FG3M", "threePointers", "3-Pointers"),
+    ("FGM", "fgm", "FG Made"),
+    ("FTM", "ftm", "FT Made"),
+    ("FTA", "fta", "FT Attempted"),
+    ("OREB", "oreb", "Off. Rebounds"),
+    ("DREB", "dreb", "Def. Rebounds"),
+    ("TOV", "turnovers", "Turnovers"),
+]
+
 
 @router.get("/api/season/highs")
 @route_error_handler("Failed to fetch season highs")
@@ -43,21 +59,6 @@ async def get_season_highs(
         rows = data["resultSets"][0]["rowSet"]
         h = {k: i for i, k in enumerate(headers)}
 
-        categories = [
-            ("PTS", "points", "Points"),
-            ("REB", "rebounds", "Rebounds"),
-            ("AST", "assists", "Assists"),
-            ("BLK", "blocks", "Blocks"),
-            ("STL", "steals", "Steals"),
-            ("FG3M", "threePointers", "3-Pointers"),
-            ("FGM", "fgm", "FG Made"),
-            ("FTM", "ftm", "FT Made"),
-            ("FTA", "fta", "FT Attempted"),
-            ("OREB", "oreb", "Off. Rebounds"),
-            ("DREB", "dreb", "Def. Rebounds"),
-            ("TOV", "turnovers", "Turnovers"),
-        ]
-
         players = []
         for row in rows:
             entry = {
@@ -66,16 +67,16 @@ async def get_season_highs(
                 "date": row[h["GAME_DATE"]],
                 "matchup": row[h["MATCHUP"]],
             }
-            for col, key, _ in categories:
+            for col, key, _ in SEASON_HIGH_CATEGORIES:
                 entry[key] = row[h[col]] or 0
             players.append(entry)
 
-        cat_keys = [(key, label) for _, key, label in categories]
+        cat_keys = [(key, label) for _, key, label in SEASON_HIGH_CATEGORIES]
         max_vals, max_entries = find_category_leaders(players, cat_keys)
 
         _display_fields = {"name", "team", "date", "matchup"}
         highs = {}
-        for _, key, label in categories:
+        for _, key, label in SEASON_HIGH_CATEGORIES:
             highs[key] = {
                 "label": label,
                 "value": max_vals[key],
