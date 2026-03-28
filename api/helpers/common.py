@@ -27,6 +27,7 @@ CACHE_TTL = {
 class SimpleCache:
     _DEFAULT_MAXSIZE = 2000
     _EVICT_INTERVAL = 60  # seconds between background eviction sweeps
+    _MAX_EVICT_PER_OP = 100  # Safety limit to prevent infinite loops
 
     def __init__(self, maxsize: int = _DEFAULT_MAXSIZE):
         self._cache: Dict[str, Dict[str, Any]] = {}
@@ -49,27 +50,46 @@ class SimpleCache:
                 return None
             if time.time() < entry["expires"]:
                 return entry["data"]
-            del self._cache[key]
+            # Clean up expired entry
+            self._cache.pop(key, None)
+            # Mark this key as expired in heap by filtering later
             return None
 
     def set(self, key: str, data: Any, ttl_seconds: int):
         with self._lock:
+            # Generate etag upfront to store with data
+            etag = self._generate_etag(data)
             expires = time.time() + ttl_seconds
-            self._cache[key] = {"data": data, "expires": expires}
+            self._cache[key] = {"data": data, "expires": expires, "etag": etag}
             heapq.heappush(self._heap, (expires, key))
+
+            # Evict expired first, then oldest if still over maxsize
+            self._evict_expired()
             if len(self._cache) > self._maxsize:
-                self._evict_expired()
-                while len(self._cache) > self._maxsize and self._heap:
-                    _, oldest_key = heapq.heappop(self._heap)
-                    self._cache.pop(oldest_key, None)
+                self._evict_oldest()
+
+    def _evict_oldest(self):
+        """Evict oldest entries when cache exceeds maxsize (LRU-style)."""
+        evicted = 0
+        while (
+            len(self._cache) > self._maxsize
+            and self._heap
+            and evicted < self._MAX_EVICT_PER_OP
+        ):
+            _, oldest_key = heapq.heappop(self._heap)
+            if oldest_key in self._cache:
+                self._cache.pop(oldest_key)
+                evicted += 1
 
     def _evict_expired(self):
         now = time.time()
-        while self._heap and self._heap[0][0] <= now:
-            _, key = heapq.heappop(self._heap)
-            entry = self._cache.get(key)
-            if entry and entry["expires"] <= now:
-                del self._cache[key]
+        # Filter heap to keep only valid entries
+        self._heap = [(exp, k) for exp, k in self._heap if exp > now]
+        heapq.heapify(self._heap)
+        # Remove expired from cache
+        expired_keys = [k for k, v in self._cache.items() if v["expires"] <= now]
+        for key in expired_keys:
+            self._cache.pop(key, None)
 
     def clear(self):
         with self._lock:
@@ -82,23 +102,32 @@ class SimpleCache:
         try:
             content = json.dumps(data, sort_keys=True, default=str)
             return f'"{hashlib.md5(content.encode()).hexdigest()[:16]}"'
-        except Exception:  # pragma: no cover
+        except (TypeError, ValueError):  # pragma: no cover
             return None
 
     def get_with_etag(self, key: str) -> tuple[Optional[Any], Optional[str]]:
         """Get value and stored ETag for conditional requests."""
-        value = self.get(key)
-        if value is None:
-            return None, None
-        etag = self.get(f"_etag:{key}") or self._generate_etag(value)
-        return value, etag
+        with self._lock:
+            entry = self._cache.get(key)
+            if entry is None:
+                return None, None
+            if time.time() >= entry["expires"]:
+                self._cache.pop(key, None)
+                return None, None
+            return entry["data"], entry.get("etag") or self._generate_etag(
+                entry["data"]
+            )
 
     def set_with_etag(self, key: str, data: Any, ttl_seconds: int) -> str:
-        """Set value, store ETag alongside it, and return the ETag."""
+        """Set value with embedded ETag and return the ETag."""
         etag = self._generate_etag(data)
-        self.set(key, data, ttl_seconds)
-        if etag:
-            self.set(f"_etag:{key}", etag, ttl_seconds)
+        with self._lock:
+            expires = time.time() + ttl_seconds
+            self._cache[key] = {"data": data, "expires": expires, "etag": etag}
+            heapq.heappush(self._heap, (expires, key))
+            self._evict_expired()
+            if len(self._cache) > self._maxsize:
+                self._evict_oldest()
         return etag
 
 

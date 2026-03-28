@@ -67,6 +67,15 @@ router = APIRouter()
 
 _EMPTY_LEADER = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
 
+# Playoff status thresholds
+PLAYOFF_SEED_IN = 6  # Seeds 1-6 get automatic playoff berth
+PLAYOFF_SEED_PLAYIN = 10  # Seeds 7-10 make play-in tournament
+
+
+def _sort_by_rank(teams: list) -> list:
+    """Sort teams by rank, placing unranked teams at the end."""
+    return sorted(teams, key=lambda x: x.get("rank") or 99)
+
 
 @router.get("/api/dates")
 @route_error_handler("Failed to fetch date labels")
@@ -417,10 +426,7 @@ async def get_standings(request: Request):
             else:
                 west.append(team_data)
 
-        east.sort(key=lambda x: x["rank"] or 99)
-        west.sort(key=lambda x: x["rank"] or 99)
-
-        return {"east": east, "west": west}
+        return {"east": _sort_by_rank(east), "west": _sort_by_rank(west)}
 
     result = await asyncio.to_thread(_sync)
     etag = cache.set_with_etag(cache_key, result, CACHE_TTL["standings"])
@@ -456,9 +462,9 @@ async def get_playoff_picture(request: Request):
             projected_wins = round(wins + games_remaining * win_pct)
             projected_losses = NBA_REGULAR_SEASON_GAMES - projected_wins
 
-            if 1 <= rank <= 6:
+            if 1 <= rank <= PLAYOFF_SEED_IN:
                 status = "in"
-            elif rank <= 10:
+            elif rank <= PLAYOFF_SEED_PLAYIN:
                 status = "play-in"
             else:
                 status = "out"
@@ -477,10 +483,7 @@ async def get_playoff_picture(request: Request):
             else:
                 west.append(team_data)
 
-        east.sort(key=lambda x: x["rank"] or 99)
-        west.sort(key=lambda x: x["rank"] or 99)
-
-        return {"east": east, "west": west}
+        return {"east": _sort_by_rank(east), "west": _sort_by_rank(west)}
 
     result = await asyncio.to_thread(_sync)
     etag = cache.set_with_etag(cache_key, result, CACHE_TTL["standings"])
@@ -538,34 +541,35 @@ async def get_double_doubles(
                 for player in team["players"]:
                     if player["status"] == "ACTIVE":
                         stats = player["statistics"]
-                        pts = stats["points"] or 0
-                        reb = stats["reboundsTotal"] or 0
-                        ast = stats["assists"] or 0
-                        stl = stats["steals"] or 0
-                        blk = stats["blocks"] or 0
+                        pts = stats.get("points") or 0
+                        reb = stats.get("reboundsTotal") or 0
+                        ast = stats.get("assists") or 0
+                        stl = stats.get("steals") or 0
+                        blk = stats.get("blocks") or 0
 
-                        stat_cats = {
-                            "pts": pts,
-                            "reb": reb,
-                            "ast": ast,
-                            "stl": stl,
-                            "blk": blk,
+                        # Build player data with stats in one dict
+                        player_data = {
+                            "name": fix_encoding(player["name"]),
+                            "team": tricode,
+                            "points": pts,
+                            "rebounds": reb,
+                            "assists": ast,
+                            "steals": stl,
+                            "blocks": blk,
                         }
-                        double_digit_cats = [k for k, v in stat_cats.items() if v >= 10]
+
+                        # Determine double/triple doubles
+                        double_digit_cats = [
+                            k
+                            for k, v in player_data.items()
+                            if k
+                            in ("points", "rebounds", "assists", "steals", "blocks")
+                            and v >= 10
+                        ]
                         n_cats = len(double_digit_cats)
 
                         if n_cats >= 2:
-                            player_data = {
-                                "name": fix_encoding(player["name"]),
-                                "team": tricode,
-                                "points": pts,
-                                "rebounds": reb,
-                                "assists": ast,
-                                "steals": stl,
-                                "blocks": blk,
-                                "categories": double_digit_cats,
-                            }
-
+                            player_data["categories"] = double_digit_cats
                             if n_cats >= 3:
                                 triple_doubles.append(player_data)
                             else:

@@ -131,9 +131,7 @@ async def health_check():
     """Health check endpoint"""
     _common.cache.set("_hc", True, 1)
     cache_ok = _common.cache.get("_hc") is True
-    nba_api_ok = (
-        bool(_stats._players_cache) and _stats._players_cache_expires > time.time()
-    )
+    nba_api_ok = _stats.is_players_cache_valid()
     status = "healthy" if cache_ok and nba_api_ok else "degraded"
     return {
         "status": status,
