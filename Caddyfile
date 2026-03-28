@@ -25,5 +25,9 @@ www.nbastables.com {
 
 #testing small app temporarily
 sraz.nbastables.com {
-  reverse_proxy localhost:3001
+  handle /socket.io/* {
+      reverse_proxy localhost:3001
+  }
+  root * /opt/sraz-multiplayer/client
+  file_server
 }
