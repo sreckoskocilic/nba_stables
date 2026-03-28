@@ -102,7 +102,7 @@ class SimpleCache:
         try:
             content = json.dumps(data, sort_keys=True, default=str)
             return f'"{hashlib.md5(content.encode()).hexdigest()[:16]}"'
-        except Exception:  # pragma: no cover
+        except (TypeError, ValueError):  # pragma: no cover
             return None
 
     def get_with_etag(self, key: str) -> tuple[Optional[Any], Optional[str]]:

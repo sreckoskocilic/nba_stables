@@ -54,7 +54,7 @@ def _normalize_game_date(date_str: str | None) -> str | None:
         return None
     try:
         return date.fromisoformat(str(date_str)[:10]).isoformat()
-    except Exception:  # pragma: no cover
+    except ValueError:  # pragma: no cover
         return date_str
 
 
