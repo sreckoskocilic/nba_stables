@@ -104,6 +104,12 @@ def reformat_player_minutes(total_seconds: int) -> str:
     return f"{minutes}:{seconds:02d}"
 
 
+def _parse_minutes(mm_ss: str) -> tuple[int, int]:
+    """Parse 'MM:SS' string to (minutes, seconds) tuple for sorting."""
+    parts = mm_ss.split(":")
+    return int(parts[0]), int(parts[1])
+
+
 @lru_cache(maxsize=1024)
 def fix_encoding(s: str) -> str:
     """Fix nba_api mojibake: UTF-8 bytes decoded as Latin-1"""
@@ -214,7 +220,11 @@ def load_players_with_lower() -> list:  # pragma: no cover
 
 def is_players_cache_valid() -> bool:
     """Check if players cache is populated and not expired."""
-    return bool(_players_cache) and _players_cache_expires > time.time()
+    return (
+        bool(_players_cache)
+        and _players_cache_expires > time.time()
+        and len(_players_cache) > 0
+    )
 
 
 def get_cached_scoreboard() -> Any:  # pragma: no cover

@@ -121,6 +121,7 @@ async def get_boxscores(
                 fetch_single_boxscore,
                 leaders_by_game.keys(),
                 leaders_by_game.values(),
+                timeout=STATS_TIMEOUT,
             )
         )
         boxscores_list = [r for r in results if r is not None]
@@ -142,6 +143,10 @@ async def get_scoreboard():
     started (gameStatus >= 2), switches to the live scoreboard API for
     real-time scores and leaders.
     """
+    cache_key = "scoreboard"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
 
     def _sync():
         sb_date = scoreboard_date()
@@ -167,6 +172,7 @@ async def get_scoreboard():
         return {"games": games, "date": display_date}
 
     result = await asyncio.to_thread(_sync)
+    cache.set(cache_key, result, CACHE_TTL["scoreboard"])
     return result
 
 
@@ -221,21 +227,22 @@ def _scoreboard_from_live(raw_games) -> list[dict]:
 
 def _build_team(row, team_id, game_id, leaders_by) -> dict:
     """Build a team dict for the scoreboard from a V3 line_score row."""
-    if not row:
-        return {
-            "name": "",
-            "tricode": "",
-            "score": 0,
-            "leader": _EMPTY_LEADER,
-        }
     ld = leaders_by.get((game_id, team_id))
-    leader = _EMPTY_LEADER
     if ld:
         leader = {
             "name": fix_encoding(ld[_GL_PLAYER_NAME]) if ld[_GL_PLAYER_NAME] else "",
             "points": ld[_GL_PTS] or 0,
             "rebounds": ld[_GL_REB] or 0,
             "assists": ld[_GL_AST] or 0,
+        }
+    else:
+        leader = _EMPTY_LEADER
+    if not row:
+        return {
+            "name": "",
+            "tricode": "",
+            "score": 0,
+            "leader": leader,
         }
     return {
         "name": f"{row[_LS_TEAM_CITY]} {row[_LS_TEAM_NAME]}",

@@ -129,10 +129,20 @@ except OSError:  # pragma: no cover
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
-    _common.cache.set("_hc", True, 1)
-    cache_ok = _common.cache.get("_hc") is True
-    nba_api_ok = _stats.is_players_cache_valid()
-    status = "healthy" if cache_ok and nba_api_ok else "degraded"
+    try:
+        _common.cache.set("_hc", True, 1)
+        cache_ok = _common.cache.get("_hc") is True
+        nba_api_ok = _stats.is_players_cache_valid()
+        status = "healthy" if cache_ok and nba_api_ok else "degraded"
+    except Exception as e:
+        logger.warning("Health check failed: %s", e)
+        return {
+            "status": "degraded",
+            "date": get_display_date(0),
+            "version": app.version,
+            "cache_ok": False,
+            "nba_api_ok": False,
+        }
     return {
         "status": status,
         "date": get_display_date(0),

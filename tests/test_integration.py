@@ -134,6 +134,17 @@ class TestHealth:
         assert body["cache_ok"] is True
         assert "date" in body and len(body["date"]) > 5
 
+    def test_degraded_on_cache_failure(self, client):
+        """Cover main.py lines 137-139: cache exception returns degraded status."""
+        from unittest.mock import MagicMock
+
+        broken_cache = MagicMock()
+        broken_cache.set.side_effect = RuntimeError("cache unavailable")
+        with patch("main._common.cache", broken_cache):
+            body = client.get("/api/health").json()
+        assert body["status"] == "degraded"
+        assert body["cache_ok"] is False
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/dates

@@ -28,6 +28,7 @@ from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache, executo
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
+    _parse_minutes,
     _with_retry,
     count_double_digits,
     fix_encoding,
@@ -280,7 +281,7 @@ async def get_game_players(
 
             # Sort by minutes played (descending)
             team_data["players"].sort(
-                key=lambda x: tuple(int(p) for p in x["minutes"].split(":")),
+                key=lambda x: _parse_minutes(x["minutes"]),
                 reverse=True,
             )
             teams.append(team_data)
@@ -290,10 +291,14 @@ async def get_game_players(
             "gameId": game_id,
             "status": game_status,
             "teams": teams,
-        }, game_status
+        }
 
-    result, game_status = await asyncio.to_thread(_sync)
-    ttl = CACHE_TTL["historical"] if "Final" in game_status else CACHE_TTL["boxscores"]
+    result = await asyncio.to_thread(_sync)
+    ttl = (
+        CACHE_TTL["historical"]
+        if "Final" in result["status"]
+        else CACHE_TTL["boxscores"]
+    )
     cache.set(cache_key, result, ttl)
     return result
 
