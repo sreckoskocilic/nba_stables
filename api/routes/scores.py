@@ -3,6 +3,23 @@ import asyncio
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 from constants import (
+    ET_SUFFIX,
+    GH_GAME_CODE,
+    GH_GAME_ET,
+    GH_GAME_ID,
+    GH_STATUS_TEXT,
+    GL_AST,
+    GL_GAME_ID,
+    GL_PLAYER_NAME,
+    GL_PTS,
+    GL_REB,
+    GL_TEAM_ID,
+    LS_GAME_ID,
+    LS_SCORE,
+    LS_TEAM_CITY,
+    LS_TEAM_ID,
+    LS_TEAM_NAME,
+    LS_TRICODE,
     NBA_REGULAR_SEASON_GAMES,
     ST_AWAY_RECORD,
     ST_CITY,
@@ -31,25 +48,9 @@ from helpers.common import (
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
-    _GH_GAME_CODE,
-    _GH_GAME_ET,
-    _GH_GAME_ID,
-    _GH_STATUS_TEXT,
-    _GL_AST,
-    _GL_GAME_ID,
-    _GL_PLAYER_NAME,
-    _GL_PTS,
-    _GL_REB,
-    _GL_TEAM_ID,
-    _LS_GAME_ID,
-    _LS_SCORE,
-    _LS_TEAM_CITY,
-    _LS_TEAM_ID,
-    _LS_TEAM_NAME,
-    _LS_TRICODE,
-    _today_cet,
-    _with_retry,
     convert_et_to_cet,
+    today_cet,
+    with_retry,
     fetch_single_boxscore,
     find_category_leaders,
     fix_encoding,
@@ -186,7 +187,7 @@ def _scoreboard_from_live(raw_games) -> list[dict]:
         away_leaders = game["gameLeaders"]["awayLeaders"]
 
         status_text = game["gameStatusText"]
-        if "ET" in status_text:
+        if ET_SUFFIX in status_text:
             status_text = convert_et_to_cet(status_text)
 
         games.append(
@@ -230,10 +231,10 @@ def _build_team(row, team_id, game_id, leaders_by) -> dict:
     ld = leaders_by.get((game_id, team_id))
     if ld:
         leader = {
-            "name": fix_encoding(ld[_GL_PLAYER_NAME]) if ld[_GL_PLAYER_NAME] else "",
-            "points": ld[_GL_PTS] or 0,
-            "rebounds": ld[_GL_REB] or 0,
-            "assists": ld[_GL_AST] or 0,
+            "name": fix_encoding(ld[GL_PLAYER_NAME]) if ld[GL_PLAYER_NAME] else "",
+            "points": ld[GL_PTS] or 0,
+            "rebounds": ld[GL_REB] or 0,
+            "assists": ld[GL_AST] or 0,
         }
     else:
         leader = _EMPTY_LEADER
@@ -245,9 +246,9 @@ def _build_team(row, team_id, game_id, leaders_by) -> dict:
             "leader": leader,
         }
     return {
-        "name": f"{row[_LS_TEAM_CITY]} {row[_LS_TEAM_NAME]}",
-        "tricode": row[_LS_TRICODE],
-        "score": row[_LS_SCORE] or 0,
+        "name": f"{row[LS_TEAM_CITY]} {row[LS_TEAM_NAME]}",
+        "tricode": row[LS_TRICODE],
+        "score": row[LS_SCORE] or 0,
         "leader": leader,
     }
 
@@ -260,19 +261,19 @@ def _scoreboard_from_v3(sb) -> list[dict]:
     # Build tricode→(row, team_id) lookup grouped by game_id
     teams_by_game: dict[str, dict[str, tuple]] = {}
     for row in line_score["data"]:
-        gid = row[_LS_GAME_ID]
-        teams_by_game.setdefault(gid, {})[row[_LS_TRICODE]] = (row, row[_LS_TEAM_ID])
+        gid = row[LS_GAME_ID]
+        teams_by_game.setdefault(gid, {})[row[LS_TRICODE]] = (row, row[LS_TEAM_ID])
 
     # Build leaders lookup
     leaders_data = sb.game_leaders.get_dict()
-    leaders_by = {(ld[_GL_GAME_ID], ld[_GL_TEAM_ID]): ld for ld in leaders_data["data"]}
+    leaders_by = {(ld[GL_GAME_ID], ld[GL_TEAM_ID]): ld for ld in leaders_data["data"]}
 
     games = []
     for g in header["data"]:
-        game_id = g[_GH_GAME_ID]
-        game_code = g[_GH_GAME_CODE]  # e.g. "20260307/ORLMIN"
-        status_text = g[_GH_STATUS_TEXT]
-        if "ET" in status_text:
+        game_id = g[GH_GAME_ID]
+        game_code = g[GH_GAME_CODE]  # e.g. "20260307/ORLMIN"
+        status_text = g[GH_STATUS_TEXT]
+        if ET_SUFFIX in status_text:
             status_text = convert_et_to_cet(status_text)
 
         # Parse teams from gameCode: away(3) + home(3)
@@ -288,7 +289,7 @@ def _scoreboard_from_v3(sb) -> list[dict]:
             {
                 "gameId": game_id,
                 "status": status_text,
-                "gameEt": g[_GH_GAME_ET] or "",
+                "gameEt": g[GH_GAME_ET] or "",
                 "homeTeam": _build_team(home_row, home_team_id, game_id, leaders_by),
                 "awayTeam": _build_team(away_row, away_team_id, game_id, leaders_by),
             }
@@ -378,13 +379,13 @@ def _fetch_standings_teams() -> list:
     cached = cache.get("raw_standings")
     if cached is not None:  # pragma: no cover
         return cached
-    standings = _with_retry(
+    standings = with_retry(
         lambda: leaguestandings.LeagueStandings(
             proxy=STATS_PROXY, timeout=STATS_TIMEOUT
         ).get_dict()
     )
     teams = standings["resultSets"][0]["rowSet"]
-    cache.set("raw_standings", teams, CACHE_TTL["standings"])
+    cache.set("raw_standings", teams, CACHE_TTL["standings"] // 2)
     return teams
 
 
@@ -446,7 +447,7 @@ async def get_playoff_picture(request: Request):
     """Get current playoff picture with projected final records"""
     cache_key = "playoffs"
     cached, etag = cache.get_with_etag(cache_key)
-    if cached is not None:  # pragma: no cover
+    if cached is not None:
         client_etag = request.headers.get("If-None-Match")
         if client_etag and client_etag == etag:
             return Response(status_code=304, headers={"ETag": etag})
@@ -511,11 +512,11 @@ async def get_double_doubles(
     def _sync():
         if days_offset == 0:
             sb_date = scoreboard_date()
-            today_cet = _today_cet()
-            if sb_date == today_cet:
+            cet_today = today_cet()
+            if sb_date == cet_today:
                 game_ids = [g["gameId"] for g in get_cached_scoreboard()]
             else:
-                offset = (today_cet - sb_date).days
+                offset = (cet_today - sb_date).days
                 game_ids = get_games_list(offset if offset > 0 else 1)
         else:
             game_ids = get_games_list(days_offset)
@@ -567,11 +568,15 @@ async def get_double_doubles(
 
                         # Determine double/triple doubles
                         double_digit_cats = [
-                            k
-                            for k, v in player_data.items()
-                            if k
-                            in ("points", "rebounds", "assists", "steals", "blocks")
-                            and v >= 10
+                            name
+                            for name, val in (
+                                ("points", pts),
+                                ("rebounds", reb),
+                                ("assists", ast),
+                                ("steals", stl),
+                                ("blocks", blk),
+                            )
+                            if val >= 10
                         ]
                         n_cats = len(double_digit_cats)
 

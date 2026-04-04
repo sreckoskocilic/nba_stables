@@ -174,7 +174,7 @@ def make_scoreboard_v3(games=None):
         away = g["awayTeam"]
         status_text = g.get("gameStatusText", "Final")
         game_status = 3 if "Final" in status_text else (2 if "Q" in status_text else 1)
-        game_code = f"20260307/{away['teamTricode']}{home['teamTricode']}"
+        game_code = f"20260307/{away['teamTricode']}{home['teamTricode']}"  # date portion is arbitrary; only tricodes are parsed
         game_et = g.get("gameEt", "2026-03-07T19:00:00Z")
 
         header_data.append(

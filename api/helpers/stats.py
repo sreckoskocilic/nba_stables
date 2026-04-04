@@ -6,10 +6,21 @@ from functools import lru_cache
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import requests
+
 from constants import (
     CAP_DISPLAY_LAST_COMMA_FIRST,
     CAP_PERSON_ID,
     CAP_TEAM_ID,
+    GH_GAME_ID,
+    GH_GAME_STATUS,
+    GL_AST,
+    GL_GAME_ID,
+    GL_PLAYER_NAME,
+    GL_PTS,
+    GL_REB,
+    GL_TEAM_ID,
+    STATUS_SCHEDULED,
 )
 from helpers.common import (
     CACHE_TTL,
@@ -38,7 +49,7 @@ def _today_et() -> date:
     return datetime.now(_TZ_ET).date()
 
 
-def _today_cet() -> date:
+def today_cet() -> date:
     """Return today's date in CET (Europe/Berlin), matching scoreboard_date() timezone."""
     return datetime.now(_TZ_CET).date()
 
@@ -104,10 +115,13 @@ def reformat_player_minutes(total_seconds: int) -> str:
     return f"{minutes}:{seconds:02d}"
 
 
-def _parse_minutes(mm_ss: str) -> tuple[int, int]:
+def parse_minutes(mm_ss: str) -> tuple[int, int]:
     """Parse 'MM:SS' string to (minutes, seconds) tuple for sorting."""
-    parts = mm_ss.split(":")
-    return int(parts[0]), int(parts[1])
+    try:
+        parts = mm_ss.split(":")
+        return int(parts[0]), int(parts[1])
+    except (ValueError, IndexError):
+        return (0, 0)
 
 
 @lru_cache(maxsize=1024)
@@ -124,7 +138,7 @@ def count_double_digits(pts: int, reb: int, ast: int, stl: int, blk: int) -> int
     return sum(1 for v in (pts, reb, ast, stl, blk) if v >= 10)
 
 
-def _with_retry(fn, attempts: int = 3, delay: float = 0.2):
+def with_retry(fn, attempts: int = 3, delay: float = 0.2):
     """Run `fn` with exponential backoff retry for transient errors."""
     last_err: Exception | None = None
     for i in range(attempts):
@@ -134,6 +148,7 @@ def _with_retry(fn, attempts: int = 3, delay: float = 0.2):
             ConnectionError,
             TimeoutError,
             OSError,
+            requests.RequestException,
         ) as ex:  # pragma: no cover - retry logic for network issues
             last_err = ex
             if i == attempts - 1:
@@ -152,7 +167,7 @@ _players_lock = threading.Lock()
 
 def _fetch_players() -> list:
     """Fetch active players with their current team IDs from the NBA stats API."""
-    cap = _with_retry(
+    cap = with_retry(
         lambda: commonallplayers.CommonAllPlayers(
             is_only_current_season=1, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
         )
@@ -220,11 +235,7 @@ def load_players_with_lower() -> list:  # pragma: no cover
 
 def is_players_cache_valid() -> bool:
     """Check if players cache is populated and not expired."""
-    return (
-        bool(_players_cache)
-        and _players_cache_expires > time.time()
-        and len(_players_cache) > 0
-    )
+    return bool(_players_cache) and _players_cache_expires > time.time()
 
 
 def get_cached_scoreboard() -> Any:  # pragma: no cover
@@ -232,7 +243,7 @@ def get_cached_scoreboard() -> Any:  # pragma: no cover
     cached = cache.get("raw_scoreboard")
     if cached is not None:  # pragma: no cover
         return cached
-    data = _with_retry(
+    data = with_retry(
         lambda: (
             live_scoreboard.ScoreBoard(
                 proxy=STATS_PROXY, timeout=STATS_TIMEOUT
@@ -249,7 +260,7 @@ def get_cached_live_boxscore(game_id: str) -> dict | None:  # pragma: no cover
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    data = _with_retry(
+    data = with_retry(
         lambda: live_boxscore.BoxScore(
             game_id=game_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
         ).get_dict(),
@@ -273,7 +284,7 @@ def get_scoreboard_v3_by_date(game_date: date, historical: bool = False) -> Any:
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
-    sb = _with_retry(
+    sb = with_retry(
         lambda: scoreboardv3.ScoreboardV3(
             game_date=date_str,
             proxy=STATS_PROXY,
@@ -284,30 +295,6 @@ def get_scoreboard_v3_by_date(game_date: date, historical: bool = False) -> Any:
     cache.set(cache_key, sb, ttl)
     return sb
 
-
-# ScoreboardV3 game_header column indices
-_GH_GAME_ID = 0
-_GH_GAME_CODE = 1
-_GH_GAME_STATUS = 2
-_GH_STATUS_TEXT = 3
-_GH_GAME_ET = 7
-_STATUS_SCHEDULED = 1  # gameStatus: 1=scheduled, 2=in-progress, 3=final
-
-# ScoreboardV3 line_score column indices
-_LS_GAME_ID = 0
-_LS_TEAM_ID = 1
-_LS_TEAM_CITY = 2
-_LS_TEAM_NAME = 3
-_LS_TRICODE = 4
-_LS_SCORE = 8
-
-# ScoreboardV3 game_leaders column indices
-_GL_GAME_ID = 0
-_GL_TEAM_ID = 1
-_GL_PLAYER_NAME = 4
-_GL_PTS = 9
-_GL_REB = 10
-_GL_AST = 11
 
 # Compact leaders list indices (from get_games_leaders_list: [name, pts, reb, ast, team_id])
 _CL_PLAYER_NAME = 0
@@ -349,8 +336,8 @@ def get_games_list(days_offset: int = 1) -> list:
         sb = get_cached_scoreboard_v3(days_offset)
         games = sb.game_header.get_dict()
         for g in games["data"]:
-            if g[_GH_GAME_STATUS] > _STATUS_SCHEDULED:
-                g_set.add(g[_GH_GAME_ID])
+            if g[GH_GAME_STATUS] > STATUS_SCHEDULED:
+                g_set.add(g[GH_GAME_ID])
     except Exception as ex:
         log_exceptions(ex)
     return list(g_set)
@@ -366,19 +353,19 @@ def get_games_leaders_list(days_offset: int = 1) -> dict:
 
         # Get game IDs
         for g in games["data"]:
-            if g[_GH_GAME_STATUS] > _STATUS_SCHEDULED:
-                g_dict[g[_GH_GAME_ID]] = []
+            if g[GH_GAME_STATUS] > STATUS_SCHEDULED:
+                g_dict[g[GH_GAME_ID]] = []
 
         for ld in leaders["data"]:
-            game_id = ld[_GL_GAME_ID]
+            game_id = ld[GL_GAME_ID]
             if game_id in g_dict:
                 g_dict[game_id].append(
                     [
-                        fix_encoding(ld[_GL_PLAYER_NAME]),
-                        ld[_GL_PTS],
-                        ld[_GL_REB],
-                        ld[_GL_AST],
-                        ld[_GL_TEAM_ID],
+                        fix_encoding(ld[GL_PLAYER_NAME]),
+                        ld[GL_PTS],
+                        ld[GL_REB],
+                        ld[GL_AST],
+                        ld[GL_TEAM_ID],
                     ]
                 )
     except Exception as ex:
@@ -392,7 +379,7 @@ def get_cached_boxscore_v3(game_id: str, historical: bool = True) -> Any:
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
-    bs_stats = _with_retry(
+    bs_stats = with_retry(
         lambda: boxscoretraditionalv3.BoxScoreTraditionalV3(
             game_id=game_id,
             proxy=STATS_PROXY,

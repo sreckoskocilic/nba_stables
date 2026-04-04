@@ -57,10 +57,8 @@ class SimpleCache:
 
     def set(self, key: str, data: Any, ttl_seconds: int):
         with self._lock:
-            # Generate etag upfront to store with data
-            etag = self._generate_etag(data)
             expires = time.time() + ttl_seconds
-            self._cache[key] = {"data": data, "expires": expires, "etag": etag}
+            self._cache[key] = {"data": data, "expires": expires, "etag": None}
             heapq.heappush(self._heap, (expires, key))
 
             # Evict expired first, then oldest if still over maxsize
@@ -69,7 +67,7 @@ class SimpleCache:
                 self._evict_oldest()
 
     def _evict_oldest(self):
-        """Evict oldest entries when cache exceeds maxsize (LRU-style)."""
+        """Evict TTL-ordered entries when cache exceeds maxsize."""
         evicted = 0
         while (
             len(self._cache) > self._maxsize
@@ -83,10 +81,10 @@ class SimpleCache:
 
     def _evict_expired(self):
         now = time.time()
-        # Filter heap to keep only valid entries
-        self._heap = [(exp, k) for exp, k in self._heap if exp > now]
-        heapq.heapify(self._heap)
-        # Remove expired from cache
+        # Lazily pop heap entries whose time has passed (O(k log n) vs O(n log n))
+        while self._heap and self._heap[0][0] <= now:
+            heapq.heappop(self._heap)
+        # Remove expired entries from cache dict (handles keys updated after last push)
         expired_keys = [k for k, v in self._cache.items() if v["expires"] <= now]
         for key in expired_keys:
             self._cache.pop(key, None)
@@ -101,7 +99,7 @@ class SimpleCache:
         """Generate a fast ETag from cached data using JSON serialization."""
         try:
             content = json.dumps(data, sort_keys=True, default=str)
-            return f'"{hashlib.md5(content.encode()).hexdigest()[:16]}"'
+            return f'"{hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()[:16]}"'
         except (TypeError, ValueError):  # pragma: no cover
             return None
 

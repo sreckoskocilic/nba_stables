@@ -334,6 +334,24 @@ class TestPlayoffs:
         ranks = [t["rank"] for t in r.json()["east"]]
         assert ranks == sorted(ranks)
 
+    def test_cache_hit_skips_api_call(self, client):
+        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
+        with patch(
+            "routes.scores.leaguestandings.LeagueStandings", self._mock(rows)
+        ) as m:
+            client.get("/api/playoffs")
+            client.get("/api/playoffs")
+        m.assert_called_once()
+
+    def test_etag_304(self, client):
+        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
+        with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
+            r1 = client.get("/api/playoffs")
+            etag = r1.headers.get("ETag")
+            assert etag is not None
+            r2 = client.get("/api/playoffs", headers={"If-None-Match": etag})
+        assert r2.status_code == 304
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/doubledoubles
@@ -370,7 +388,7 @@ class TestDoubleDoubles:
         today = date(2026, 3, 18)
         stack = ExitStack()
         stack.enter_context(patch("routes.scores.scoreboard_date", return_value=today))
-        stack.enter_context(patch("routes.scores._today_cet", return_value=today))
+        stack.enter_context(patch("routes.scores.today_cet", return_value=today))
         return stack
 
     def test_returns_200(self, client):
@@ -545,7 +563,7 @@ class TestDoubleDoubles:
         yesterday = today - timedelta(days=1)
         with (
             patch("routes.scores.scoreboard_date", return_value=yesterday),
-            patch("routes.scores._today_cet", return_value=today),
+            patch("routes.scores.today_cet", return_value=today),
             patch("routes.scores.get_games_list", return_value=[]) as mock_games_list,
             patch("routes.scores.get_cached_scoreboard") as mock_live,
         ):
@@ -734,10 +752,16 @@ class TestSeasonDoubles:
         mock.assert_called_once()
 
 
+_TD_FAKE_PLAYER = {PLAYER_ID: [PLAYER_ID, "LeBron James", 1]}
+
+
 class TestTripleDoubleGames:
     def test_returns_200(self, client):
         rows = [_make_gamelog_row("2025-01-01", "LAL vs BOS", 20, 10, 10)]
-        with patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog(rows)):
+        with (
+            patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog(rows)),
+            patch("routes.season.load_players_dict", return_value=_TD_FAKE_PLAYER),
+        ):
             r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
         assert r.status_code == 200
 
@@ -747,14 +771,20 @@ class TestTripleDoubleGames:
             _make_gamelog_row("2025-01-02", "LAL @ CHI", 15, 5, 3),
             _make_gamelog_row("2025-01-03", "LAL vs MIA", 10, 10, 10, 10),
         ]
-        with patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog(rows)):
+        with (
+            patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog(rows)),
+            patch("routes.season.load_players_dict", return_value=_TD_FAKE_PLAYER),
+        ):
             r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
         games = r.json()["games"]
         assert len(games) == 2
 
     def test_game_shape(self, client):
         rows = [_make_gamelog_row("2025-01-01", "LAL vs BOS", 20, 10, 10)]
-        with patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog(rows)):
+        with (
+            patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog(rows)),
+            patch("routes.season.load_players_dict", return_value=_TD_FAKE_PLAYER),
+        ):
             r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
         game = r.json()["games"][0]
         for key in (
@@ -771,13 +801,19 @@ class TestTripleDoubleGames:
     def test_cached_on_second_call(self, client):
         rows = [_make_gamelog_row("2025-01-01", "LAL vs BOS", 20, 10, 10)]
         mock = _mock_gamelog(rows)
-        with patch("routes.season.playergamelog.PlayerGameLog", mock):
+        with (
+            patch("routes.season.playergamelog.PlayerGameLog", mock),
+            patch("routes.season.load_players_dict", return_value=_TD_FAKE_PLAYER),
+        ):
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
         mock.assert_called_once()
 
     def test_empty_returns_empty_games(self, client):
-        with patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog([])):
+        with (
+            patch("routes.season.playergamelog.PlayerGameLog", _mock_gamelog([])),
+            patch("routes.season.load_players_dict", return_value=_TD_FAKE_PLAYER),
+        ):
             r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
         assert r.json()["games"] == []
 
@@ -1007,6 +1043,7 @@ class TestSeasonErrorHandlers:
 
     def test_triple_double_games_500_on_error(self, client):
         with (
+            patch("routes.season.load_players_dict", return_value=_TD_FAKE_PLAYER),
             patch(
                 "routes.season.playergamelog.PlayerGameLog",
                 side_effect=Exception("boom"),
@@ -1018,7 +1055,7 @@ class TestSeasonErrorHandlers:
 
     def test_trades_500_on_unexpected_error(self, client):
         with (
-            patch("routes.trades._session.get", side_effect=TypeError("unexpected")),
+            patch("routes.trades.requests.get", side_effect=TypeError("unexpected")),
             patch("routes.trades.load_players_dict", return_value={}),
             patch("routes.trades.log_exceptions"),
         ):

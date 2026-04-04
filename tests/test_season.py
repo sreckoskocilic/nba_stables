@@ -4,15 +4,10 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from conftest import PLAYER_ID
 from fastapi.testclient import TestClient
 from helpers.common import cache
 from main import app
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Fixtures
-# ─────────────────────────────────────────────────────────────────────────────
-
-PLAYER_ID = 2544  # LeBron James
 
 
 @pytest.fixture(scope="module")
@@ -430,14 +425,21 @@ def _mock_player_gamelog(rows):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+_FAKE_PLAYER = {PLAYER_ID: [PLAYER_ID, "LeBron James", 1]}
+
+
 class TestGetTripleDoubleGames:
-    def _call(self, client, rows, player_id=PLAYER_ID):
+    def _call(self, client, rows, player_id=PLAYER_ID, season=None):
         mock = _mock_player_gamelog(rows)
+        url = f"/api/season/triple-double-games/{player_id}"
+        if season:
+            url += f"?season={season}"
         with (
             patch("routes.season.get_current_season", return_value="2024-25"),
+            patch("routes.season.load_players_dict", return_value=_FAKE_PLAYER),
             patch("routes.season.playergamelog.PlayerGameLog", return_value=mock),
         ):
-            return client.get(f"/api/season/triple-double-games/{player_id}")
+            return client.get(url)
 
     def test_returns_200(self, client):
         resp = self._call(client, [])
@@ -508,6 +510,7 @@ class TestGetTripleDoubleGames:
         mock = _mock_player_gamelog([])
         with (
             patch("routes.season.get_current_season", return_value="2024-25"),
+            patch("routes.season.load_players_dict", return_value=_FAKE_PLAYER),
             patch(
                 "routes.season.playergamelog.PlayerGameLog", return_value=mock
             ) as api_mock,
@@ -515,6 +518,34 @@ class TestGetTripleDoubleGames:
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
         api_mock.assert_called_once()
+
+    def test_season_param_accepted(self, client):
+        resp = self._call(client, [], season="2023-24")
+        assert resp.status_code == 200
+
+    def test_season_param_uses_historical_ttl(self, client):
+        # Different season params produce independent cache keys
+        mock = _mock_player_gamelog([])
+        with (
+            patch("routes.season.get_current_season", return_value="2024-25"),
+            patch("routes.season.load_players_dict", return_value=_FAKE_PLAYER),
+            patch(
+                "routes.season.playergamelog.PlayerGameLog", return_value=mock
+            ) as api_mock,
+        ):
+            client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
+            client.get(f"/api/season/triple-double-games/{PLAYER_ID}?season=2023-24")
+        assert api_mock.call_count == 2
+
+    def test_unknown_player_returns_404(self, client):
+        mock = _mock_player_gamelog([])
+        with (
+            patch("routes.season.get_current_season", return_value="2024-25"),
+            patch("routes.season.load_players_dict", return_value={}),
+            patch("routes.season.playergamelog.PlayerGameLog", return_value=mock),
+        ):
+            resp = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
+        assert resp.status_code == 404
 
     def test_null_stats_treated_as_zero(self, client):
         # None values should not raise errors and should not count as double digits

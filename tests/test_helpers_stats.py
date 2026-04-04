@@ -649,6 +649,24 @@ class TestScoreboardDate:
 
 
 # ---------------------------------------------------------------------------
+# _parse_minutes
+# ---------------------------------------------------------------------------
+
+
+class TestParseMinutes:
+    def test_valid_input(self):
+        from helpers.stats import parse_minutes
+
+        assert parse_minutes("32:15") == (32, 15)
+
+    def test_malformed_returns_zero_tuple(self):
+        from helpers.stats import parse_minutes
+
+        assert parse_minutes("invalid") == (0, 0)
+        assert parse_minutes("") == (0, 0)
+
+
+# ---------------------------------------------------------------------------
 # load_players_file stale-while-error
 # ---------------------------------------------------------------------------
 

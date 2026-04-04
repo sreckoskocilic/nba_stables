@@ -320,10 +320,18 @@ def test_lifespan_warns_missing_injuries_file(monkeypatch, caplog):
 
 
 def test_security_headers_soccer_route(client):
-    """Cover security.py line 40: /soccer route gets relaxed CSP."""
+    """Cover security.py: /soccer route gets STATIC_CSP."""
     r = client.get("/soccer")
     assert r.status_code == 200
     csp = r.headers.get("Content-Security-Policy", "")
     assert "site.api.espn.com" in csp
     assert "connect-src" in csp
     assert "sports.core.api.espn.com" in csp
+
+
+def test_security_headers_page_route(client):
+    """Cover security.py: non-API, non-soccer routes get PAGE_CSP."""
+    # Any non-/api/, non-/soccer path hits the else branch
+    r = client.get("/not-an-api-route")
+    csp = r.headers.get("Content-Security-Policy", "")
+    assert "fonts.googleapis.com" in csp  # PAGE_CSP includes Google Fonts

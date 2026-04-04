@@ -2,7 +2,6 @@ import asyncio
 import json
 import re
 from datetime import date
-from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from constants import (
@@ -28,8 +27,8 @@ from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache, executo
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
-    _parse_minutes,
-    _with_retry,
+    parse_minutes,
+    with_retry,
     count_double_digits,
     fix_encoding,
     get_cached_boxscore_v3,
@@ -49,7 +48,6 @@ from nba_api.stats.endpoints import (
 router = APIRouter()
 
 
-@lru_cache(maxsize=128)
 def _normalize_game_date(date_str: str | None) -> str | None:
     if not date_str:
         return None
@@ -78,19 +76,17 @@ async def search_players(
         results = []
         query = cleaned.lower()
 
-        found = 0
+        total = 0
 
         for player, player_lower in players:
             if query in player_lower:
-                if found >= offset:
+                if total >= offset and len(results) < limit:
                     results.append(
                         {"id": player[0], "name": player[1], "teamId": player[2]}
                     )
-                    if len(results) >= limit:
-                        break
-                found += 1
+                total += 1
 
-        return {"players": results, "total": found, "limit": limit, "offset": offset}
+        return {"players": results, "total": total, "limit": limit, "offset": offset}
 
     return await asyncio.to_thread(_sync)
 
@@ -205,13 +201,9 @@ async def get_player_stats(
 
         return {"players": results}
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        cache.set(cache_key, result, CACHE_TTL["player_stats"])
-        return result
-    except ValueError as err:  # pragma: no cover
-        log_exceptions(err)
-        raise HTTPException(status_code=400, detail="Invalid player IDs format")
+    result = await asyncio.to_thread(_sync)
+    cache.set(cache_key, result, CACHE_TTL["player_stats"])
+    return result
 
 
 @router.get("/api/games/{game_id}/players")
@@ -281,7 +273,7 @@ async def get_game_players(
 
             # Sort by minutes played (descending)
             team_data["players"].sort(
-                key=lambda x: _parse_minutes(x["minutes"]),
+                key=lambda x: parse_minutes(x["minutes"]),
                 reverse=True,
             )
             teams.append(team_data)
@@ -315,11 +307,14 @@ async def get_last_n_games_stats(
     if cached is not None:
         return cached
 
+    _not_found = object()
+    _unavailable = object()
+
     def _sync():
         players_dict = load_players_dict()
         player = players_dict.get(player_id)
         if not player:
-            raise HTTPException(status_code=404, detail="Player not found")
+            return _not_found
 
         player_name = fix_encoding(player[1])
 
@@ -329,7 +324,7 @@ async def get_last_n_games_stats(
         if game_rows_all is None:
             season = get_current_season()
             try:
-                pgl = _with_retry(
+                pgl = with_retry(
                     lambda: playergamelog.PlayerGameLog(
                         player_id=player_id,
                         season=season,
@@ -340,9 +335,7 @@ async def get_last_n_games_stats(
                 data = pgl.player_game_log.get_dict()["data"]
             except Exception as e:
                 log_exceptions(e)
-                raise HTTPException(
-                    status_code=503, detail="Player game data temporarily unavailable"
-                )
+                return _unavailable
             # Columns: SEASON_ID, PLAYER_ID, GAME_ID, GAME_DATE, MATCHUP, ...
             game_rows_all = [
                 [row[PGL_MATCHUP], row[PGL_GAME_ID], row[PGL_GAME_DATE]] for row in data
@@ -350,9 +343,7 @@ async def get_last_n_games_stats(
             cache.set(raw_cache_key, game_rows_all, CACHE_TTL["historical"])
 
         if not game_rows_all:
-            raise HTTPException(
-                status_code=503, detail="Player game data temporarily unavailable"
-            )
+            return _unavailable
 
         game_rows = game_rows_all[:n]
 
@@ -436,6 +427,12 @@ async def get_last_n_games_stats(
         }
 
     result = await asyncio.to_thread(_sync)
+    if result is _not_found:
+        raise HTTPException(status_code=404, detail="Player not found")
+    if result is _unavailable:
+        raise HTTPException(
+            status_code=503, detail="Player game data temporarily unavailable"
+        )
     cache.set(cache_key, result, CACHE_TTL["historical"])
     return result
 
@@ -449,8 +446,10 @@ async def get_player_season_avg(player_id: int = Path(..., gt=0)):
     if cached is not None:
         return cached
 
+    _no_data = object()
+
     def _sync():
-        career = _with_retry(
+        career = with_retry(
             lambda: playercareerstats.PlayerCareerStats(
                 player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
             )
@@ -460,7 +459,7 @@ async def get_player_season_avg(player_id: int = Path(..., gt=0)):
         rows = season_data["data"]
 
         if not rows:
-            raise HTTPException(status_code=404, detail="No season data found")
+            return _no_data
 
         row = rows[-1]
         h = {k: i for i, k in enumerate(headers)}
@@ -496,5 +495,7 @@ async def get_player_season_avg(player_id: int = Path(..., gt=0)):
         }
 
     result = await asyncio.to_thread(_sync)
+    if result is _no_data:
+        raise HTTPException(status_code=404, detail="No season data found")
     cache.set(cache_key, result, CACHE_TTL["season_leaders"])
     return result

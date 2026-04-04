@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from helpers.common import CACHE_TTL, STATS_TIMEOUT, TEAMS, cache
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
-from helpers.stats import _with_retry, load_players_dict
+from helpers.stats import with_retry, load_players_dict
 
 router = APIRouter()
 
@@ -23,9 +23,6 @@ _NBA_HEADERS = {
     "x-nba-stats-token": "true",
 }
 
-_session = requests.Session()
-_session.headers.update(_NBA_HEADERS)
-
 
 @router.get("/api/trades")
 @route_error_handler("Failed to fetch trades")
@@ -35,11 +32,19 @@ async def get_trades():
     if cached is not None:
         return cached
 
+    _unavailable = object()
+
     def _sync():
-        resp = _with_retry(
-            lambda: _session.get(NBA_PLAYER_MOVEMENT_URL, timeout=STATS_TIMEOUT)
-        )
-        resp.raise_for_status()
+        try:
+            resp = with_retry(
+                lambda: requests.get(
+                    NBA_PLAYER_MOVEMENT_URL, headers=_NBA_HEADERS, timeout=STATS_TIMEOUT
+                )
+            )
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            log_exceptions(e)
+            return _unavailable
         data = resp.json()
 
         rows = data.get("NBA_Player_Movement", {}).get("rows", [])
@@ -78,12 +83,10 @@ async def get_trades():
         transactions.sort(key=lambda x: x["date"], reverse=True)
         return {"transactions": transactions, "total": len(transactions)}
 
-    try:
-        result = await asyncio.to_thread(_sync)
-        cache.set("trades", result, CACHE_TTL["trades"])
-        return result
-    except requests.RequestException as e:
-        log_exceptions(e)
+    result = await asyncio.to_thread(_sync)
+    if result is _unavailable:
         raise HTTPException(
             status_code=503, detail="Failed to fetch player movement data"
         )
+    cache.set("trades", result, CACHE_TTL["trades"])
+    return result

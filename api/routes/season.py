@@ -1,11 +1,11 @@
 import asyncio
 import heapq
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, HTTPException, Path, Query
 from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache
 from helpers.decorators import route_error_handler
 from helpers.stats import (
-    _with_retry,
+    with_retry,
     count_double_digits,
     find_category_leaders,
     fix_encoding,
@@ -39,14 +39,15 @@ async def get_season_highs(
     season: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
 ):
     """Get season single-game highs for each statistical category"""
-    resolved_season = season or get_current_season()
+    current_season = get_current_season()
+    resolved_season = season or current_season
     cache_key = f"season_highs_{resolved_season}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
     def _sync():
-        log = _with_retry(
+        log = with_retry(
             lambda: leaguegamelog.LeagueGameLog(
                 season=resolved_season,
                 player_or_team_abbreviation="P",
@@ -89,7 +90,11 @@ async def get_season_highs(
         return {"highs": highs, "season": resolved_season}
 
     result = await asyncio.to_thread(_sync)
-    ttl = CACHE_TTL["historical"] if season else CACHE_TTL["season_leaders"]
+    ttl = (
+        CACHE_TTL["historical"]
+        if resolved_season != current_season
+        else CACHE_TTL["season_leaders"]
+    )
     cache.set(cache_key, result, ttl)
     return result
 
@@ -100,14 +105,15 @@ async def get_season_doubles(
     season: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
 ):
     """Get top 10 players by double-doubles and triple-doubles this season"""
-    resolved_season = season or get_current_season()
+    current_season = get_current_season()
+    resolved_season = season or current_season
     cache_key = f"season_doubles_{resolved_season}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
     def _sync():
-        stats = _with_retry(
+        stats = with_retry(
             lambda: leaguedashplayerstats.LeagueDashPlayerStats(
                 per_mode_detailed="Totals",
                 season=resolved_season,
@@ -147,26 +153,42 @@ async def get_season_doubles(
         return {"doubleDoubles": dd_list, "tripleDoubles": td_list}
 
     result = await asyncio.to_thread(_sync)
-    ttl = CACHE_TTL["historical"] if season else CACHE_TTL["season_leaders"]
+    ttl = (
+        CACHE_TTL["historical"]
+        if resolved_season != current_season
+        else CACHE_TTL["season_leaders"]
+    )
     cache.set(cache_key, result, ttl)
     return result
 
 
 @router.get("/api/season/triple-double-games/{player_id}")
 @route_error_handler("Failed to fetch triple-double games")
-async def get_triple_double_games(player_id: int = Path(..., gt=0)):
+async def get_triple_double_games(
+    player_id: int = Path(..., gt=0),
+    season: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+):
     """Get individual triple-double games for a player this season"""
-    cache_key = f"td_games_{player_id}"
+    current_season = get_current_season()
+    resolved_season = season or current_season
+    cache_key = f"td_games_{player_id}_{resolved_season}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
+    _not_found = object()
+
     def _sync():
-        season = get_current_season()
-        log = _with_retry(
+        players_dict = load_players_dict()
+        player_row = players_dict.get(player_id) if players_dict else None
+        if not player_row:
+            return _not_found
+        player_name = fix_encoding(player_row[1])
+
+        log = with_retry(
             lambda: playergamelog.PlayerGameLog(
                 player_id=player_id,
-                season=season,
+                season=resolved_season,
                 proxy=STATS_PROXY,
                 timeout=STATS_TIMEOUT,
             )
@@ -174,11 +196,7 @@ async def get_triple_double_games(player_id: int = Path(..., gt=0)):
         data = log.get_dict()
         headers = data["resultSets"][0]["headers"]
         rows = data["resultSets"][0]["rowSet"]
-
         h = {k: i for i, k in enumerate(headers)}
-        players_dict = load_players_dict()
-        player_row = players_dict.get(player_id) if players_dict else None
-        player_name = fix_encoding(player_row[1]) if player_row else ""
 
         games = []
         for row in rows:
@@ -205,5 +223,12 @@ async def get_triple_double_games(player_id: int = Path(..., gt=0)):
         return {"playerId": player_id, "playerName": player_name, "games": games}
 
     result = await asyncio.to_thread(_sync)
-    cache.set(cache_key, result, CACHE_TTL["historical"])
+    if result is _not_found:
+        raise HTTPException(status_code=404, detail="Player not found")
+    ttl = (
+        CACHE_TTL["historical"]
+        if resolved_season != current_season
+        else CACHE_TTL["season_leaders"]
+    )
+    cache.set(cache_key, result, ttl)
     return result
