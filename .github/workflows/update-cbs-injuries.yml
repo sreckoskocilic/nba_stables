@@ -8,13 +8,8 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ GITHUB_TOKEN }}
-          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -35,7 +30,7 @@ jobs:
           if git diff --quiet api/static/cbs_injuries.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            git pull --rebase origin main
+            git pull origin main
             git add api/static/cbs_injuries.json
             git commit -m "update CBS injuries data"
             git push origin main
@@ -47,8 +42,8 @@ jobs:
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_IP }}
-          username: deploy
+          username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /opt/nba_stables
-            git pull --rebase origin main
+            git pull origin main
