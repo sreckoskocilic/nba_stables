@@ -9,11 +9,13 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
 
 import helpers.stats as hs  # noqa: E402
-from helpers.common import cache  # noqa: E402
-from helpers.logger import logger, log_exceptions  # noqa: E402
-from main import app  # noqa: E402
 from conftest import PLAYER_ID  # noqa: E402
-from helpers.common import SimpleCache  # noqa: E402
+from helpers.common import (
+    SimpleCache,  # noqa: E402
+    cache,  # noqa: E402
+)
+from helpers.logger import log_exceptions, logger  # noqa: E402
+from main import app  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -284,8 +286,9 @@ def test_get_cached_boxscore_v3_cache_miss(monkeypatch):
 
 def test_lifespan_warns_invalid_workers(monkeypatch, caplog):
     """Cover main.py 56: warning when EXECUTOR_WORKERS is out of range."""
-    import helpers.common as _common
     import logging
+
+    import helpers.common as _common
 
     monkeypatch.setattr(_common, "_DEFAULT_WORKERS", 0)
     with caplog.at_level(logging.WARNING, logger="main"):
@@ -297,8 +300,9 @@ def test_lifespan_warns_invalid_workers(monkeypatch, caplog):
 
 def test_lifespan_warns_invalid_timeout(monkeypatch, caplog):
     """Cover main.py 59: warning when STATS_TIMEOUT is less than 1."""
-    import helpers.common as _common
     import logging
+
+    import helpers.common as _common
 
     monkeypatch.setattr(_common, "STATS_TIMEOUT", 0)
     with caplog.at_level(logging.WARNING, logger="main"):
@@ -317,16 +321,6 @@ def test_lifespan_warns_missing_injuries_file(monkeypatch, caplog):
         with TestClient(app):
             pass
     assert "CBS injuries file not found" in caplog.text
-
-
-def test_security_headers_soccer_route(client):
-    """Cover security.py: /soccer route gets STATIC_CSP."""
-    r = client.get("/soccer")
-    assert r.status_code == 200
-    csp = r.headers.get("Content-Security-Policy", "")
-    assert "site.api.espn.com" in csp
-    assert "connect-src" in csp
-    assert "sports.core.api.espn.com" in csp
 
 
 def test_security_headers_page_route(client):

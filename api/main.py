@@ -182,14 +182,6 @@ async def serve_frontend():  # pragma: no cover
     return {"message": "NBA Stables API", "docs": "/docs"}
 
 
-@app.get("/soccer")
-async def serve_soccer():  # pragma: no cover
-    soccer_path = os.path.join(static_dir, "soccer.html")
-    if os.path.exists(soccer_path):
-        return FileResponse(soccer_path)
-    raise HTTPException(status_code=404, detail="Page not found")
-
-
 if __name__ == "__main__":  # pragma: no cover
     uvicorn.run(
         "main:app",

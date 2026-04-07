@@ -10,12 +10,6 @@ nbastables.com {
         rewrite * /api/send
         reverse_proxy localhost:3000
     }
-    handle /soccer {
-        header {
-            Content-Security-Policy "default-src 'self' 'unsafe-inline' https://site.api.espn.com https://sports.core.api.espn.com https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net; connect-src https://site.api.espn.com https://sports.core.api.espn.com https://*.Espn.com https://*.service.brightcove.com ws://localhost:* http://localhost:*; font-src https://fonts.gstatic.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: https:;"
-        }
-        reverse_proxy localhost:8000
-    }
     reverse_proxy localhost:8000
 }
 

@@ -7,17 +7,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-
-# CSP for static pages (soccer, etc.) that need external API access
-STATIC_CSP = (
-    "default-src 'self' 'unsafe-inline' https://site.api.espn.com https://sports.core.api.espn.com https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net; "
-    "connect-src https://site.api.espn.com https://sports.core.api.espn.com https://*.Espn.com https://*.service.brightcove.com ws://localhost:* http://localhost:*; "
-    "font-src https://fonts.gstatic.com https://cdn.jsdelivr.net; "
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-    "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-    "img-src 'self' data: blob: https:;"
-)
-
 # CSP for HTML pages (NBA stats pages with inline styles, Google Fonts, analytics)
 PAGE_CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self'"
 
@@ -37,9 +26,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
         # Choose CSP based on route type
-        if request.url.path.startswith("/soccer"):
-            csp = STATIC_CSP
-        elif request.url.path.startswith("/api/"):
+        if request.url.path.startswith("/api/"):
             csp = DEFAULT_CSP
         else:
             csp = PAGE_CSP
