@@ -16,12 +16,3 @@ nbastables.com {
 www.nbastables.com {
     redir https://nbastables.com{uri}
 }
-
-#testing small app temporarily
-sraz.nbastables.com {
-  handle /socket.io/* {
-      reverse_proxy localhost:3001
-  }
-  root * /opt/sraz-multiplayer/client
-  file_server
-}
