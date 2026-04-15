@@ -352,6 +352,118 @@ class TestPlayoffs:
             r2 = client.get("/api/playoffs", headers={"If-None-Match": etag})
         assert r2.status_code == 304
 
+    def _make_conf_rows(self, conf, id_base):
+        return [
+            make_standings_row(
+                rank,
+                f"City{rank}",
+                f"Team{rank}",
+                conf,
+                50 - rank,
+                10 + rank,
+                team_id=id_base + rank,
+            )
+            for rank in range(1, 11)
+        ]
+
+    def _lgf_mock(self, rowset):
+        m = MagicMock()
+        m.return_value.get_dict.return_value = {
+            "resultSets": [{"headers": ["GAME_ID", "TEAM_ID", "PTS"], "rowSet": rowset}]
+        }
+        return m
+
+    def test_playin_game_scores_populated(self, client):
+        rows = self._make_conf_rows("East", 1000) + self._make_conf_rows("West", 2000)
+        # G1 East: team1007 beats team1008
+        lgf_rows = [["G1E", 1007, 110], ["G1E", 1008, 105]]
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
+            patch("routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)),
+        ):
+            r = client.get("/api/playoffs")
+        assert r.status_code == 200
+        playin = r.json()["playinActual"]
+        assert playin["east"].get("seed7TeamId") == 1007
+        assert playin["east"].get("g1LoserTeamId") == 1008
+        assert len(playin["east"]["gameScores"]) == 1
+
+    def test_playin_rank_correction_seed7(self, client):
+        rows = self._make_conf_rows("East", 1000) + self._make_conf_rows("West", 2000)
+        lgf_rows = [["G1E", 1007, 110], ["G1E", 1008, 105]]
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
+            patch("routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)),
+        ):
+            r = client.get("/api/playoffs")
+        east = r.json()["east"]
+        team7 = next(t for t in east if t["teamId"] == 1007)
+        assert team7["rank"] == 7
+
+    def test_playin_rank_correction_seed8(self, client):
+        rows = self._make_conf_rows("East", 1000) + self._make_conf_rows("West", 2000)
+        # G1: 1007 beats 1008; G2: 1009 beats 1010; G3: 1009 beats 1008
+        lgf_rows = [
+            ["G1E", 1007, 110],
+            ["G1E", 1008, 105],
+            ["G2E", 1009, 100],
+            ["G2E", 1010, 95],
+            ["G3E", 1009, 102],
+            ["G3E", 1008, 98],
+        ]
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
+            patch("routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)),
+        ):
+            r = client.get("/api/playoffs")
+        assert r.json()["playinActual"]["east"]["g3WinnerTeamId"] == 1009
+
+    def test_playin_process_conf_fewer_than_4_teams(self, client):
+        # Only 8 teams per conf → play-in slice has 2 teams → process_conf returns early
+        rows = [
+            make_standings_row(
+                rank,
+                f"City{rank}",
+                f"Team{rank}",
+                "East",
+                50 - rank,
+                10 + rank,
+                team_id=1000 + rank,
+            )
+            for rank in range(1, 9)
+        ] + [
+            make_standings_row(
+                rank,
+                f"City{rank}",
+                f"Team{rank}",
+                "West",
+                50 - rank,
+                10 + rank,
+                team_id=2000 + rank,
+            )
+            for rank in range(1, 9)
+        ]
+        lgf_rows = [["G1E", 1007, 110], ["G1E", 1008, 105]]
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
+            patch("routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)),
+        ):
+            r = client.get("/api/playoffs")
+        assert r.status_code == 200
+        assert r.json()["playinActual"]["east"]["gameScores"] == {}
+
+    def test_playin_data_exception_returns_empty(self, client):
+        rows = self._make_conf_rows("East", 1000) + self._make_conf_rows("West", 2000)
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
+            patch("routes.scores.LeagueGameFinder", side_effect=Exception("api down")),
+        ):
+            r = client.get("/api/playoffs")
+        assert r.status_code == 200
+        playin = r.json()["playinActual"]
+        assert playin["east"]["gameScores"] == {}
+        assert playin["west"]["gameScores"] == {}
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/doubledoubles

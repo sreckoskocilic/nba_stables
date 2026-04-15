@@ -56,13 +56,14 @@ from helpers.stats import (
     fix_encoding,
     get_cached_live_boxscore,
     get_cached_scoreboard,
+    get_current_season,
     get_display_date,
     get_games_leaders_list,
     get_games_list,
     get_scoreboard_v3_by_date,
     scoreboard_date,
 )
-from nba_api.stats.endpoints import leaguestandings
+from nba_api.stats.endpoints import leaguestandings, LeagueGameFinder
 
 router = APIRouter()
 
@@ -394,6 +395,7 @@ def _parse_team_row(team) -> dict:
     win_pct = team[ST_WIN_PCT] if team[ST_WIN_PCT] is not None else 0
     team_info = TEAMS.get(team[ST_TEAM_ID])
     return {
+        "teamId": team[ST_TEAM_ID],
         "rank": team[ST_RANK] or 0,
         "name": f"{team[ST_CITY]} {team[ST_NAME]}",
         "tricode": team_info[0] if team_info else (team[ST_CITY] or "")[:3].upper(),
@@ -439,6 +441,91 @@ async def get_standings(request: Request):
     result = await asyncio.to_thread(_sync)
     etag = cache.set_with_etag(cache_key, result, CACHE_TTL["standings"])
     return JSONResponse(content=result, headers={"ETag": etag})
+
+
+def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
+    """Derive play-in results from completed play-in games via LeagueGameFinder.
+
+    Returns playinActual dict with east/west keys, each containing:
+    - seed7TeamId: winner of the 7v8 game (once G1 is complete)
+    - seed8TeamId: winner of G3 (once all 3 games are complete)
+    - gameScores: {"<id1>_<id2>": {"<id1>": pts, "<id2>": pts}, ...}
+    Falls back to empty dicts on any error or before play-in starts.
+    """
+    season = get_current_season()
+    result: dict = {"east": {"gameScores": {}}, "west": {"gameScores": {}}}
+
+    if not east_playin or not west_playin:
+        return result
+
+    try:
+        data = LeagueGameFinder(
+            season_nullable=season,
+            season_type_nullable="PlayIn",
+            league_id_nullable="00",
+        ).get_dict()["resultSets"][0]
+
+        headers = data["headers"]
+        rows = data["rowSet"]
+        team_id_idx = headers.index("TEAM_ID")
+        pts_idx = headers.index("PTS")
+        game_id_idx = headers.index("GAME_ID")
+
+        games: dict = {}
+        for row in rows:
+            gid = row[game_id_idx]
+            if gid not in games:
+                games[gid] = {}
+            games[gid][row[team_id_idx]] = row[pts_idx]
+
+        def process_conf(conf_playin: list) -> dict:
+            if len(conf_playin) < 4:
+                return {"gameScores": {}}
+            id_to_seed = {t["teamId"]: t["rank"] for t in conf_playin}
+            all_ids = set(id_to_seed)
+            conf: dict = {
+                "gameScores": {},
+                "initialSeeds": {str(tid): seed for tid, seed in id_to_seed.items()},
+            }
+            g1_winner = g1_loser = g2_winner = None
+
+            for gid, team_pts in games.items():
+                t_ids = set(team_pts)
+                if not t_ids.issubset(all_ids) or len(t_ids) != 2:
+                    continue
+                s1, s2 = (id_to_seed[t] for t in sorted(t_ids))
+                seeds = {s1, s2}
+                sorted_ids = sorted(t_ids)
+                key = f"{sorted_ids[0]}_{sorted_ids[1]}"
+                conf["gameScores"][key] = {str(k): v for k, v in team_pts.items()}
+                winner = max(team_pts, key=team_pts.get)
+                loser = min(team_pts, key=team_pts.get)
+                if seeds == {7, 8}:
+                    g1_winner, g1_loser = winner, loser
+                elif seeds == {9, 10}:
+                    g2_winner, _g2_loser = winner, loser
+
+            if g1_winner:
+                conf["seed7TeamId"] = g1_winner
+            if g1_loser:
+                conf["g1LoserTeamId"] = g1_loser
+            if g2_winner:
+                conf["g2WinnerTeamId"] = g2_winner
+            if g1_loser and g2_winner:
+                g3_ids = {g1_loser, g2_winner}
+                for team_pts in games.values():
+                    if set(team_pts) == g3_ids:
+                        conf["g3WinnerTeamId"] = max(team_pts, key=team_pts.get)
+                        break
+
+            return conf
+
+        result["east"] = process_conf(east_playin)
+        result["west"] = process_conf(west_playin)
+    except Exception:
+        pass
+
+    return result
 
 
 @router.get("/api/playoffs")
@@ -491,10 +578,18 @@ async def get_playoff_picture(request: Request):
             else:
                 west.append(team_data)
 
-        return {"east": _sort_by_rank(east), "west": _sort_by_rank(west)}
+        east_sorted = _sort_by_rank(east)
+        west_sorted = _sort_by_rank(west)
+        playin_actual = _fetch_playin_data(east_sorted[6:10], west_sorted[6:10])
+
+        return {
+            "east": east_sorted,
+            "west": west_sorted,
+            "playinActual": playin_actual,
+        }
 
     result = await asyncio.to_thread(_sync)
-    etag = cache.set_with_etag(cache_key, result, CACHE_TTL["standings"])
+    etag = cache.set_with_etag(cache_key, result, CACHE_TTL["playoffs"])
     return JSONResponse(content=result, headers={"ETag": etag})
 
 

@@ -20,6 +20,7 @@ CACHE_TTL = {
     "injuries": 7200,  # 2 hours - injury reports don't change often, avoid rate limits
     "trades": 12 * 3600,  # 12 hours
     "season_leaders": 3600,  # 1 hour
+    "playoffs": 60,  # 1 minute - play-in scores and series results change frequently
 }
 
 
