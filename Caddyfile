@@ -16,3 +16,7 @@ nbastables.com {
 www.nbastables.com {
     redir https://nbastables.com{uri}
 }
+
+sraz.nbastables.com {
+  redir https://brawl.weeqlash.icu{uri} permanent
+}
