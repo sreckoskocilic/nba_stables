@@ -553,10 +553,12 @@ async def get_playoff_picture(request: Request):
             losses = team_data["losses"]
             rank = team_data["rank"]
             games_played = wins + losses
+
             games_remaining = max(0, NBA_REGULAR_SEASON_GAMES - games_played)
             projected_wins = round(wins + games_remaining * win_pct)
             projected_losses = NBA_REGULAR_SEASON_GAMES - projected_wins
 
+            # Determine status
             if 1 <= rank <= PLAYOFF_SEED_IN:
                 status = "in"
             elif rank <= PLAYOFF_SEED_PLAYIN:

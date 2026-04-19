@@ -209,7 +209,7 @@ async def get_player_stats(
 @router.get("/api/games/{game_id}/players")
 @route_error_handler("Failed to fetch game players")
 async def get_game_players(
-    game_id: str = Path(..., pattern=r"^00[12]\d{7}$"),
+    game_id: str = Path(..., pattern=r"^00[1245]\d{7}$"),
 ):
     """Get all player stats for a specific game with advanced metrics"""
     cache_key = f"game_players_{game_id}"

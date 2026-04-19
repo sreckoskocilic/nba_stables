@@ -33,11 +33,40 @@ from helpers.common import (
 from helpers.logger import log_exceptions
 from nba_api.live.nba.endpoints import boxscore as live_boxscore
 from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
+from nba_api.library.http import NBAHTTP
 from nba_api.stats.endpoints import (
     boxscoretraditionalv3,
     commonallplayers,
     scoreboardv3,
 )
+from nba_api.stats.library.http import NBAStatsHTTP
+
+
+def _reset_nba_stats_http_session() -> None:
+    """Close and discard nba_api's cached Session (NBAStatsHTTP / NBAHTTP).
+
+    Reusing one keep-alive connection across multiple stats.nba.com calls can hang
+    subsequent requests in the same process (see nba_api issue #633).
+    """
+    # Reset NBAHTTP (live) session
+    try:
+        sess = NBAHTTP._session
+        if sess is not None:  # pragma: no cover
+            sess.close()
+    except Exception:  # pragma: no cover
+        pass
+    NBAHTTP._session = None
+
+    # Reset NBAStatsHTTP session
+    try:
+        stats_sess = NBAStatsHTTP._session
+        if stats_sess is not None:
+            stats_sess.close()
+    except Exception:  # pragma: no cover
+        pass
+    if "_session" in NBAStatsHTTP.__dict__:
+        NBAStatsHTTP._session = None
+
 
 _TZ_ET = ZoneInfo("US/Eastern")
 _TZ_CET = ZoneInfo("Europe/Berlin")
@@ -139,7 +168,11 @@ def count_double_digits(pts: int, reb: int, ast: int, stl: int, blk: int) -> int
 
 
 def with_retry(fn, attempts: int = 3, delay: float = 0.2):
-    """Run `fn` with exponential backoff retry for transient errors."""
+    """Run `fn` with exponential backoff retry for transient errors.
+
+    On transient errors (Timeout, ConnectionError), resets nba_api's cached session
+    before backoff to mitigate nba_api issue #633.
+    """
     last_err: Exception | None = None
     for i in range(attempts):
         try:
@@ -151,6 +184,7 @@ def with_retry(fn, attempts: int = 3, delay: float = 0.2):
             requests.RequestException,
         ) as ex:  # pragma: no cover - retry logic for network issues
             last_err = ex
+            _reset_nba_stats_http_session()
             if i == attempts - 1:
                 break
             time.sleep(delay * (2**i))
@@ -167,29 +201,32 @@ _players_lock = threading.Lock()
 
 def _fetch_players() -> list:
     """Fetch active players with their current team IDs from the NBA stats API."""
-    cap = with_retry(
-        lambda: commonallplayers.CommonAllPlayers(
-            is_only_current_season=1, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+    try:
+        cap = with_retry(
+            lambda: commonallplayers.CommonAllPlayers(
+                is_only_current_season=1, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+            )
         )
-    )
-    data = cap.common_all_players.get_dict()
-    players = []
+        data = cap.common_all_players.get_dict()
+        players = []
 
-    for row in data.get("data", []):
-        person_id = row[CAP_PERSON_ID]
-        name_raw = row[CAP_DISPLAY_LAST_COMMA_FIRST]
+        for row in data.get("data", []):
+            person_id = row[CAP_PERSON_ID]
+            name_raw = row[CAP_DISPLAY_LAST_COMMA_FIRST]
 
-        # Convert "Last, First" to "First Last" for friendlier search
-        if "," in name_raw:
-            last, first = [part.strip() for part in name_raw.split(",", 1)]
-            name = f"{first} {last}"
-        else:
-            name = name_raw
+            # Convert "Last, First" to "First Last" for friendlier search
+            if "," in name_raw:
+                last, first = [part.strip() for part in name_raw.split(",", 1)]
+                name = f"{first} {last}"
+            else:
+                name = name_raw
 
-        team_id = row[CAP_TEAM_ID] if len(row) > CAP_TEAM_ID else None
-        players.append([person_id, fix_encoding(name), team_id])
+            team_id = row[CAP_TEAM_ID] if len(row) > CAP_TEAM_ID else None
+            players.append([person_id, fix_encoding(name), team_id])
 
-    return players
+        return players
+    finally:
+        _reset_nba_stats_http_session()
 
 
 def load_players_file() -> list:  # pragma: no cover
@@ -284,16 +321,19 @@ def get_scoreboard_v3_by_date(game_date: date, historical: bool = False) -> Any:
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
-    sb = with_retry(
-        lambda: scoreboardv3.ScoreboardV3(
-            game_date=date_str,
-            proxy=STATS_PROXY,
-            timeout=STATS_TIMEOUT,
-        ),
-    )
-    ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["scoreboard"]
-    cache.set(cache_key, sb, ttl)
-    return sb
+    try:
+        sb = with_retry(
+            lambda: scoreboardv3.ScoreboardV3(
+                game_date=date_str,
+                proxy=STATS_PROXY,
+                timeout=STATS_TIMEOUT,
+            ),
+        )
+        ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["scoreboard"]
+        cache.set(cache_key, sb, ttl)
+        return sb
+    finally:
+        _reset_nba_stats_http_session()
 
 
 # Compact leaders list indices (from get_games_leaders_list: [name, pts, reb, ast, team_id])
@@ -379,16 +419,19 @@ def get_cached_boxscore_v3(game_id: str, historical: bool = True) -> Any:
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
-    bs_stats = with_retry(
-        lambda: boxscoretraditionalv3.BoxScoreTraditionalV3(
-            game_id=game_id,
-            proxy=STATS_PROXY,
-            timeout=STATS_TIMEOUT,
-        ),
-    )
-    ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["boxscores"]
-    cache.set(cache_key, bs_stats, ttl)
-    return bs_stats
+    try:
+        bs_stats = with_retry(
+            lambda: boxscoretraditionalv3.BoxScoreTraditionalV3(
+                game_id=game_id,
+                proxy=STATS_PROXY,
+                timeout=STATS_TIMEOUT,
+            ),
+        )
+        ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["boxscores"]
+        cache.set(cache_key, bs_stats, ttl)
+        return bs_stats
+    finally:
+        _reset_nba_stats_http_session()
 
 
 def fetch_single_boxscore(game_id: str, leaders_data: list) -> dict | None:
