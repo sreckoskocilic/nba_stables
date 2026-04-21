@@ -33,6 +33,18 @@ def clear_cache():
     cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def _patch_lgf_playoffs():
+    """Prevent _fetch_playoff_series_data from making real API calls by default.
+    Tests that need specific LeagueGameFinder behaviour override this with their own patch."""
+    m = MagicMock()
+    m.return_value.get_dict.return_value = {
+        "resultSets": [{"headers": ["GAME_ID", "TEAM_ID", "WL", "PTS"], "rowSet": []}]
+    }
+    with patch("routes.scores.LeagueGameFinder", m):
+        yield
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Cache-hit branches
 # ─────────────────────────────────────────────────────────────────────────────
@@ -463,6 +475,54 @@ class TestPlayoffs:
         playin = r.json()["playinActual"]
         assert playin["east"]["gameScores"] == {}
         assert playin["west"]["gameScores"] == {}
+
+    def _lgf_playoffs_mock(self, rowset):
+        m = MagicMock()
+        m.return_value.get_dict.return_value = {
+            "resultSets": [
+                {"headers": ["GAME_ID", "TEAM_ID", "WL", "PTS"], "rowSet": rowset}
+            ]
+        }
+        return m
+
+    def test_series_results_populated(self, client):
+        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
+        lgf_rows = [
+            ["PG01", 100, "W", 110],
+            ["PG01", 200, "L", 100],
+            ["PG02", 100, "W", 105],
+            ["PG02", 200, "L", 98],
+        ]
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
+            patch("routes.scores.LeagueGameFinder", self._lgf_playoffs_mock(lgf_rows)),
+        ):
+            r = client.get("/api/playoffs")
+        assert r.status_code == 200
+        series = r.json()["seriesResults"]
+        assert series["100_200"]["100"] == 2
+        assert series["100_200"]["200"] == 0
+
+    def test_series_results_skips_incomplete_game(self, client):
+        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
+        # Game PG01 only has one team row → skipped (len(teams) != 2)
+        lgf_rows = [["PG01", 100, "W", 110]]
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
+            patch("routes.scores.LeagueGameFinder", self._lgf_playoffs_mock(lgf_rows)),
+        ):
+            r = client.get("/api/playoffs")
+        assert r.json()["seriesResults"] == {}
+
+    def test_series_results_empty_on_error(self, client):
+        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
+            patch("routes.scores.LeagueGameFinder", side_effect=Exception("api down")),
+        ):
+            r = client.get("/api/playoffs")
+        assert r.status_code == 200
+        assert r.json()["seriesResults"] == {}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

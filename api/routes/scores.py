@@ -528,6 +528,50 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
     return result
 
 
+def _fetch_playoff_series_data(season: str) -> dict:
+    """Return current playoff series win counts keyed by sorted team-ID pair.
+
+    Uses only LeagueGameFinder (same as play-in). Infers series matchups by
+    grouping team pairs that have played each other in the playoffs.
+    Returns dict mapping "<lower_id>_<higher_id>" → {"<id1>": wins, "<id2>": wins}.
+    Falls back to {} on any error or before playoffs start.
+    """
+    try:
+        data = LeagueGameFinder(
+            season_nullable=season,
+            season_type_nullable="Playoffs",
+            league_id_nullable="00",
+            proxy=STATS_PROXY,
+            timeout=STATS_TIMEOUT,
+        ).get_dict()["resultSets"][0]
+        headers = data["headers"]
+        gid_idx = headers.index("GAME_ID")
+        tid_idx = headers.index("TEAM_ID")
+        wl_idx = headers.index("WL")
+
+        game_teams: dict = {}
+        for row in data["rowSet"]:
+            gid = row[gid_idx]
+            game_teams.setdefault(gid, set()).add(row[tid_idx])
+
+        pair_wins: dict = {}
+        for row in data["rowSet"]:
+            if row[wl_idx] != "W":
+                continue
+            gid = row[gid_idx]
+            teams = game_teams.get(gid, set())
+            if len(teams) != 2:
+                continue
+            pair = tuple(sorted(teams))
+            key = f"{pair[0]}_{pair[1]}"
+            entry = pair_wins.setdefault(key, {str(pair[0]): 0, str(pair[1]): 0})
+            entry[str(row[tid_idx])] = entry.get(str(row[tid_idx]), 0) + 1
+
+        return pair_wins
+    except Exception:
+        return {}
+
+
 @router.get("/api/playoffs")
 @route_error_handler("Failed to fetch playoff picture")
 async def get_playoff_picture(request: Request):
@@ -583,11 +627,13 @@ async def get_playoff_picture(request: Request):
         east_sorted = _sort_by_rank(east)
         west_sorted = _sort_by_rank(west)
         playin_actual = _fetch_playin_data(east_sorted[6:10], west_sorted[6:10])
+        series_results = _fetch_playoff_series_data(get_current_season())
 
         return {
             "east": east_sorted,
             "west": west_sorted,
             "playinActual": playin_actual,
+            "seriesResults": series_results,
         }
 
     result = await asyncio.to_thread(_sync)
