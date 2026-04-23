@@ -1153,6 +1153,20 @@ class TestInnerExceptionHandlers:
             r = client.get("/api/leaders?days_offset=1")
         assert r.status_code == 200
 
+    def test_leaders_survives_malformed_boxscore(self, client):
+        """A boxscore missing expected keys must not crash the endpoint."""
+        with (
+            patch("routes.scores.get_games_list", return_value=[GAME_ID]),
+            patch(
+                "routes.scores.get_cached_live_boxscore",
+                return_value={"game": {"homeTeam": {}}},
+            ),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/leaders?days_offset=1")
+        assert r.status_code == 200
+        assert r.json()["leaders"] == {}
+
     def test_doubledoubles_survives_boxscore_exception(self, client):
         with (
             patch(

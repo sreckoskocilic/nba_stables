@@ -322,11 +322,17 @@ async def get_daily_leaders(
                 return {}
 
         try:
-            for bs in executor.map(
-                fetch_leaders_boxscore, game_ids, timeout=STATS_TIMEOUT
-            ):
-                if not bs:
-                    continue
+            boxscore_results = list(
+                executor.map(fetch_leaders_boxscore, game_ids, timeout=STATS_TIMEOUT)
+            )
+        except TimeoutError as ex:
+            log_exceptions(ex, "leaders_boxscore_timeout")
+            boxscore_results = []
+
+        for bs in boxscore_results:
+            if not bs:
+                continue
+            try:
                 for team_key in ["homeTeam", "awayTeam"]:
                     team = bs["game"][team_key]
                     tricode = team["teamTricode"]
@@ -345,8 +351,8 @@ async def get_daily_leaders(
                                     "threePointers": stats["threePointersMade"],
                                 }
                             )
-        except TimeoutError as ex:
-            log_exceptions(ex, "leaders_boxscore_timeout")
+            except Exception as ex:
+                log_exceptions(ex, "leaders_boxscore_parse")
 
         categories = [
             ("points", "Points"),
@@ -522,8 +528,8 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
 
         result["east"] = process_conf(east_playin)
         result["west"] = process_conf(west_playin)
-    except Exception:
-        pass
+    except Exception as ex:
+        log_exceptions(ex, "playin_data_fetch")
 
     return result
 
@@ -568,7 +574,8 @@ def _fetch_playoff_series_data(season: str) -> dict:
             entry[str(row[tid_idx])] = entry.get(str(row[tid_idx]), 0) + 1
 
         return pair_wins
-    except Exception:
+    except Exception as ex:
+        log_exceptions(ex, f"playoff_series_fetch season={season}")
         return {}
 
 
