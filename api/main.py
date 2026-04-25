@@ -15,11 +15,9 @@ import helpers.stats as _stats
 import uvicorn
 import yaml
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from helpers.stats import get_display_date
-from middleware.request_id import RequestIDMiddleware
 from middleware.security import SecurityHeadersMiddleware
 from routes.injuries import CBS_INJURIES_FILE
 from routes.injuries import router as injuries_router
@@ -90,25 +88,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Enable CORS for frontend
-_default_cors = ["http://localhost:3000", "http://127.0.0.1:3000"]
-_cors_env = os.environ.get("CORS_ORIGINS")
-if _cors_env:
-    _cors_origins = _cors_env.split(",")
-    if "*" in _cors_origins:
-        logger.warning("CORS_ORIGINS explicitly set to wildcard (*)")
-else:
-    _cors_origins = _default_cors
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_methods=["GET", "OPTIONS"],
-    allow_headers=["Content-Type", "X-Request-ID"],
-)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(TimingMiddleware)
-app.add_middleware(RequestIDMiddleware)
 
 app.include_router(router)
 app.include_router(players_router)

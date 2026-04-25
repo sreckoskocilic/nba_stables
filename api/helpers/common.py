@@ -1,7 +1,5 @@
 # Cache TTLs (in seconds)
 import atexit
-import hashlib
-import json
 import os
 import threading
 import time
@@ -59,7 +57,7 @@ class SimpleCache:
     def set(self, key: str, data: Any, ttl_seconds: int):
         with self._lock:
             expires = time.time() + ttl_seconds
-            self._cache[key] = {"data": data, "expires": expires, "etag": None}
+            self._cache[key] = {"data": data, "expires": expires}
             heapq.heappush(self._heap, (expires, key))
 
             # Evict expired first, then oldest if still over maxsize
@@ -94,40 +92,6 @@ class SimpleCache:
         with self._lock:
             self._cache.clear()
             self._heap.clear()
-
-    @staticmethod
-    def _generate_etag(data: Any) -> str:
-        """Generate a fast ETag from cached data using JSON serialization."""
-        try:
-            content = json.dumps(data, sort_keys=True, default=str)
-            return f'"{hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()[:16]}"'
-        except (TypeError, ValueError):  # pragma: no cover
-            return None
-
-    def get_with_etag(self, key: str) -> tuple[Optional[Any], Optional[str]]:
-        """Get value and stored ETag for conditional requests."""
-        with self._lock:
-            entry = self._cache.get(key)
-            if entry is None:
-                return None, None
-            if time.time() >= entry["expires"]:
-                self._cache.pop(key, None)
-                return None, None
-            return entry["data"], entry.get("etag") or self._generate_etag(
-                entry["data"]
-            )
-
-    def set_with_etag(self, key: str, data: Any, ttl_seconds: int) -> str:
-        """Set value with embedded ETag and return the ETag."""
-        etag = self._generate_etag(data)
-        with self._lock:
-            expires = time.time() + ttl_seconds
-            self._cache[key] = {"data": data, "expires": expires, "etag": etag}
-            heapq.heappush(self._heap, (expires, key))
-            self._evict_expired()
-            if len(self._cache) > self._maxsize:
-                self._evict_oldest()
-        return etag
 
 
 # Named constants

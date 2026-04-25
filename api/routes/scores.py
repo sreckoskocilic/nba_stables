@@ -1,7 +1,6 @@
 import asyncio
 
-from fastapi import APIRouter, Query, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi import APIRouter, Query
 from constants import (
     ET_SUFFIX,
     GH_GAME_CODE,
@@ -415,15 +414,12 @@ def _parse_team_row(team) -> dict:
 
 @router.get("/api/standings")
 @route_error_handler("Failed to fetch standings")
-async def get_standings(request: Request):
+async def get_standings():
     """Get current NBA standings by conference"""
     cache_key = "standings"
-    cached, etag = cache.get_with_etag(cache_key)
+    cached = cache.get(cache_key)
     if cached is not None:
-        client_etag = request.headers.get("If-None-Match")
-        if client_etag and client_etag == etag:
-            return Response(status_code=304, headers={"ETag": etag})
-        return JSONResponse(content=cached, headers={"ETag": etag or ""})
+        return cached
 
     def _sync():
         teams = _fetch_standings_teams()
@@ -444,8 +440,8 @@ async def get_standings(request: Request):
         return {"east": _sort_by_rank(east), "west": _sort_by_rank(west)}
 
     result = await asyncio.to_thread(_sync)
-    etag = cache.set_with_etag(cache_key, result, CACHE_TTL["standings"])
-    return JSONResponse(content=result, headers={"ETag": etag})
+    cache.set(cache_key, result, CACHE_TTL["standings"])
+    return result
 
 
 def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
@@ -580,15 +576,12 @@ def _fetch_playoff_series_data(season: str) -> dict:
 
 @router.get("/api/playoffs")
 @route_error_handler("Failed to fetch playoff picture")
-async def get_playoff_picture(request: Request):
+async def get_playoff_picture():
     """Get current playoff picture with projected final records"""
     cache_key = "playoffs"
-    cached, etag = cache.get_with_etag(cache_key)
+    cached = cache.get(cache_key)
     if cached is not None:
-        client_etag = request.headers.get("If-None-Match")
-        if client_etag and client_etag == etag:
-            return Response(status_code=304, headers={"ETag": etag})
-        return JSONResponse(content=cached, headers={"ETag": etag or ""})
+        return cached
 
     def _sync():
         teams = _fetch_standings_teams()
@@ -657,8 +650,8 @@ async def get_playoff_picture(request: Request):
         }
 
     result = await asyncio.to_thread(_sync)
-    etag = cache.set_with_etag(cache_key, result, CACHE_TTL["playoffs"])
-    return JSONResponse(content=result, headers={"ETag": etag})
+    cache.set(cache_key, result, CACHE_TTL["playoffs"])
+    return result
 
 
 @router.get("/api/doubledoubles")

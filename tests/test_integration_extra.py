@@ -74,19 +74,6 @@ class TestCacheHits:
             client.get("/api/standings")
         standings_mock.assert_called_once()
 
-    def test_standings_etag_304(self, client):
-        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
-        standings_mock = MagicMock()
-        standings_mock.return_value.get_dict.return_value = {
-            "resultSets": [{"rowSet": rows}]
-        }
-        with patch("routes.scores.leaguestandings.LeagueStandings", standings_mock):
-            r1 = client.get("/api/standings")
-            etag = r1.headers.get("ETag")
-            assert etag is not None
-            r2 = client.get("/api/standings", headers={"If-None-Match": etag})
-        assert r2.status_code == 304
-
     def test_last_n_games_served_from_cache(self, client):
         gamelog = MagicMock()
         gamelog.player_game_log.get_dict.return_value = {"data": []}
@@ -354,15 +341,6 @@ class TestPlayoffs:
             client.get("/api/playoffs")
             client.get("/api/playoffs")
         m.assert_called_once()
-
-    def test_etag_304(self, client):
-        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
-        with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
-            r1 = client.get("/api/playoffs")
-            etag = r1.headers.get("ETag")
-            assert etag is not None
-            r2 = client.get("/api/playoffs", headers={"If-None-Match": etag})
-        assert r2.status_code == 304
 
     def _make_conf_rows(self, conf, id_base):
         return [

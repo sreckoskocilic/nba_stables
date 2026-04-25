@@ -198,49 +198,6 @@ class TestSimpleCache:
             assert self.cache.get("live") == "here"
 
     # ------------------------------------------------------------------
-    # get_with_etag
-    # ------------------------------------------------------------------
-
-    def test_get_with_etag_returns_value_and_etag(self):
-        etag = self.cache.set_with_etag("key", {"data": 1}, ttl_seconds=60)
-        data, returned_etag = self.cache.get_with_etag("key")
-        assert data == {"data": 1}
-        assert returned_etag is not None
-        assert returned_etag == etag
-
-    def test_get_with_etag_cache_miss(self):
-        data, etag = self.cache.get_with_etag("nonexistent")
-        assert data is None
-        assert etag is None
-
-    def test_get_with_etag_expired_entry(self):
-        """Cover lines 115-116: expired entry removal in get_with_etag."""
-        with fake_clock() as clock:
-            self.cache.set_with_etag("key", "value", ttl_seconds=1)
-            clock.advance(2)
-            # Should return None, None and remove the expired entry
-            data, etag = self.cache.get_with_etag("key")
-            assert data is None
-            assert etag is None
-
-    # ------------------------------------------------------------------
-    # set_with_etag
-    # ------------------------------------------------------------------
-
-    def test_set_with_etag_returns_etag(self):
-        etag = self.cache.set_with_etag("key", "value", ttl_seconds=60)
-        assert etag is not None
-        assert etag.startswith('"')  # ETag format
-
-    def test_set_with_etag_with_maxsize_eviction(self):
-        """Cover line 130: maxsize eviction in set_with_etag."""
-        small = SimpleCache(maxsize=2)
-        small.set_with_etag("a", 1, ttl_seconds=60)
-        small.set_with_etag("b", 2, ttl_seconds=60)
-        small.set_with_etag("c", 3, ttl_seconds=60)  # triggers eviction
-        assert len(small._cache) <= 2
-
-    # ------------------------------------------------------------------
     # Maxsize eviction
     # ------------------------------------------------------------------
 

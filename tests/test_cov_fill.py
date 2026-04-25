@@ -1,4 +1,3 @@
-import importlib
 import os
 import sys
 from unittest.mock import MagicMock
@@ -159,16 +158,6 @@ def test_convert_et_to_cet_error_branch(monkeypatch):
     from helpers.stats import convert_et_to_cet
 
     assert convert_et_to_cet("7:00 pm ET") == "7:00 pm ET"
-
-
-def test_cors_wildcard_allowed_when_env_set(monkeypatch):
-    monkeypatch.setenv("CORS_ORIGINS", "*")
-    sys.modules.pop("main", None)
-    app_mod = importlib.import_module("main")
-    cors = next(
-        m for m in app_mod.app.user_middleware if m.cls.__name__ == "CORSMiddleware"
-    )
-    assert cors.kwargs.get("allow_origins") == ["*"]
 
 
 def test_simple_cache_expiry_and_eviction():
