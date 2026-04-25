@@ -93,7 +93,7 @@ async def search_players(
 @router.get("/api/players/stats")
 @route_error_handler("Failed to fetch player stats")
 async def get_player_stats(
-    ids: str = Query(..., description="Comma-separated player IDs"),
+    ids: str = Query(...),
 ):
     """Get live stats for specific players"""
     players_ids = {

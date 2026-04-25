@@ -817,6 +817,7 @@ class TestScoresErrorHandlers:
             r = client.get("/api/playoffs")
         assert r.status_code == 500
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Cache hits that aren't yet tested
 # ─────────────────────────────────────────────────────────────────────────────

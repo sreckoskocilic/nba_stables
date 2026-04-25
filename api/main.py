@@ -17,7 +17,6 @@ import yaml
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from helpers.stats import get_display_date
 from middleware.security import SecurityHeadersMiddleware
 from routes.injuries import CBS_INJURIES_FILE
 from routes.injuries import router as injuries_router
@@ -79,9 +78,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="NBA Stables API",
-    description="Live NBA statistics API",
-    version="1.1.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -110,28 +106,13 @@ except OSError:  # pragma: no cover
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint"""
     try:
         _common.cache.set("_hc", True, 1)
-        cache_ok = _common.cache.get("_hc") is True
-        nba_api_ok = _stats.is_players_cache_valid()
-        status = "healthy" if cache_ok and nba_api_ok else "degraded"
+        _common.cache.get("_hc")
+        return {"status": "ok"}
     except Exception as e:
         logger.warning("Health check failed: %s", e)
-        return {
-            "status": "degraded",
-            "date": get_display_date(0),
-            "version": app.version,
-            "cache_ok": False,
-            "nba_api_ok": False,
-        }
-    return {
-        "status": status,
-        "date": get_display_date(0),
-        "version": app.version,
-        "cache_ok": cache_ok,
-        "nba_api_ok": nba_api_ok,
-    }
+        return {"status": "degraded"}
 
 
 # Serve web files
@@ -157,11 +138,10 @@ async def serve_sitemap():  # pragma: no cover
 
 @app.get("/")
 async def serve_frontend():  # pragma: no cover
-    """Serve the frontend"""
     index_path = os.path.join(static_dir, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"message": "NBA Stables API", "docs": "/docs"}
+    if not os.path.exists(index_path):
+        raise HTTPException(status_code=404)
+    return FileResponse(index_path)
 
 
 if __name__ == "__main__":  # pragma: no cover

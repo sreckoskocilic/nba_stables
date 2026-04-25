@@ -651,5 +651,3 @@ async def get_playoff_picture():
     result = await asyncio.to_thread(_sync)
     cache.set(cache_key, result, CACHE_TTL["playoffs"])
     return result
-
-

@@ -275,11 +275,6 @@ def load_players_with_lower() -> list:  # pragma: no cover
     return _players_cache_lower
 
 
-def is_players_cache_valid() -> bool:
-    """Check if players cache is populated and not expired."""
-    return bool(_players_cache) and _players_cache_expires > time.time()
-
-
 def get_cached_scoreboard() -> Any:  # pragma: no cover
     """Return cached live ScoreBoard().games.data."""
     cached = cache.get("raw_scoreboard")

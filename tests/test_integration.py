@@ -3,7 +3,6 @@
 import json
 import os
 import tempfile
-import time
 from datetime import date
 from unittest.mock import MagicMock, patch
 
@@ -124,26 +123,17 @@ class TestHealth:
     def test_returns_200(self, client):
         assert client.get("/api/health").status_code == 200
 
-    def test_shape(self, client):
-        with (
-            patch("main._stats._players_cache", [1]),
-            patch("main._stats._players_cache_expires", time.time() + 300),
-        ):
-            body = client.get("/api/health").json()
-        assert body["status"] == "healthy"
-        assert body["cache_ok"] is True
-        assert "date" in body and len(body["date"]) > 5
+    def test_ok(self, client):
+        assert client.get("/api/health").json() == {"status": "ok"}
 
     def test_degraded_on_cache_failure(self, client):
-        """Cover main.py lines 137-139: cache exception returns degraded status."""
         from unittest.mock import MagicMock
 
         broken_cache = MagicMock()
         broken_cache.set.side_effect = RuntimeError("cache unavailable")
         with patch("main._common.cache", broken_cache):
             body = client.get("/api/health").json()
-        assert body["status"] == "degraded"
-        assert body["cache_ok"] is False
+        assert body == {"status": "degraded"}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
