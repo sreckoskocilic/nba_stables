@@ -79,11 +79,6 @@ def _today_et() -> date:
     return datetime.now(_TZ_ET).date()
 
 
-def today_cet() -> date:
-    """Return today's date in CET (Europe/Berlin), matching scoreboard_date() timezone."""
-    return datetime.now(_TZ_CET).date()
-
-
 def scoreboard_date() -> date:
     """Return the NBA game date for the scoreboard.
 

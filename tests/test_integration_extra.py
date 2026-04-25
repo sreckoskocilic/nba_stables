@@ -504,226 +504,6 @@ class TestPlayoffs:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# /api/doubledoubles
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class TestDoubleDoubles:
-    def _bs(self, players_home, players_away):
-        return {
-            "game": {
-                "homeTeam": {"teamTricode": "LAL", "players": players_home},
-                "awayTeam": {"teamTricode": "BOS", "players": players_away},
-            }
-        }
-
-    def _player(self, name, pts, reb, ast, stl=0, blk=0):
-        return {
-            "status": "ACTIVE",
-            "name": name,
-            "statistics": {
-                "points": pts,
-                "reboundsTotal": reb,
-                "assists": ast,
-                "steals": stl,
-                "blocks": blk,
-            },
-        }
-
-    def _patch_sb_today(self):
-        """Patch scoreboard_date and _today_cet to the same date so days_offset=0 uses live scoreboard."""
-        from contextlib import ExitStack
-        from datetime import date
-
-        today = date(2026, 3, 18)
-        stack = ExitStack()
-        stack.enter_context(patch("routes.scores.scoreboard_date", return_value=today))
-        stack.enter_context(patch("routes.scores.today_cet", return_value=today))
-        return stack
-
-    def test_returns_200(self, client):
-        with (
-            self._patch_sb_today(),
-            patch("routes.scores.get_cached_scoreboard", return_value=[]),
-        ):
-            r = client.get("/api/doubledoubles")
-        assert r.status_code == 200
-
-    def test_response_shape(self, client):
-        with (
-            self._patch_sb_today(),
-            patch("routes.scores.get_cached_scoreboard", return_value=[]),
-        ):
-            r = client.get("/api/doubledoubles")
-        for key in ("doubleDoubles", "tripleDoubles", "date"):
-            assert key in r.json()
-
-    def test_no_games_returns_empty(self, client):
-        with (
-            self._patch_sb_today(),
-            patch("routes.scores.get_cached_scoreboard", return_value=[]),
-        ):
-            r = client.get("/api/doubledoubles")
-        assert r.json()["doubleDoubles"] == []
-        assert r.json()["tripleDoubles"] == []
-
-    def test_double_double_detected(self, client):
-        bs_dict = self._bs(
-            [self._player("LeBron James", pts=20, reb=10, ast=5)],
-            [],
-        )
-        with (
-            self._patch_sb_today(),
-            patch(
-                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
-            ),
-            patch("routes.scores.get_cached_live_boxscore", return_value=bs_dict),
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert len(r.json()["doubleDoubles"]) == 1
-        assert r.json()["doubleDoubles"][0]["name"] == "LeBron James"
-
-    def test_triple_double_detected(self, client):
-        bs_dict = self._bs(
-            [self._player("LeBron James", pts=10, reb=10, ast=10)],
-            [],
-        )
-        with (
-            self._patch_sb_today(),
-            patch(
-                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
-            ),
-            patch("routes.scores.get_cached_live_boxscore", return_value=bs_dict),
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert len(r.json()["tripleDoubles"]) == 1
-        assert r.json()["doubleDoubles"] == []
-
-    def test_historical_offset_uses_games_list(self, client):
-        with patch("routes.scores.get_games_list", return_value=[]) as mock:
-            r = client.get("/api/doubledoubles?days_offset=1")
-        assert r.status_code == 200
-        mock.assert_called_once_with(1)
-
-    def test_morning_cet_uses_games_list(self, client):
-        """Before 13:00 CET, days_offset=0 falls back to games_list with ET offset."""
-        from datetime import date, timedelta
-
-        yesterday = date.today() - timedelta(days=1)
-        with (
-            patch("routes.scores.scoreboard_date", return_value=yesterday),
-            patch("routes.scores.get_games_list", return_value=[]) as mock,
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert r.status_code == 200
-        mock.assert_called_once()
-
-    def test_boxscore_fetch_error_skipped(self, client):
-        """Boxscore fetch errors are logged and skipped gracefully."""
-        with (
-            self._patch_sb_today(),
-            patch(
-                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
-            ),
-            patch(
-                "routes.scores.get_cached_live_boxscore",
-                side_effect=Exception("timeout"),
-            ),
-            patch("routes.scores.log_exceptions"),
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert r.status_code == 200
-        assert r.json()["doubleDoubles"] == []
-
-    def test_empty_boxscore_skipped(self, client):
-        """Empty boxscore dict is skipped without error."""
-        with (
-            self._patch_sb_today(),
-            patch(
-                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
-            ),
-            patch("routes.scores.get_cached_live_boxscore", return_value={}),
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert r.status_code == 200
-        assert r.json()["doubleDoubles"] == []
-
-    def test_live_offset_uses_scoreboard(self, client):
-        with (
-            self._patch_sb_today(),
-            patch("routes.scores.get_cached_scoreboard", return_value=[]) as mock,
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert r.status_code == 200
-        mock.assert_called_once()
-
-    def test_offset_too_large_rejected(self, client):
-        assert client.get("/api/doubledoubles?days_offset=99").status_code == 422
-
-    def test_player_below_threshold_excluded(self, client):
-        bs_dict = self._bs(
-            [self._player("Bench Guy", pts=5, reb=4, ast=3)],
-            [],
-        )
-        with (
-            patch(
-                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
-            ),
-            patch("routes.scores.get_cached_live_boxscore", return_value=bs_dict),
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert r.json()["doubleDoubles"] == []
-        assert r.json()["tripleDoubles"] == []
-
-    def test_none_stats_treated_as_zero(self, client):
-        """None stat values from API should not crash the route (treated as 0)."""
-        bs_dict = self._bs(
-            [
-                {
-                    "status": "ACTIVE",
-                    "name": "Player X",
-                    "statistics": {
-                        "points": None,
-                        "reboundsTotal": None,
-                        "assists": None,
-                        "steals": None,
-                        "blocks": None,
-                    },
-                }
-            ],
-            [],
-        )
-        with (
-            self._patch_sb_today(),
-            patch(
-                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
-            ),
-            patch("routes.scores.get_cached_live_boxscore", return_value=bs_dict),
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert r.status_code == 200
-        assert r.json()["doubleDoubles"] == []
-        assert r.json()["tripleDoubles"] == []
-
-    def test_before_1300_cet_uses_historical_offset(self, client):
-        """Before 13:00 CET, scoreboard_date() returns yesterday; route should use get_games_list, not live scoreboard."""
-        from datetime import date, timedelta
-
-        today = date(2026, 3, 18)
-        yesterday = today - timedelta(days=1)
-        with (
-            patch("routes.scores.scoreboard_date", return_value=yesterday),
-            patch("routes.scores.today_cet", return_value=today),
-            patch("routes.scores.get_games_list", return_value=[]) as mock_games_list,
-            patch("routes.scores.get_cached_scoreboard") as mock_live,
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert r.status_code == 200
-        mock_games_list.assert_called_once_with(1)
-        mock_live.assert_not_called()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Error handler branches – players.py
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1037,35 +817,12 @@ class TestScoresErrorHandlers:
             r = client.get("/api/playoffs")
         assert r.status_code == 500
 
-    def test_doubledoubles_500_on_error(self, client):
-        from datetime import date
-
-        with (
-            patch("routes.scores.scoreboard_date", return_value=date.today()),
-            patch("routes.scores.get_cached_scoreboard", side_effect=Exception("boom")),
-            patch("helpers.decorators.log_exceptions"),
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert r.status_code == 500
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Cache hits that aren't yet tested
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestMoreCacheHits:
-    def test_doubledoubles_cached(self, client):
-        from datetime import date
-
-        with (
-            patch("routes.scores.scoreboard_date", return_value=date.today()),
-            patch("routes.scores.get_cached_scoreboard", return_value=[]) as mock,
-        ):
-            client.get("/api/doubledoubles?days_offset=0")
-            client.get("/api/doubledoubles?days_offset=0")
-        mock.assert_called_once()
-
     def test_player_stats_cached(self, client):
         with (
             patch(
@@ -1088,7 +845,7 @@ class TestMoreCacheHits:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Empty boxscore results in leaders/doubledoubles
+# Empty boxscore results in leaders
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -1101,17 +858,6 @@ class TestEmptyBoxscoreResults:
             r = client.get("/api/leaders?days_offset=1")
         assert r.status_code == 200
         assert r.json()["leaders"] == {}
-
-    def test_doubledoubles_skips_empty_boxscore(self, client):
-        with (
-            patch(
-                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
-            ),
-            patch("routes.scores.get_cached_live_boxscore", return_value={}),
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert r.status_code == 200
-        assert r.json()["doubleDoubles"] == []
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1144,19 +890,6 @@ class TestInnerExceptionHandlers:
             r = client.get("/api/leaders?days_offset=1")
         assert r.status_code == 200
         assert r.json()["leaders"] == {}
-
-    def test_doubledoubles_survives_boxscore_exception(self, client):
-        with (
-            patch(
-                "routes.scores.get_cached_scoreboard", return_value=[make_live_game()]
-            ),
-            patch(
-                "routes.scores.get_cached_live_boxscore", side_effect=Exception("boom")
-            ),
-            patch("routes.scores.log_exceptions"),
-        ):
-            r = client.get("/api/doubledoubles?days_offset=0")
-        assert r.status_code == 200
 
     def test_dates_survives_games_list_exception(self, client):
         with (
@@ -1260,19 +993,6 @@ class TestExecutorTimeouts:
             r = client.get("/api/leaders?days_offset=1")
         assert r.status_code == 200
         assert r.json()["leaders"] == {}
-
-    def test_doubledoubles_boxscore_timeout_returns_empty(self, client):
-        with (
-            patch("routes.scores.get_games_list", return_value=["0022400001"]),
-            patch("routes.scores.executor") as mock_exec,
-            patch("routes.scores.log_exceptions"),
-        ):
-            mock_exec.map.side_effect = TimeoutError("timed out")
-            r = client.get("/api/doubledoubles?days_offset=1")
-        assert r.status_code == 200
-        data = r.json()
-        assert data["doubleDoubles"] == []
-        assert data["tripleDoubles"] == []
 
     def test_player_tracker_scoreboard_error_returns_empty(self, client):
         with (
