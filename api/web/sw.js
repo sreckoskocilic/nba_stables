@@ -4,6 +4,7 @@ const SHELL_ASSETS = [
   '/web/index.html',
   '/web/overrides.js',
   '/web/module-header.js',
+  '/web/legal.js',
 ];
 
 // Install - cache shell assets for offline fallback

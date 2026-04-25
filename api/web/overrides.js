@@ -1,18 +1,5 @@
         (function () {
-            const _fetchWithAbort = typeof window._fetchWithAbort === 'function'
-                ? window._fetchWithAbort
-                : (function () {
-                    const controllers = {};
-                    return function (key, url, opts, timeout) {
-                        opts = opts || {};
-                        timeout = timeout || 15000;
-                        if (controllers[key]) controllers[key].abort();
-                        const ac = new AbortController();
-                        controllers[key] = ac;
-                        const timer = setTimeout(() => ac.abort(), timeout);
-                        return fetch(url, Object.assign({}, opts, { signal: ac.signal })).finally(() => clearTimeout(timer));
-                    };
-                })();
+            const _fetchWithAbort = window._fetchWithAbort;
 
             const esc = (value) =>
                 String(value ?? "")
@@ -30,6 +17,7 @@
                 try {
                     const response = await _fetchWithAbort("scoreboard", "/api/scoreboard");
                     const data = await response.json();
+                    if (!response.ok) throw new Error(data.detail || "Failed to load scoreboard");
                     const games = Array.isArray(data.games) ? data.games : [];
                     document.getElementById("gamesCount").textContent = `${games.length} Games`;
                     if (games.length === 0) {
@@ -141,6 +129,7 @@
                         `/api/leaders?days_offset=${currentLeadersOffset}`
                     );
                     const data = await response.json();
+                    if (!response.ok) throw new Error(data.detail || "Failed to load leaders");
                     const leaders = Object.values(data.leaders || {});
                     if (leaders.length === 0) {
                         const activeBtn = document.querySelector("#leadersDateSelector .date-btn.active");
@@ -353,6 +342,7 @@
                         `/api/boxscores?days_offset=${currentBoxscoreOffset}`
                     );
                     const data = await response.json();
+                    if (!response.ok) throw new Error(data.detail || "Failed to load box scores");
                     const boxscores = Array.isArray(data.boxscores) ? data.boxscores : [];
                     if (boxscores.length === 0) {
                         const activeBtn = document.querySelector("#boxscores .date-btn.active");
