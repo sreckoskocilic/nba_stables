@@ -2,6 +2,7 @@
 const CACHE_NAME = 'nba-stables-v1';
 const SHELL_ASSETS = [
   '/web/index.html',
+  '/web/app.js',
   '/web/overrides.js',
   '/web/module-header.js',
   '/web/legal.js',
