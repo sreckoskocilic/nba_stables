@@ -37,9 +37,8 @@ from helpers.stats import (
     get_current_season,
     load_players_dict,
     load_players_with_lower,
-    reformat_player_minutes,
+    parse_iso_minutes,
 )
-from isodate import parse_duration
 from nba_api.stats.endpoints import (
     playercareerstats,
     playergamelog,
@@ -154,13 +153,7 @@ async def get_player_stats(
                         and player["status"] == "ACTIVE"
                     ):
                         stats = player["statistics"]
-                        try:
-                            minutes = reformat_player_minutes(
-                                int(parse_duration(stats["minutes"]).total_seconds())
-                            )
-                        except Exception as ex:  # pragma: no cover
-                            log_exceptions(ex)
-                            minutes = "0:00"
+                        minutes = parse_iso_minutes(stats["minutes"])
 
                         pts = stats["points"]
                         fgm = stats["fieldGoalsMade"]
@@ -234,14 +227,7 @@ async def get_game_players(
             for player in team["players"]:
                 if player["status"] == "ACTIVE":
                     stats = player["statistics"]
-
-                    try:
-                        minutes = reformat_player_minutes(
-                            int(parse_duration(stats["minutes"]).total_seconds())
-                        )
-                    except Exception as ex:  # pragma: no cover
-                        log_exceptions(ex)
-                        minutes = "0:00"
+                    minutes = parse_iso_minutes(stats["minutes"])
 
                     fgm = stats["fieldGoalsMade"]
                     fga = stats["fieldGoalsAttempted"]
@@ -336,7 +322,6 @@ async def get_last_n_games_stats(
             except Exception as e:
                 log_exceptions(e)
                 return _unavailable
-            # Columns: SEASON_ID, PLAYER_ID, GAME_ID, GAME_DATE, MATCHUP, ...
             game_rows_all = [
                 [row[PGL_MATCHUP], row[PGL_GAME_ID], row[PGL_GAME_DATE]] for row in data
             ]

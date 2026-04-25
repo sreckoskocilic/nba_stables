@@ -757,7 +757,7 @@ class TestPlayerErrorHandlers:
                 "routes.players.load_players_with_lower",
                 side_effect=OSError("disk error"),
             ),
-            patch("routes.players.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/players/search?q=LeBron")
         assert r.status_code == 500
@@ -768,7 +768,7 @@ class TestPlayerErrorHandlers:
                 "routes.players.get_cached_live_boxscore",
                 side_effect=Exception("nba down"),
             ),
-            patch("routes.players.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get(f"/api/games/{GAME_ID}/players")
         assert r.status_code == 500
@@ -776,7 +776,7 @@ class TestPlayerErrorHandlers:
     def test_last_n_games_500_on_unexpected_error(self, client):
         with (
             patch("routes.players.load_players_dict", side_effect=Exception("boom")),
-            patch("routes.players.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
         assert r.status_code == 500
@@ -802,7 +802,7 @@ class TestPlayerErrorHandlers:
                 "routes.players.playercareerstats.PlayerCareerStats",
                 side_effect=Exception("boom"),
             ),
-            patch("routes.players.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/season-avg")
         assert r.status_code == 500
@@ -1014,7 +1014,7 @@ class TestScoresErrorHandlers:
                 "routes.scores.get_scoreboard_v3_by_date", side_effect=Exception("boom")
             ),
             patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7)),
-            patch("routes.scores.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/scoreboard")
         assert r.status_code == 500
@@ -1024,7 +1024,7 @@ class TestScoresErrorHandlers:
             patch(
                 "routes.scores.get_games_leaders_list", side_effect=Exception("boom")
             ),
-            patch("routes.scores.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/boxscores?days_offset=1")
         assert r.status_code == 500
@@ -1032,7 +1032,7 @@ class TestScoresErrorHandlers:
     def test_leaders_500_on_error(self, client):
         with (
             patch("routes.scores.get_games_list", side_effect=Exception("boom")),
-            patch("routes.scores.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/leaders?days_offset=1")
         assert r.status_code == 500
@@ -1043,7 +1043,7 @@ class TestScoresErrorHandlers:
                 "routes.scores.leaguestandings.LeagueStandings",
                 side_effect=Exception("boom"),
             ),
-            patch("routes.scores.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/standings")
         assert r.status_code == 500
@@ -1054,7 +1054,7 @@ class TestScoresErrorHandlers:
                 "routes.scores.leaguestandings.LeagueStandings",
                 side_effect=Exception("boom"),
             ),
-            patch("routes.scores.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/playoffs")
         assert r.status_code == 500
@@ -1065,7 +1065,7 @@ class TestScoresErrorHandlers:
         with (
             patch("routes.scores.scoreboard_date", return_value=date.today()),
             patch("routes.scores.get_cached_scoreboard", side_effect=Exception("boom")),
-            patch("routes.scores.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/doubledoubles?days_offset=0")
         assert r.status_code == 500
@@ -1193,7 +1193,7 @@ class TestInnerExceptionHandlers:
     def test_dates_500_on_sync_error(self, client):
         with (
             patch("routes.scores.get_display_date", side_effect=RuntimeError("boom")),
-            patch("routes.scores.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/dates")
         assert r.status_code == 500
@@ -1243,7 +1243,7 @@ class TestSeasonErrorHandlers:
         with (
             patch("routes.trades.requests.get", side_effect=TypeError("unexpected")),
             patch("routes.trades.load_players_dict", return_value={}),
-            patch("routes.trades.log_exceptions"),
+            patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/trades")
         assert r.status_code == 500
@@ -1339,3 +1339,49 @@ class TestExecutorTimeouts:
             r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
         assert r.status_code == 200
         assert r.json()["games"] == []
+
+    def test_playoffs_playin_timeout_returns_empty(self, client):
+        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
+        standings_mock = MagicMock()
+        standings_mock.return_value.get_dict.return_value = {
+            "resultSets": [{"rowSet": rows}]
+        }
+        playin_future = MagicMock()
+        playin_future.result.side_effect = TimeoutError("playin timed out")
+        series_future = MagicMock()
+        series_future.result.return_value = {}
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", standings_mock),
+            patch("routes.scores.executor") as mock_exec,
+            patch("routes.scores.log_exceptions"),
+        ):
+            mock_exec.submit.side_effect = [playin_future, series_future]
+            r = client.get("/api/playoffs")
+        assert r.status_code == 200
+        assert r.json()["playinActual"] == {
+            "east": {"gameScores": {}},
+            "west": {"gameScores": {}},
+        }
+
+    def test_playoffs_series_timeout_returns_empty(self, client):
+        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
+        standings_mock = MagicMock()
+        standings_mock.return_value.get_dict.return_value = {
+            "resultSets": [{"rowSet": rows}]
+        }
+        playin_future = MagicMock()
+        playin_future.result.return_value = {
+            "east": {"gameScores": {}},
+            "west": {"gameScores": {}},
+        }
+        series_future = MagicMock()
+        series_future.result.side_effect = TimeoutError("series timed out")
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", standings_mock),
+            patch("routes.scores.executor") as mock_exec,
+            patch("routes.scores.log_exceptions"),
+        ):
+            mock_exec.submit.side_effect = [playin_future, series_future]
+            r = client.get("/api/playoffs")
+        assert r.status_code == 200
+        assert r.json()["seriesResults"] == {}

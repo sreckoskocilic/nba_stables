@@ -277,7 +277,6 @@ def _scoreboard_from_v3(sb) -> list[dict]:
         if ET_SUFFIX in status_text:
             status_text = convert_et_to_cet(status_text)
 
-        # Parse teams from gameCode: away(3) + home(3)
         teams_str = game_code.split("/")[1] if "/" in game_code else ""
         away_tri = teams_str[:3]
         home_tri = teams_str[3:]
@@ -633,8 +632,22 @@ async def get_playoff_picture(request: Request):
 
         east_sorted = _sort_by_rank(east)
         west_sorted = _sort_by_rank(west)
-        playin_actual = _fetch_playin_data(east_sorted[6:10], west_sorted[6:10])
-        series_results = _fetch_playoff_series_data(get_current_season())
+        playin_future = executor.submit(
+            _fetch_playin_data, east_sorted[6:10], west_sorted[6:10]
+        )
+        series_future = executor.submit(
+            _fetch_playoff_series_data, get_current_season()
+        )
+        try:
+            playin_actual = playin_future.result(timeout=STATS_TIMEOUT)
+        except TimeoutError as ex:
+            log_exceptions(ex, "playin_data_timeout")
+            playin_actual = {"east": {"gameScores": {}}, "west": {"gameScores": {}}}
+        try:
+            series_results = series_future.result(timeout=STATS_TIMEOUT)
+        except TimeoutError as ex:
+            log_exceptions(ex, "playoff_series_timeout")
+            series_results = {}
 
         return {
             "east": east_sorted,

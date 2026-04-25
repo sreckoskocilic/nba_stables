@@ -7,6 +7,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import requests
+from isodate import parse_duration
 
 from constants import (
     CAP_DISPLAY_LAST_COMMA_FIRST,
@@ -142,6 +143,15 @@ def reformat_player_minutes(total_seconds: int) -> str:
     minutes = total_seconds // 60
     seconds = total_seconds % 60
     return f"{minutes}:{seconds:02d}"
+
+
+def parse_iso_minutes(iso_str: str) -> str:
+    """Parse an ISO-8601 duration (e.g. 'PT30M37.00S') to 'MM:SS'. Returns '0:00' on failure."""
+    try:
+        return reformat_player_minutes(int(parse_duration(iso_str).total_seconds()))
+    except Exception as ex:  # pragma: no cover
+        log_exceptions(ex)
+        return "0:00"
 
 
 def parse_minutes(mm_ss: str) -> tuple[int, int]:
