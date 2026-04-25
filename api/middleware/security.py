@@ -8,7 +8,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 # CSP for HTML pages (NBA stats pages with inline styles, Google Fonts, analytics)
-PAGE_CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self'; font-src 'self' https://fonts.gstatic.com; connect-src 'self'"
+PAGE_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self'; font-src 'self' https://fonts.gstatic.com; connect-src 'self'"
 
 # CSP for API endpoints (JSON only — no scripts, styles, or resources needed)
 DEFAULT_CSP = "default-src 'none'; frame-ancestors 'none'"

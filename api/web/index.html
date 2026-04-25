@@ -1523,7 +1523,7 @@
                             <a href="/web/privacy.html">Privacy</a>
                             <a href="/web/cookies.html">Cookies</a>
                             <a href="/web/terms.html">Terms</a>
-                            <a href="#" onclick="openCookieSettings(); return false;">Cookie Settings</a>
+                            <a href="#" data-action="openCookieSettings">Cookie Settings</a>
                         </p>
                     </div>
                 </aside>
@@ -1533,7 +1533,7 @@
                 <div class="section-title">
                     Live Scoreboard
 <span class="badge" id="gamesCount">0 Games</span>
-                    <button class="refresh-btn" onclick="loadScoreboard()" title="Refresh scoreboard" aria-label="Refresh scoreboard">&#8635; Refresh</button>
+                    <button class="refresh-btn" data-action="loadScoreboard" title="Refresh scoreboard" aria-label="Refresh scoreboard">&#8635; Refresh</button>
                 </div>
                 <div id="scoreboardContent" class="cards-grid-compact">
                     <div class="loading"><div class="spinner"></div> Loading games...</div>
@@ -1544,7 +1544,7 @@
             <section id="boxscores" class="section">
                 <div class="section-title">
                     Box Scores
-                    <button class="refresh-btn" onclick="loadBoxscores()">&#8635; Refresh</button>
+                    <button class="refresh-btn" data-action="loadBoxscores">&#8635; Refresh</button>
                 </div>
                 <div class="date-selector">
                     <button class="date-btn active" data-offset="0">Today</button>
@@ -1565,7 +1565,7 @@
             <section id="leaders" class="section">
                 <div class="section-title">
                     Daily Leaders
-                    <button class="refresh-btn" onclick="loadLeaders()">&#8635; Refresh</button>
+                    <button class="refresh-btn" data-action="loadLeaders">&#8635; Refresh</button>
                 </div>
                 <div class="date-selector" id="leadersDateSelector">
                     <button class="date-btn active" data-offset="0">Today</button>
@@ -1591,7 +1591,7 @@
                             <input type="text" class="search-input" id="playerSearch" placeholder="Search for a player..." autocomplete="off">
                             <div class="search-results" id="searchResults"></div>
                         </div>
-                        <button class="btn" id="trackBtn" onclick="loadTrackedStats()" disabled>Get Live Stats</button>
+                        <button class="btn" id="trackBtn" data-action="loadTrackedStats" disabled>Get Live Stats</button>
                     </div>
                     <div class="tracked-players" id="trackedPlayers"></div>
                 </div>
@@ -1608,7 +1608,7 @@
             <section id="standings" class="section">
                 <div class="section-title">
                     NBA Standings
-                    <button class="refresh-btn" onclick="loadStandings()">&#8635; Refresh</button>
+                    <button class="refresh-btn" data-action="loadStandings">&#8635; Refresh</button>
                 </div>
                 <div id="standingsContent" style="display: grid; gap: 20px;">
                     <div class="loading"><div class="spinner"></div> Loading standings...</div>
@@ -1620,12 +1620,12 @@
                 <div class="section-title">
                     Injury Report
                     <span class="badge" id="injuriesSourceBadge" style="background: #ef4444;">CBS</span>
-                    <button class="refresh-btn" onclick="loadInjuries()">&#8635; Refresh</button>
+                    <button class="refresh-btn" data-action="loadInjuries">&#8635; Refresh</button>
                 </div>
                 <div style="margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap;">
                     <div>
-                        <button class="date-btn active" id="injuriesListBtn" onclick="setInjuriesView('list')">All Players</button>
-                        <button class="date-btn" id="injuriesGroupBtn" onclick="setInjuriesView('grouped')">Group by Team</button>
+                        <button class="date-btn active" id="injuriesListBtn" data-action="setInjuriesView" data-view="list">All Players</button>
+                        <button class="date-btn" id="injuriesGroupBtn" data-action="setInjuriesView" data-view="grouped">Group by Team</button>
                     </div>
                 </div>
                 <div id="injuriesContent">
@@ -1642,7 +1642,7 @@
                             <input type="text" class="search-input" id="lastNSearch" placeholder="Search for a player..." autocomplete="off">
                             <div class="search-results" id="lastNSearchResults"></div>
                         </div>
-                        <button class="btn lastn-get-btn" id="lastNBtn" onclick="loadLastNGames()" disabled>Get Stats</button>
+                        <button class="btn lastn-get-btn" id="lastNBtn" data-action="loadLastNGames" disabled>Get Stats</button>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center; margin-top: 12px;">
                         <span style="color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap;">Last:</span>
@@ -1665,11 +1665,11 @@
             <section id="playoffs" class="section">
                 <div class="section-title">
                     Playoff Bracket
-                    <button class="refresh-btn" onclick="loadPlayoffs()">&#8635; Refresh</button>
+                    <button class="refresh-btn" data-action="loadPlayoffs">&#8635; Refresh</button>
                 </div>
                 <div style="display:flex; gap:8px; margin-bottom:20px;">
-                    <button id="playoffEastBtn" class="nav-tab active" onclick="showConference('east')">Eastern Conference</button>
-                    <button id="playoffWestBtn" class="nav-tab" onclick="showConference('west')">Western Conference</button>
+                    <button id="playoffEastBtn" class="nav-tab active" data-action="showConference" data-conference="east">Eastern Conference</button>
+                    <button id="playoffWestBtn" class="nav-tab" data-action="showConference" data-conference="west">Western Conference</button>
                 </div>
                 <div id="playoffsContent">
                     <div class="loading"><div class="spinner"></div> Loading bracket...</div>
@@ -1681,7 +1681,7 @@
                 <div class="section-title">
                     Player Movement
                     <span class="badge" id="tradesCount">0 Moves</span>
-                    <button class="refresh-btn" onclick="loadTrades(true)">&#8635; Refresh</button>
+                    <button class="refresh-btn" data-action="loadTrades">&#8635; Refresh</button>
                 </div>
                 <div class="date-selector" id="tradesMonthSelector"></div>
                 <div id="tradesContent">
@@ -1691,7 +1691,7 @@
 
             <section id="seasonDoubles" class="section">
                 <div class="section-title">Season Doubles &amp; Triples
-                    <button class="refresh-btn" onclick="loadSeasonDoubles(true)">&#8635; Refresh</button>
+                    <button class="refresh-btn" data-action="loadSeasonDoubles">&#8635; Refresh</button>
                 </div>
                 <div id="seasonDoublesContent">
                     <div class="loading"><div class="spinner"></div> Loading season leaders...</div>
@@ -1701,7 +1701,7 @@
             <!-- Season Highs Section -->
             <section id="seasonHighs" class="section">
                 <div class="section-title">Season Highs
-                    <button class="refresh-btn" onclick="loadSeasonHighs(true)">&#8635; Refresh</button>
+                    <button class="refresh-btn" data-action="loadSeasonHighs">&#8635; Refresh</button>
                 </div>
                 <div id="seasonHighsContent">
                     <div class="loading"><div class="spinner"></div> Loading season highs...</div>
