@@ -103,11 +103,195 @@
 
         /* Header */
         header {
-            background: var(--bg-secondary);
-            padding: 8px 0 0;
+            background:
+                linear-gradient(180deg, rgba(120, 53, 15, .30) 0%, rgba(10, 10, 15, 0) 100%),
+                radial-gradient(1100px 520px at 50% -200px, rgba(255, 107, 53, .20), transparent 70%),
+                radial-gradient(700px 360px at 88% 100%, rgba(27, 208, 193, .10), transparent 70%),
+                var(--bg-secondary);
             position: sticky;
             top: 0;
             z-index: 100;
+            overflow: hidden;
+            min-height: 128px;
+            /* Flex column tako da .container možemo gurnuti uz bottom (margin-top: auto) */
+            display: flex;
+            flex-direction: column;
+        }
+
+        header > .container {
+            position: relative;
+            z-index: 2;
+            margin-top: auto;        /* push title bar uz bottom border */
+            padding-top: 0;
+            padding-bottom: 6px;     /* breathing room od accent linije */
+            width: 100%;
+        }
+
+        /* Stat stream pattern (5 layered rows) */
+        .header-stream {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            user-select: none;
+            font-family: 'Russo One', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 6px 0;
+            transform: rotate(-2deg);
+            overflow: hidden;
+            /* Master opacity — jedna ručica za cijeli pattern */
+            opacity: 0.5;
+        }
+
+        .header-stream .row {
+            white-space: nowrap;
+            display: flex;
+        }
+
+        .header-stream .row span {
+            margin-right: 22px;
+            display: inline-block;
+        }
+
+        .header-stream .o { color: rgba(255, 107, 53, .18); }
+        .header-stream .t { color: rgba(27, 208, 193, .16); }
+        .header-stream .w { color: rgba(255, 255, 255, .07); }
+        .header-stream .acc { color: rgba(255, 140, 90, .22); font-style: italic; }
+
+        .header-stream .r1 { font-size: 42px; line-height: 1; opacity: .9; }
+        .header-stream .r2 { font-size: 22px; line-height: 1; letter-spacing: 6px; opacity: .85; }
+        .header-stream .r3 { font-size: 34px; line-height: 1; letter-spacing: 3px; opacity: .85; margin-left: 80px; }
+        .header-stream .r4 { font-size: 18px; line-height: 1; letter-spacing: 8px; opacity: .7; margin-left: 40px; }
+        .header-stream .r5 { font-size: 30px; line-height: 1; letter-spacing: 5px; opacity: .8; }
+
+        /* Dotted grid overlay (above pattern, below content) */
+        header::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle, rgba(255, 255, 255, .06) 1px, transparent 1.5px);
+            background-size: 20px 20px;
+            mask-image: linear-gradient(180deg, rgba(0, 0, 0, .85), transparent 92%);
+            -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, .85), transparent 92%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Bottom accent gradient line */
+        header::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--accent-light) 50%, var(--accent) 70%, transparent);
+            opacity: .65;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        /* Live ticker — track je direktni child <header>-a (header.overflow:hidden clipa) */
+        .ticker-track {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            width: max-content;
+            gap: 18px;
+            align-items: center;
+            white-space: nowrap;
+            padding: 6px 40px 6px 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .72rem;
+            color: var(--text-secondary);
+            text-shadow: 0 0 4px rgba(10, 10, 15, .85), 0 0 2px rgba(10, 10, 15, .85);
+            animation: tickerScroll 60s linear infinite;
+        }
+
+        .ticker-track:hover {
+            animation-play-state: paused;
+        }
+
+        .ticker-track.is-paused {
+            animation-play-state: paused !important;
+        }
+
+        @keyframes tickerScroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* Subtle pause / resume button (sibling of .ticker-track, sits over right edge) */
+        .ticker-toggle {
+            position: absolute;
+            top: 4px;
+            right: 8px;
+            z-index: 4;
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            border: 1px solid rgba(255, 255, 255, .08);
+            background: rgba(10, 10, 15, .55);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+            transition: border-color .15s ease, color .15s ease, background .15s ease, opacity .15s ease;
+            opacity: .8;
+        }
+
+        .ticker-toggle:hover,
+        .ticker-toggle:focus-visible {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(10, 10, 15, .8);
+            opacity: 1;
+            outline: none;
+        }
+
+        .ticker-toggle[aria-pressed="true"] {
+            opacity: .85;
+            border-color: rgba(255, 107, 53, .4);
+            color: var(--accent-light);
+        }
+
+        .ticker-toggle svg {
+            width: 9px;
+            height: 9px;
+            display: block;
+            fill: currentColor;
+        }
+
+        .ticker-toggle .icon-play { display: none; }
+        .ticker-toggle[aria-pressed="true"] .icon-pause { display: none; }
+        .ticker-toggle[aria-pressed="true"] .icon-play { display: block; }
+
+        .ticker-track .pill {
+            background: rgba(255, 107, 53, .14);
+            color: #ffb38f;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            letter-spacing: .5px;
+        }
+
+        .ticker-track .pill.live {
+            background: rgba(239, 68, 68, .18);
+            color: #fca5a5;
+        }
+
+        .ticker-track .score { color: #fff; font-weight: 600; }
+        .ticker-track .delta-up { color: #4ade80; }
+        .ticker-track .delta-dn { color: #f87171; }
+        .ticker-track .sep { opacity: .4; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .ticker-track { animation: none; }
         }
 
         .header-content {
@@ -183,23 +367,49 @@
             transform: translateY(0);
         }
 
+        /* Logo: apsolutno pozicioniran, stretch od top:0 do bottom:0 (puna visina headera), iza tickera (z:1 < ticker z:2) */
         .header-logo {
-            flex: 0 0 auto;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: max(20px, calc(50vw - 680px));
+            z-index: 1;
             display: flex;
             align-items: center;
+            line-height: 0;
+        }
+
+        /* Soft radial backdrop oko loga — daje suptilni "spotlight" preko pattern-a */
+        .header-logo::before {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            background: radial-gradient(
+                ellipse at center,
+                rgba(10, 10, 15, .50) 0%,
+                rgba(10, 10, 15, .20) 50%,
+                transparent 80%
+            );
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
         }
 
         .header-logo img {
-            height: 96px;
+            height: 100%;     /* prati visinu headera (od top do bottom bordera) */
             width: auto;
             display: block;
-            filter: drop-shadow(0 0 12px rgba(255,107,53,0.2));
+            filter:
+                drop-shadow(0 4px 14px rgba(255, 107, 53, .25))
+                drop-shadow(0 0 8px rgba(0, 0, 0, .45));
             transition: transform 0.3s ease, filter 0.3s ease;
         }
 
         .header-logo img:hover {
-            transform: scale(1.06);
-            filter: drop-shadow(0 0 18px rgba(255,107,53,0.35));
+            transform: scale(1.05);
+            filter:
+                drop-shadow(0 6px 20px rgba(255, 107, 53, .42))
+                drop-shadow(0 0 10px rgba(0, 0, 0, .55));
         }
 
         /* Main Content */
@@ -505,7 +715,7 @@
         .scoreboard-table {
             width: max-content;
             border-collapse: collapse;
-            font-size: 0.86rem;
+            font-size: 0.8rem;
         }
 
         .scoreboard-table th,
@@ -542,6 +752,20 @@
             font-size: 0.72rem;
             letter-spacing: 0.02em;
             text-transform: uppercase;
+        }
+
+        .series-badge {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            border: 1px solid var(--accent);
+            border-radius: 10px;
+            color: var(--accent-light);
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            white-space: nowrap;
         }
 
         .scoreboard-table th:first-child,
@@ -596,6 +820,7 @@
             white-space: nowrap;
             width: fit-content;
             text-align: right;
+            font-size: 0.75rem;
         }
 
         /* Box Score */
@@ -1302,8 +1527,28 @@
                 gap: 10px;
             }
 
-            header {
-                padding: 8px 0;
+            header > .container {
+                padding-top: 6px;
+            }
+
+            .header-stream { padding: 4px 0; }
+            .header-stream .r1 { font-size: 28px; }
+            .header-stream .r2 { font-size: 14px; letter-spacing: 4px; }
+            .header-stream .r3 { font-size: 22px; margin-left: 30px; letter-spacing: 2px; }
+            .header-stream .r4 { font-size: 13px; margin-left: 20px; letter-spacing: 5px; }
+            .header-stream .r5 { font-size: 20px; letter-spacing: 3px; }
+
+            .ticker-track {
+                font-size: .68rem;
+                padding: 5px 32px 5px 12px;
+                gap: 12px;
+            }
+
+            .ticker-toggle {
+                width: 20px;
+                height: 20px;
+                top: 3px;
+                right: 4px;
             }
 
             .app-shell {
@@ -1347,6 +1592,18 @@
                 font-size: 1.05rem;
                 flex-wrap: wrap;
                 row-gap: 6px;
+            }
+
+            header {
+                min-height: 0;
+            }
+
+            .header-logo {
+                right: 12px;
+            }
+
+            .header-logo::before {
+                inset: -4px;
             }
 
             .header-logo img {
@@ -1434,12 +1691,26 @@
 </head>
 <body>
     <header>
+        <div class="header-stream" aria-hidden="true">
+            <div class="row r1"><span class="o">LAL</span><span class="w">BOS</span><span class="t">GSW</span><span class="o">MIA</span><span class="w">DEN</span><span class="t">MIL</span><span class="o">NYK</span><span class="w">PHX</span><span class="t">DAL</span><span class="o">PHI</span><span class="w">CLE</span><span class="t">OKC</span><span class="o">MIN</span><span class="w">SAC</span><span class="t">NOP</span></div>
+            <div class="row r2"><span class="t">47.8%</span><span class="o">38.2%</span><span class="w">89.5%</span><span class="t">52.1%</span><span class="o">41.3%</span><span class="w">55.4%</span><span class="t">36.7%</span><span class="o">82.9%</span><span class="w">61.0%</span><span class="t">44.5%</span><span class="o">39.2%</span></div>
+            <div class="row r3"><span class="o">112-108</span><span class="w">98-94</span><span class="acc">FINAL</span><span class="t">121-117</span><span class="o">#23</span><span class="w">#30</span><span class="t">OT</span><span class="acc">Q4 2:34</span><span class="o">W 4-2</span><span class="w">#34</span><span class="t">HALFTIME</span><span class="o">105-99</span></div>
+            <div class="row r4"><span class="o">PPG</span><span class="w">REB</span><span class="t">AST</span><span class="o">3PT%</span><span class="w">FG%</span><span class="t">BLK</span><span class="o">STL</span><span class="w">TO</span><span class="t">DD2</span><span class="o">TD3</span><span class="w">USG</span><span class="t">EFF</span><span class="o">MIN</span><span class="w">FT%</span></div>
+            <div class="row r5"><span class="t">30.5</span><span class="o">25.2</span><span class="w">12.7</span><span class="t">8.4</span><span class="o">6.3</span><span class="w">1.8</span><span class="t">2.1</span><span class="o">28.9</span><span class="w">11.4</span><span class="t">9.2</span><span class="o">35.7</span><span class="w">14.6</span></div>
+        </div>
+        <a href="https://github.com/sreckoskocilic/nba_stables" target="_blank" rel="noopener" class="header-logo">
+            <img src="/web/logo.png" alt="NBA Stables">
+        </a>
+        <div class="ticker-track" id="tickerTrack" aria-label="Live games ticker">
+            <span class="pill">Loading…</span>
+        </div>
+        <button id="tickerToggle" class="ticker-toggle" type="button" aria-pressed="false" aria-label="Pause ticker" title="Pause ticker">
+            <svg class="icon-pause" viewBox="0 0 8 10" aria-hidden="true"><rect x="0" y="0" width="3" height="10" rx="0.5"/><rect x="5" y="0" width="3" height="10" rx="0.5"/></svg>
+            <svg class="icon-play" viewBox="0 0 8 10" aria-hidden="true"><polygon points="0,0 8,5 0,10"/></svg>
+        </button>
         <div class="container">
             <div class="header-content">
                 <div id="moduleHeaderBar" class="module-header-bar"></div>
-                <a href="https://github.com/sreckoskocilic/nba_stables" target="_blank" rel="noopener" class="header-logo">
-                    <img src="/web/logo.png" alt="NBA Stables">
-                </a>
             </div>
         </div>
     </header>
@@ -1477,7 +1748,6 @@
             <section id="scoreboard" class="section active">
                 <div class="section-title">
                     Live Scoreboard
-<span class="badge" id="gamesCount">0 Games</span>
                     <button class="refresh-btn" data-action="loadScoreboard" title="Refresh scoreboard" aria-label="Refresh scoreboard">&#8635; Refresh</button>
                 </div>
                 <div id="scoreboardContent" class="cards-grid-compact">

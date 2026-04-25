@@ -1232,7 +1232,6 @@ async function loadScoreboard() {
     if (!response.ok)
       throw new Error(data.detail || "Failed to load scoreboard");
     const games = Array.isArray(data.games) ? data.games : [];
-    document.getElementById("gamesCount").textContent = `${games.length} Games`;
     if (games.length === 0) {
       content.innerHTML = `
                 <div class="empty-state">
@@ -1286,6 +1285,19 @@ async function loadScoreboard() {
                             const localTime = isGameLive(statusRaw)
                               ? homeTeamLocalTime(game.homeTeam?.tricode)
                               : "";
+                            const seriesBadge = (() => {
+                              const s = game.series;
+                              if (!s) return "";
+                              const home = Number(s.home) || 0;
+                              const away = Number(s.away) || 0;
+                              const homeTri = game.homeTeam?.tricode ?? "";
+                              const awayTri = game.awayTeam?.tricode ?? "";
+                              const [leadTri, trailTri, leadW, trailW] =
+                                home >= away
+                                  ? [homeTri, awayTri, home, away]
+                                  : [awayTri, homeTri, away, home];
+                              return `<span class="series-badge">${esc(leadTri)}-${esc(trailTri)} ${leadW}-${trailW}</span>`;
+                            })();
                             const homeName = esc(game.homeTeam?.name ?? "-");
                             const awayName = esc(game.awayTeam?.name ?? "-");
                             const homeScoreText = esc(
@@ -1304,7 +1316,7 @@ async function loadScoreboard() {
                                                 : ""
                                             }
                                         </td>
-                                        <td class="scoreboard-game-meta-label" colspan="2">${game.gameEt ? new Date(game.gameEt).toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" }) : ""}</td>
+                                        <td class="scoreboard-game-meta-label" colspan="2">${seriesBadge || (game.gameEt ? new Date(game.gameEt).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }) : "")}</td>
                                     </tr>
                                     <tr class="scoreboard-team-row${homeWinner ? " winner" : ""}">
                                         <td class="scoreboard-team"><code>Home</code><span class="scoreboard-team-name">${homeName}</span></td>
@@ -1534,6 +1546,136 @@ function renderSeasonHighs() {
 }
 // Trigger initial scoreboard render.
 loadScoreboard();
+
+// === Header ticker (live scoreboard summary at top of header) ===
+
+function _tickerCountDoubles(leader) {
+  if (!leader) return 0;
+  let c = 0;
+  if ((parseInt(leader.points, 10) || 0) >= 10) c++;
+  if ((parseInt(leader.rebounds, 10) || 0) >= 10) c++;
+  if ((parseInt(leader.assists, 10) || 0) >= 10) c++;
+  return c;
+}
+
+function _tickerLastName(name) {
+  if (!name || name === "null") return "";
+  const parts = String(name).trim().split(/\s+/);
+  return parts[parts.length - 1] || "";
+}
+
+function _buildTickerItems(games) {
+  if (!Array.isArray(games) || games.length === 0) return [];
+  const items = [];
+  let hasLive = false;
+  for (const g of games) {
+    const home = g.homeTeam || {};
+    const away = g.awayTeam || {};
+    const status = String(g.status || "");
+    const isFinal = /final/i.test(status);
+    const isLive =
+      !isFinal && /q[1-4]|ot|halftime|\bend\b|\d:\d{2}/i.test(status);
+    if (isLive) hasLive = true;
+
+    const homeT = esc(home.tricode || home.name || "—");
+    const awayT = esc(away.tricode || away.name || "—");
+    const homeS = home.score == null || home.score === "null" ? "" : esc(home.score);
+    const awayS = away.score == null || away.score === "null" ? "" : esc(away.score);
+
+    let badge = "";
+    if (isFinal) {
+      badge = '<span class="pill">FINAL</span>';
+    } else if (isLive) {
+      badge = `<span class="delta-up">${esc(status)}</span>`;
+    } else if (status) {
+      badge = `<span class="sep">${esc(status)}</span>`;
+    }
+
+    const score = homeS && awayS
+      ? `<b class="score">${homeT} ${homeS}</b> – <b class="score">${awayT} ${awayS}</b>`
+      : `<b class="score">${homeT}</b> – <b class="score">${awayT}</b>`;
+
+    items.push(`<span>${badge} ${score}</span>`);
+    items.push('<span class="sep">|</span>');
+
+    // Top leader of the game
+    const leaders = [home.leader, away.leader].filter(
+      (l) => l && l.name && l.name !== "null",
+    );
+    if (leaders.length) {
+      leaders.sort(
+        (a, b) => (parseInt(b.points, 10) || 0) - (parseInt(a.points, 10) || 0),
+      );
+      const top = leaders[0];
+      const dd = _tickerCountDoubles(top);
+      const flag =
+        dd >= 3 ? ' <span class="delta-up">TD</span>'
+        : dd === 2 ? ' <span class="delta-up">DD</span>'
+        : "";
+      items.push(
+        `<span><b class="score">${esc(_tickerLastName(top.name))}</b> ${esc(top.points)}/${esc(top.rebounds)}/${esc(top.assists)}${flag}</span>`,
+      );
+      items.push('<span class="sep">|</span>');
+    }
+  }
+  if (hasLive) items.unshift('<span class="pill live">● LIVE</span>');
+  return items;
+}
+
+async function loadHeaderTicker() {
+  const track = document.getElementById("tickerTrack");
+  if (!track) return;
+  try {
+    const r = await fetch("/api/scoreboard", { cache: "no-store" });
+    if (!r.ok) throw new Error("scoreboard fetch failed");
+    const data = await r.json();
+    const games = Array.isArray(data?.games) ? data.games : [];
+    const items = _buildTickerItems(games);
+    if (items.length === 0) {
+      track.innerHTML =
+        '<span class="pill">No games today</span><span class="sep">|</span><span>Check back later for live action</span>';
+      return;
+    }
+    // Duplicate content so the CSS keyframe (-50%) loops seamlessly.
+    track.innerHTML = items.join("") + items.join("");
+  } catch (_) {
+    track.innerHTML =
+      '<span class="pill">NBA Stables</span><span class="sep">|</span><span>All the stats you need</span>';
+  }
+}
+
+loadHeaderTicker();
+setInterval(loadHeaderTicker, 30000);
+
+// Ticker pause/resume toggle (with persisted preference)
+(function initTickerToggle() {
+  const ticker = document.getElementById("tickerTrack");
+  const toggle = document.getElementById("tickerToggle");
+  if (!ticker || !toggle) return;
+
+  const STORAGE_KEY = "nbastables.tickerPaused";
+
+  const setPaused = (paused) => {
+    ticker.classList.toggle("is-paused", paused);
+    toggle.setAttribute("aria-pressed", paused ? "true" : "false");
+    const label = paused ? "Resume ticker" : "Pause ticker";
+    toggle.setAttribute("aria-label", label);
+    toggle.setAttribute("title", label);
+    try {
+      localStorage.setItem(STORAGE_KEY, paused ? "1" : "0");
+    } catch (_) {}
+  };
+
+  let initial = false;
+  try {
+    initial = localStorage.getItem(STORAGE_KEY) === "1";
+  } catch (_) {}
+  if (initial) setPaused(true);
+
+  toggle.addEventListener("click", () => {
+    setPaused(!ticker.classList.contains("is-paused"));
+  });
+})();
 
 // Keep keyword highlighting, but only on escaped text.
 

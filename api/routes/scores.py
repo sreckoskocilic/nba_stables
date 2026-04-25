@@ -71,6 +71,11 @@ _EMPTY_LEADER = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
 PLAYOFF_SEED_IN = 6  # Seeds 1-6 get automatic playoff berth
 PLAYOFF_SEED_PLAYIN = 10  # Seeds 7-10 make play-in tournament
 
+# Series counts only change after a playoff game ends; cache longer than scoreboard.
+_PLAYOFF_SERIES_TTL = 300
+
+_TRICODE_TO_TEAM_ID = {tri: tid for tid, (tri, _) in TEAMS.items()}
+
 
 def _sort_by_rank(teams: list) -> list:
     """Sort teams by rank, placing unranked teams at the end."""
@@ -168,6 +173,10 @@ async def get_scoreboard():
                 live_by_id.get(g["gameId"], g) if g["gameId"] in started_ids else g
                 for g in games
             ]
+        try:
+            _attach_series_to_games(games, _get_playoff_series_cached(get_current_season()))
+        except Exception as ex:  # pragma: no cover
+            log_exceptions(ex, "scoreboard_series_attach")
         display_date = sb_date.strftime("%B %d, %Y")
         return {"games": games, "date": display_date}
 
@@ -528,6 +537,47 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
     return result
 
 
+def _get_playoff_series_cached(season: str) -> dict:
+    """Cached wrapper around _fetch_playoff_series_data.
+
+    Series counts only update when a playoff game ends, so we cache longer
+    than the scoreboard (which refreshes every 30s). Outside the playoffs the
+    fetch returns {} and we cache that to avoid hammering the NBA API.
+    """
+    cache_key = f"playoff_series_{season}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    result = _fetch_playoff_series_data(season)
+    cache.set(cache_key, result, _PLAYOFF_SERIES_TTL)
+    return result
+
+
+def _attach_series_to_games(games: list[dict], series_data: dict) -> None:
+    """Mutate scoreboard `games` to include a `series` field on playoff games.
+
+    `series` shape: {"home": <home_wins>, "away": <away_wins>}.
+    Games whose team pair is not in series_data are left untouched.
+    """
+    if not series_data:
+        return
+    for game in games:
+        home_tri = (game.get("homeTeam") or {}).get("tricode") or ""
+        away_tri = (game.get("awayTeam") or {}).get("tricode") or ""
+        home_id = _TRICODE_TO_TEAM_ID.get(home_tri)
+        away_id = _TRICODE_TO_TEAM_ID.get(away_tri)
+        if not home_id or not away_id:
+            continue
+        lo, hi = sorted((home_id, away_id))
+        wins = series_data.get(f"{lo}_{hi}")
+        if not wins:
+            continue
+        game["series"] = {
+            "home": wins.get(str(home_id), 0),
+            "away": wins.get(str(away_id), 0),
+        }
+
+
 def _fetch_playoff_series_data(season: str) -> dict:
     """Return current playoff series win counts keyed by sorted team-ID pair.
 
@@ -628,7 +678,7 @@ async def get_playoff_picture():
             _fetch_playin_data, east_sorted[6:10], west_sorted[6:10]
         )
         series_future = executor.submit(
-            _fetch_playoff_series_data, get_current_season()
+            _get_playoff_series_cached, get_current_season()
         )
         try:
             playin_actual = playin_future.result(timeout=STATS_TIMEOUT)

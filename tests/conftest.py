@@ -1,12 +1,32 @@
 import logging
 import os
 import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Make `api/` importable from anywhere pytest is run
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
 
 # Suppress noisy error logs from intentional exception tests
 logging.getLogger("helpers.logger").setLevel(logging.CRITICAL)
+
+
+@pytest.fixture(autouse=True)
+def _patch_lgf_playoffs():
+    """Block real LeagueGameFinder calls in every test.
+
+    `_fetch_playoff_series_data` is invoked indirectly from /api/scoreboard and
+    /api/playoffs via the cached series helper; without this patch each affected
+    test would hit the live NBA API. Tests that need specific behaviour override
+    this with their own patch.
+    """
+    m = MagicMock()
+    m.return_value.get_dict.return_value = {
+        "resultSets": [{"headers": ["GAME_ID", "TEAM_ID", "WL", "PTS"], "rowSet": []}]
+    }
+    with patch("routes.scores.LeagueGameFinder", m):
+        yield
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared test constants

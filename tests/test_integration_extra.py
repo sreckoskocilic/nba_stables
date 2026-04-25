@@ -33,18 +33,6 @@ def clear_cache():
     cache.clear()
 
 
-@pytest.fixture(autouse=True)
-def _patch_lgf_playoffs():
-    """Prevent _fetch_playoff_series_data from making real API calls by default.
-    Tests that need specific LeagueGameFinder behaviour override this with their own patch."""
-    m = MagicMock()
-    m.return_value.get_dict.return_value = {
-        "resultSets": [{"headers": ["GAME_ID", "TEAM_ID", "WL", "PTS"], "rowSet": []}]
-    }
-    with patch("routes.scores.LeagueGameFinder", m):
-        yield
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Cache-hit branches
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1084,3 +1072,112 @@ class TestExecutorTimeouts:
             r = client.get("/api/playoffs")
         assert r.status_code == 200
         assert r.json()["seriesResults"] == {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Scoreboard playoff series badge
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestScoreboardSeries:
+    def _lgf_mock(self, rowset):
+        m = MagicMock()
+        m.return_value.get_dict.return_value = {
+            "resultSets": [
+                {"headers": ["GAME_ID", "TEAM_ID", "WL", "PTS"], "rowSet": rowset}
+            ]
+        }
+        return m
+
+    def _patch_sb(self, games):
+        from contextlib import ExitStack
+        from datetime import date
+
+        from conftest import make_scoreboard_v3
+
+        stack = ExitStack()
+        stack.enter_context(
+            patch(
+                "routes.scores.get_scoreboard_v3_by_date",
+                return_value=make_scoreboard_v3(games),
+            )
+        )
+        stack.enter_context(
+            patch("routes.scores.scoreboard_date", return_value=date(2026, 4, 25))
+        )
+        stack.enter_context(
+            patch("routes.scores.get_cached_scoreboard", return_value=[])
+        )
+        return stack
+
+    def test_attach_helper_sets_series(self):
+        from routes.scores import _attach_series_to_games
+
+        lo, hi = sorted((TEAM_ID_LAL, TEAM_ID_BOS))
+        games = [
+            {
+                "homeTeam": {"tricode": "LAL"},
+                "awayTeam": {"tricode": "BOS"},
+            }
+        ]
+        _attach_series_to_games(
+            games, {f"{lo}_{hi}": {str(TEAM_ID_LAL): 3, str(TEAM_ID_BOS): 1}}
+        )
+        assert games[0]["series"] == {"home": 3, "away": 1}
+
+    def test_attach_helper_skips_unknown_pair(self):
+        from routes.scores import _attach_series_to_games
+
+        games = [{"homeTeam": {"tricode": "LAL"}, "awayTeam": {"tricode": "BOS"}}]
+        _attach_series_to_games(games, {"999_998": {"999": 1, "998": 0}})
+        assert "series" not in games[0]
+
+    def test_attach_helper_skips_unknown_tricode(self):
+        from routes.scores import _attach_series_to_games
+
+        # Unknown tricode -> _TRICODE_TO_TEAM_ID lookup returns None -> continue.
+        games = [{"homeTeam": {"tricode": "ZZZ"}, "awayTeam": {"tricode": "BOS"}}]
+        _attach_series_to_games(games, {"1_2": {"1": 3, "2": 0}})
+        assert "series" not in games[0]
+
+    def test_attach_helper_noop_on_empty(self):
+        from routes.scores import _attach_series_to_games
+
+        games = [{"homeTeam": {"tricode": "LAL"}, "awayTeam": {"tricode": "BOS"}}]
+        _attach_series_to_games(games, {})
+        assert "series" not in games[0]
+
+    def test_scoreboard_includes_series(self, client):
+        # LeagueGameFinder rows: LAL beats BOS twice -> LAL leads 2-0
+        lgf_rows = [
+            ["PG01", TEAM_ID_LAL, "W", 110],
+            ["PG01", TEAM_ID_BOS, "L", 100],
+            ["PG02", TEAM_ID_LAL, "W", 105],
+            ["PG02", TEAM_ID_BOS, "L", 98],
+        ]
+        with self._patch_sb([make_live_game(gameStatusText="Final")]), patch(
+            "routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)
+        ):
+            r = client.get("/api/scoreboard")
+        assert r.status_code == 200
+        g = r.json()["games"][0]
+        # home=LAL, away=BOS by make_live_game defaults
+        assert g["series"] == {"home": 2, "away": 0}
+
+    def test_scoreboard_no_series_outside_playoffs(self, client):
+        # Default autouse fixture returns empty rowset -> no series data
+        with self._patch_sb([make_live_game(gameStatusText="Final")]):
+            r = client.get("/api/scoreboard")
+        assert "series" not in r.json()["games"][0]
+
+    def test_series_cache_reused(self):
+        """_get_playoff_series_cached returns the cached value on the second call."""
+        from routes.scores import _get_playoff_series_cached
+
+        with patch(
+            "routes.scores._fetch_playoff_series_data", return_value={"k": {"v": 1}}
+        ) as fetch_mock:
+            first = _get_playoff_series_cached("2025-26")
+            second = _get_playoff_series_cached("2025-26")
+        assert first == second == {"k": {"v": 1}}
+        fetch_mock.assert_called_once()
