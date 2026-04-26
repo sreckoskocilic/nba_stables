@@ -81,7 +81,15 @@ jobs:
             exit 1
           fi
 
-          # Use REST API directly — `gh pr merge` checks GraphQL mergeable state
-          # which lags behind required status checks and falsely reports "blocked".
-          gh api -X PUT "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/merge" -f merge_method=squash
-          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${branch}"
+          # Branch protection takes time to register the completed check; retry on 405.
+          for attempt in $(seq 1 30); do
+            if gh api -X PUT "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/merge" -f merge_method=squash; then
+              break
+            fi
+            if [ "$attempt" = "30" ]; then
+              echo "Merge still rejected after retries." >&2
+              exit 1
+            fi
+            sleep 15
+          done
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${branch}" || true
