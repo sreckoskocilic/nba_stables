@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   scrape:
@@ -26,10 +27,12 @@ jobs:
       - name: Scrape CBS injuries
         run: python api/static/update_injuries.py
 
-      - name: Open auto-merging PR
+      - name: Open PR, run tests, merge
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+
           if git diff --quiet api/static/cbs_injuries.json; then
             echo "No changes — skipping PR."
             exit 0
@@ -48,4 +51,34 @@ jobs:
             --head "$branch" \
             --title "update CBS injuries data" \
             --body "Automated daily CBS injuries scrape.")
-          gh pr merge "$pr_url" --auto --squash --delete-branch
+          pr_number=$(gh pr view "$pr_url" --json number -q .number)
+
+          gh workflow run tests.yml --ref "$branch"
+
+          # Wait for the dispatched run to register
+          run_id=""
+          for _ in $(seq 1 12); do
+            sleep 5
+            run_id=$(gh run list --branch "$branch" --workflow tests.yml --event workflow_dispatch --limit 1 --json databaseId -q '.[0].databaseId // empty')
+            [ -n "$run_id" ] && break
+          done
+          if [ -z "$run_id" ]; then
+            echo "Test run never appeared." >&2
+            exit 1
+          fi
+          echo "Watching test run $run_id"
+
+          # Poll until it completes
+          while true; do
+            status=$(gh run view "$run_id" --json status -q .status)
+            [ "$status" = "completed" ] && break
+            sleep 15
+          done
+
+          conclusion=$(gh run view "$run_id" --json conclusion -q .conclusion)
+          if [ "$conclusion" != "success" ]; then
+            echo "Tests failed (conclusion=$conclusion). Leaving PR #$pr_number open." >&2
+            exit 1
+          fi
+
+          gh pr merge "$pr_number" --squash --delete-branch
