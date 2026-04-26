@@ -814,7 +814,10 @@ class TestGamePlayers:
         body = r.json()
         assert body["arena"] == "Crypto.com Arena, Los Angeles"
         assert body["attendance"] == 18997
-        assert [o["name"] for o in body["officials"]] == ["Tony Brothers", "Scott Foster"]
+        assert [o["name"] for o in body["officials"]] == [
+            "Tony Brothers",
+            "Scott Foster",
+        ]
 
     def test_top_performers(self, client):
         with patch(
@@ -822,7 +825,14 @@ class TestGamePlayers:
         ):
             r = client.get(f"/api/games/{GAME_ID}/players")
         tp = r.json()["topPerformers"]
-        for key in ("points", "rebounds", "assists", "steals", "blocks", "threePointers"):
+        for key in (
+            "points",
+            "rebounds",
+            "assists",
+            "steals",
+            "blocks",
+            "threePointers",
+        ):
             assert key in tp
         # Tatum scored 32 in fixture, beats LeBron's 28
         assert tp["points"]["value"] == 32
@@ -954,6 +964,136 @@ class TestSeasonAvg:
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/season-avg")
         assert r.status_code == 404
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /api/players/{player_id}/profile
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _mock_profile_endpoints(bio_overrides=None, career_rows=None, highs=None):
+    """Returns (CPI mock, PCS mock, PPv2 mock) for patching."""
+    bio_headers = [
+        "DISPLAY_FIRST_LAST",
+        "TEAM_ABBREVIATION",
+        "TEAM_CITY",
+        "TEAM_NAME",
+        "JERSEY",
+        "POSITION",
+        "HEIGHT",
+        "WEIGHT",
+        "BIRTHDATE",
+        "COUNTRY",
+        "DRAFT_YEAR",
+        "DRAFT_NUMBER",
+        "SCHOOL",
+        "SEASON_EXP",
+    ]
+    bio_row = [
+        "LeBron James",
+        "LAL",
+        "Los Angeles",
+        "Lakers",
+        "23",
+        "F",
+        "6-9",
+        "250",
+        "1984-12-30",
+        "USA",
+        "2003",
+        "1",
+        "St. Vincent",
+        23,
+    ]
+    if bio_overrides:
+        for i, v in bio_overrides.items():
+            bio_row[i] = v
+    cpi = MagicMock()
+    cpi.return_value.common_player_info.get_dict.return_value = {
+        "headers": bio_headers,
+        "data": [bio_row],
+    }
+
+    if career_rows is None:
+        career_rows = [make_career_row()]
+    pcs = MagicMock()
+    pcs.return_value.season_totals_regular_season.get_dict.return_value = {
+        "headers": CAREER_HEADERS,
+        "data": career_rows,
+    }
+
+    if highs is None:
+        highs = [
+            ["PTS", 61, "2014-03-03T00:00:00", "DAL"],
+            ["REB", 19, "2018-04-04T00:00:00", "NJN"],
+            ["AST", 19, "2017-12-22T00:00:00", "PHX"],
+            ["FG3M", 11, "2010-01-15T00:00:00", "MIA"],
+        ]
+    ppv2 = MagicMock()
+    ppv2.return_value.career_highs.get_dict.return_value = {
+        "headers": ["STAT", "STAT_VALUE", "GAME_DATE", "VS_TEAM_ABBREVIATION"],
+        "data": highs,
+    }
+    return cpi, pcs, ppv2
+
+
+class TestPlayerProfile:
+    def test_returns_full_profile(self, client):
+        cpi, pcs, ppv2 = _mock_profile_endpoints()
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
+        ):
+            r = client.get(f"/api/players/{PLAYER_ID}/profile")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["bio"]["name"] == "LeBron James"
+        assert body["bio"]["team"] == "LAL"
+        assert body["bio"]["jersey"] == "23"
+        assert body["bio"]["position"] == "F"
+        assert body["bio"]["age"] is not None
+        assert len(body["career"]) == 1
+        assert body["career"][0]["points"] == 28.0
+        pts_high = next(h for h in body["careerHighs"] if h["stat"] == "PTS")
+        assert pts_high["value"] == 61
+        assert pts_high["opponent"] == "DAL"
+        assert pts_high["date"] == "2014-03-03"
+        # All highs from API are returned (not curated)
+        assert len(body["careerHighs"]) == 4
+
+    def test_handles_missing_bio(self, client):
+        cpi, pcs, ppv2 = _mock_profile_endpoints()
+        cpi.return_value.common_player_info.get_dict.return_value = {
+            "headers": [],
+            "data": [],
+        }
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
+        ):
+            r = client.get(f"/api/players/{PLAYER_ID}/profile")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["bio"] == {}
+        assert len(body["career"]) == 1
+
+    def test_highs_failure_keeps_career(self, client):
+        """If PlayerProfileV2 fails (NBA API kvirk), career and bio still return."""
+        cpi, pcs, _ = _mock_profile_endpoints()
+        ppv2_fail = MagicMock(side_effect=ValueError("empty response"))
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2_fail),
+        ):
+            r = client.get(f"/api/players/{PLAYER_ID}/profile")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["bio"]["name"] == "LeBron James"
+        assert len(body["career"]) == 1
+        assert body["careerHighs"] == []
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -364,7 +364,7 @@ async function loadTrackedStats() {
     if (0 === a.players.length)
       return void (t.innerHTML =
         '\n                        <div class="empty-state">\n                            <div class="empty-state-icon">&#128564;</div>\n                            <div class="empty-state-title">No Active Games</div>\n                            <p>Selected players don\'t have games in progress today</p>\n                        </div>\n                    ');
-    t.innerHTML = `\n                    <div class="card" style="overflow-x: auto;">\n                        <table class="player-stats-table">\n                            <thead>\n                                <tr>\n                                    <th>Player</th>\n                                    <th>Team</th>\n                                    <th>MIN</th>\n                                    <th>PTS</th>\n                                    <th>FG</th>\n                                    <th>3P</th>\n                                    <th>FT</th>\n                                    <th>REB</th>\n                                    <th>AST</th>\n                                    <th>BLK</th>\n                                    <th>STL</th>\n                                    <th>PF</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                ${a.players.map((t) => `\n                                    <tr>\n                                        <td><strong>${esc(t.name)}</strong></td>\n                                        <td>${esc(t.team)}</td>\n                                        <td>${t.minutes}</td>\n                                        <td class="${statClass("points", t.points)}">${t.points}</td>\n                                        <td>${t.fg}</td>\n                                        <td>${t.threePointers}</td>\n                                        <td>${t.ft}</td>\n                                        <td class="${statClass("rebounds", t.rebounds)}">${t.rebounds}</td>\n                                        <td class="${statClass("assists", t.assists)}">${t.assists}</td>\n                                        <td class="${statClass("blocks", t.blocks)}">${t.blocks}</td>\n                                        <td class="${statClass("steals", t.steals)}">${t.steals}</td>\n                                        <td>${t.fouls}</td>\n                                    </tr>\n                                `).join("")}\n                            </tbody>\n                        </table>\n                    </div>\n                `;
+    t.innerHTML = `\n                    <div class="card" style="overflow-x: auto;">\n                        <table class="player-stats-table">\n                            <thead>\n                                <tr>\n                                    <th>Player</th>\n                                    <th>Team</th>\n                                    <th>MIN</th>\n                                    <th>PTS</th>\n                                    <th>FG</th>\n                                    <th>3 PT</th>\n                                    <th>FT</th>\n                                    <th>REB</th>\n                                    <th>AST</th>\n                                    <th>BLK</th>\n                                    <th>STL</th>\n                                    <th>PF</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                ${a.players.map((t) => `\n                                    <tr>\n                                        <td><strong>${esc(t.name)}</strong></td>\n                                        <td>${esc(t.team)}</td>\n                                        <td>${t.minutes}</td>\n                                        <td class="${statClass("points", t.points)}">${t.points}</td>\n                                        <td>${t.fg}</td>\n                                        <td>${t.threePointers}</td>\n                                        <td>${t.ft}</td>\n                                        <td class="${statClass("rebounds", t.rebounds)}">${t.rebounds}</td>\n                                        <td class="${statClass("assists", t.assists)}">${t.assists}</td>\n                                        <td class="${statClass("blocks", t.blocks)}">${t.blocks}</td>\n                                        <td class="${statClass("steals", t.steals)}">${t.steals}</td>\n                                        <td>${t.fouls}</td>\n                                    </tr>\n                                `).join("")}\n                            </tbody>\n                        </table>\n                    </div>\n                `;
   } catch (e) {
     t.innerHTML = `\n                    <div class="empty-state">\n                        <div class="empty-state-icon">&#9888;</div>\n                        <div class="empty-state-title">Error Loading Stats</div>\n                        <p>${esc(e.message)}</p>\n                    </div>\n                `;
   }
@@ -482,7 +482,7 @@ async function toggleGameDetails(t, e) {
                                     <th>AST</th>
                                     <th>FG</th>
                                     <th>FG%</th>
-                                    <th>3PT</th>
+                                    <th>3 PT</th>
                                     <th>FT</th>
                                     <th>STL</th>
                                     <th>BLK</th>
@@ -582,39 +582,193 @@ function setInjuriesView(t) {
       .classList.toggle("active", "grouped" === t),
     injuriesData && renderInjuries());
 }
-let lastNSelectedPlayer = null,
-  lastNGamesCount = 5;
-const _lastNDateBtns = Array.from(
-  document.querySelectorAll("#lastngames .date-btn[data-n]"),
-);
-async function loadLastNGames() {
+let lastNSelectedPlayer = null;
+const PROFILE_RECENT_N = 10;
+
+function _renderProfileBio(profile, fallbackName) {
+  const bio = (profile && profile.bio) || {};
+  const name = bio.name || fallbackName || "";
+  const teamLine = [bio.teamName, bio.jersey ? `#${bio.jersey}` : "", bio.position]
+    .filter(Boolean)
+    .join(" · ");
+  const physical = [
+    bio.height,
+    bio.weight ? `${bio.weight} lbs` : "",
+    bio.age ? `Age ${bio.age}` : "",
+    bio.country,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const draft = bio.draftYear
+    ? `Draft ${esc(bio.draftYear)}${bio.draftNumber ? " #" + esc(bio.draftNumber) : ""}`
+    : "";
+  const meta = [
+    draft,
+    bio.school ? `College: ${esc(bio.school)}` : "",
+    bio.experience != null ? `Experience: ${bio.experience} yrs` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return `
+    <div class="card" style="padding: 14px 18px; margin-bottom: 12px;">
+        <div style="font-family: 'Russo One', sans-serif; font-size: 1.4rem; color: var(--accent);">${esc(name)}</div>
+        ${teamLine ? `<div style="margin-top: 4px; font-size: 0.9rem;">${esc(teamLine)}</div>` : ""}
+        ${physical ? `<div style="margin-top: 2px; color: var(--text-secondary); font-size: 0.82rem;">${esc(physical)}</div>` : ""}
+        ${meta ? `<div style="margin-top: 2px; color: var(--text-secondary); font-size: 0.78rem;">${meta}</div>` : ""}
+    </div>`;
+}
+
+function _renderProfileCareer(profile, pct1) {
+  const career = (profile && profile.career) || [];
+  if (!career.length) return "";
+  const rows = career
+    .map(
+      (r) => `
+        <tr>
+            <td style="text-align: left; white-space: nowrap; font-weight: 600;">${esc(r.season)}</td>
+            <td>${esc(r.team)}</td>
+            <td>${r.gp}</td>
+            <td>${r.minutes}</td>
+            <td class="${statClass("points", r.points)}">${r.points}</td>
+            <td class="${statClass("rebounds", r.rebounds)}">${r.rebounds}</td>
+            <td class="${statClass("assists", r.assists)}">${r.assists}</td>
+            <td>${r.steals}</td>
+            <td>${r.blocks}</td>
+            <td>${pct1(r.fgPct)}</td>
+            <td>${pct1(r.fg3Pct)}</td>
+            <td>${pct1(r.ftPct)}</td>
+        </tr>`,
+    )
+    .join("");
+  return `
+    <div class="card lastn-table-wrap">
+        <table class="player-stats-table">
+            <thead>
+                <tr>
+                    <th>Season</th>
+                    <th>Team</th>
+                    <th>GP</th>
+                    <th>MIN</th>
+                    <th>PTS</th>
+                    <th>REB</th>
+                    <th>AST</th>
+                    <th>STL</th>
+                    <th>BLK</th>
+                    <th>FG%</th>
+                    <th>3P%</th>
+                    <th>FT%</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    </div>`;
+}
+
+const _STAT_LABELS = {
+  PTS: "Points",
+  REB: "Rebounds",
+  AST: "Assists",
+  STL: "Steals",
+  BLK: "Blocks",
+  MIN: "Minutes",
+  TOV: "Turnovers",
+  PF: "Personal Fouls",
+  OREB: "Offensive Rebounds",
+  DREB: "Defensive Rebounds",
+  FGM: "Field Goals Made",
+  FGA: "Field Goals Attempted",
+  FG3M: "3 PT Made",
+  FG3A: "3 PT Attempted",
+  FTM: "Free Throws Made",
+  FTA: "Free Throws Attempted",
+  FG_PCT: "FG%",
+  FG3_PCT: "3P%",
+  FT_PCT: "FT%",
+};
+
+function _renderProfileHighs(profile) {
+  const highs = (profile && profile.careerHighs) || [];
+  const list = Array.isArray(highs) ? highs : [];
+  if (!list.length) return "";
+  const fmtDate = (s) => {
+    if (!s) return "-";
+    const d = new Date(s + "T12:00:00");
+    return isNaN(d)
+      ? esc(s)
+      : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  };
+  const rows = list
+    .map((h) => {
+      const label = _STAT_LABELS[h.stat] || h.stat;
+      return `
+        <tr>
+            <td>${esc(label)}</td>
+            <td class="highlight">${h.value}</td>
+            <td style="white-space: nowrap; color: var(--text-secondary); font-size: 0.85em;">${fmtDate(h.date)}</td>
+            <td style="color: var(--text-secondary); font-size: 0.85em;">${h.opponent ? "vs " + esc(h.opponent) : "-"}</td>
+        </tr>`;
+    })
+    .join("");
+  return `
+    <div class="card leaders-table-wrap">
+        <table class="leaders-table">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>High</th>
+                    <th>Date</th>
+                    <th>Opponent</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    </div>`;
+}
+
+function showProfileTab(name) {
+  document.querySelectorAll("[data-profile-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.profileTab === name);
+  });
+  document.querySelectorAll("[data-profile-panel]").forEach((panel) => {
+    panel.style.display = panel.dataset.profilePanel === name ? "block" : "none";
+  });
+}
+
+async function loadPlayerProfile() {
   if (!lastNSelectedPlayer) return;
   const t = document.getElementById("lastNContent");
   t.innerHTML =
-    '<div class="loading"><div class="spinner"></div> Loading game log...</div>';
+    '<div class="loading"><div class="spinner"></div> Loading profile...</div>';
   try {
-    const [e, s] = await Promise.all([
+    const [e, s, p] = await Promise.all([
         _fetchWithAbort(
           "lastNGames",
-          `/api/players/${lastNSelectedPlayer.id}/last-n-games?n=${lastNGamesCount}`,
+          `/api/players/${lastNSelectedPlayer.id}/last-n-games?n=${PROFILE_RECENT_N}`,
         ),
         _fetchWithAbort(
           "lastNSeasonAvg",
           `/api/players/${lastNSelectedPlayer.id}/season-avg`,
         ),
+        _fetchWithAbort(
+          "playerProfile",
+          `/api/players/${lastNSelectedPlayer.id}/profile`,
+        ),
       ]),
       a = await e.json(),
-      n = s.ok ? await s.json() : null;
-    if (!a.games || 0 === a.games.length)
+      n = s.ok ? await s.json() : null,
+      profile = p.ok ? await p.json() : null;
+    const hasGames = a.games && a.games.length > 0;
+    const hasProfile = profile && (profile.bio || (profile.career && profile.career.length));
+    if (!hasGames && !hasProfile)
       return void (t.innerHTML = `
                         <div class="empty-state">
                             <div class="empty-state-icon">&#128564;</div>
-                            <div class="empty-state-title">No Games Found</div>
-                            <p>No recent game data available for ${esc(a.playerName)}</p>
+                            <div class="empty-state-title">No Data Found</div>
+                            <p>No profile data available for ${esc((a && a.playerName) || lastNSelectedPlayer.name)}</p>
                         </div>
                     `);
 
-    const played = a.games.filter((g) => !g.dnp);
+    const played = (a.games || []).filter((g) => !g.dnp);
     const avgNum = (key) => {
       if (!played.length) return "0.0";
       return (
@@ -689,92 +843,108 @@ async function loadLastNGames() {
       return `${n.toFixed(1)}%`;
     };
 
-    t.innerHTML = `
-                    <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 0.85rem;">
-                        ${played.length} games played of ${a.games.length} shown
-                    </div>
-                    <div class="card lastn-table-wrap">
-                        <table class="player-stats-table">
-                            <thead>
-                                <tr>
-                                    <th>Matchup</th>
-                                    <th>MIN</th>
-                                    <th>PTS</th>
-                                    <th>FG</th>
-                                    <th>3P</th>
-                                    <th>FT</th>
-                                    <th>REB</th>
-                                    <th>AST</th>
-                                    <th>BLK</th>
-                                    <th>STL</th>
-                                    <th>PF</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${a.games
-                                  .map((g) =>
-                                    g.dnp
-                                      ? `
-                                    <tr class="dnp-row">
-                                        <td>${esc(g.matchup)}</td>
-                                        <td colspan="10" class="dnp-cell">DNP</td>
-                                    </tr>
-                                `
-                                      : `
-                                    <tr>
-                                        <td>${esc(g.matchup)}</td>
-                                        <td>${g.minutes}</td>
-                                        <td class="${statClass("points", g.points)}">${g.points}</td>
-                                        <td>${g.fg}</td>
-                                        <td>${g.threePointers}</td>
-                                        <td>${g.ft}</td>
-                                        <td class="${statClass("rebounds", g.rebounds)}">${g.rebounds}</td>
-                                        <td class="${statClass("assists", g.assists)}">${g.assists}</td>
-                                        <td class="${statClass("blocks", g.blocks)}">${g.blocks}</td>
-                                        <td class="${statClass("steals", g.steals)}">${g.steals}</td>
-                                        <td>${g.fouls}</td>
-                                    </tr>
-                                `,
-                                  )
-                                  .join("")}
-                                ${
-                                  n
-                                    ? `
-                                <tr style="border-top: 2px solid var(--accent); background: var(--bg-secondary); font-weight: 600;">
-                                    <td style="text-align: left; white-space: nowrap;">
-                                        <span style="color: var(--accent); font-size: 0.75rem;">${n.season}</span>
-                                        <span style="color: var(--text-secondary); font-size: 0.7rem; margin-left: 4px;">(${n.gp} games)</span>
-                                    </td>
-                                    <td style="color: var(--text-secondary);">${n.minutes}</td>
-                                    <td class="highlight">${n.points}</td>
-                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${pct1(n.fgPct)}</td>
-                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${pct1(n.fg3Pct)}</td>
-                                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${pct1(n.ftPct)}</td>
-                                    <td>${n.rebounds}</td>
-                                    <td>${n.assists}</td>
-                                    <td>${n.blocks}</td>
-                                    <td>${n.steals}</td>
-                                    <td style="color: var(--text-secondary);">${n.fouls}</td>
-                                </tr>`
-                                    : ""
-                                }
-                                <tr style="background: var(--bg-secondary); border-top: 1px solid var(--border);">
-                                    <td style="text-align: left; white-space: nowrap; color: var(--text-primary); font-weight: 600;">Last ${played.length} Games Average</td>
-                                    <td>${avgMinutes()}</td>
-                                    <td class="highlight">${avgNum("points")}</td>
-                                    <td>${avgPairPct("fg")}</td>
-                                    <td>${avgPairPct("threePointers")}</td>
-                                    <td>${avgPairPct("ft")}</td>
-                                    <td>${avgNum("rebounds")}</td>
-                                    <td>${avgNum("assists")}</td>
-                                    <td>${avgNum("blocks")}</td>
-                                    <td>${avgNum("steals")}</td>
-                                    <td>${avgNum("fouls")}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                `;
+    const bioHtml = _renderProfileBio(profile, lastNSelectedPlayer.name);
+    const recentHtml = hasGames
+      ? `
+        <div class="card lastn-table-wrap">
+            <table class="player-stats-table">
+                <thead>
+                    <tr>
+                        <th>Matchup</th>
+                        <th>MIN</th>
+                        <th>PTS</th>
+                        <th>FG</th>
+                        <th>3 PT</th>
+                        <th>FT</th>
+                        <th>REB</th>
+                        <th>AST</th>
+                        <th>BLK</th>
+                        <th>STL</th>
+                        <th>PF</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${a.games
+                      .map((g) =>
+                        g.dnp
+                          ? `
+                        <tr class="dnp-row">
+                            <td>${esc(g.matchup)}</td>
+                            <td colspan="10" class="dnp-cell">DNP</td>
+                        </tr>
+                    `
+                          : `
+                        <tr>
+                            <td>${esc(g.matchup)}</td>
+                            <td>${g.minutes}</td>
+                            <td class="${statClass("points", g.points)}">${g.points}</td>
+                            <td>${g.fg}</td>
+                            <td>${g.threePointers}</td>
+                            <td>${g.ft}</td>
+                            <td class="${statClass("rebounds", g.rebounds)}">${g.rebounds}</td>
+                            <td class="${statClass("assists", g.assists)}">${g.assists}</td>
+                            <td class="${statClass("blocks", g.blocks)}">${g.blocks}</td>
+                            <td class="${statClass("steals", g.steals)}">${g.steals}</td>
+                            <td>${g.fouls}</td>
+                        </tr>
+                    `,
+                      )
+                      .join("")}
+                    ${
+                      n
+                        ? `
+                    <tr style="border-top: 2px solid var(--accent); background: var(--bg-secondary); font-weight: 600;">
+                        <td style="text-align: left; white-space: nowrap;">
+                            <span style="color: var(--accent); font-size: 0.75rem;">${n.season}</span>
+                            <span style="color: var(--text-secondary); font-size: 0.7rem; margin-left: 4px;">(${n.gp} games)</span>
+                        </td>
+                        <td style="color: var(--text-secondary);">${n.minutes}</td>
+                        <td class="highlight">${n.points}</td>
+                        <td style="color: var(--text-secondary); font-size: 0.8rem;">${pct1(n.fgPct)}</td>
+                        <td style="color: var(--text-secondary); font-size: 0.8rem;">${pct1(n.fg3Pct)}</td>
+                        <td style="color: var(--text-secondary); font-size: 0.8rem;">${pct1(n.ftPct)}</td>
+                        <td>${n.rebounds}</td>
+                        <td>${n.assists}</td>
+                        <td>${n.blocks}</td>
+                        <td>${n.steals}</td>
+                        <td style="color: var(--text-secondary);">${n.fouls}</td>
+                    </tr>`
+                        : ""
+                    }
+                    <tr style="background: var(--bg-secondary); border-top: 1px solid var(--border);">
+                        <td style="text-align: left; white-space: nowrap; color: var(--text-primary); font-weight: 600;">Last ${played.length} Games Average</td>
+                        <td>${avgMinutes()}</td>
+                        <td class="highlight">${avgNum("points")}</td>
+                        <td>${avgPairPct("fg")}</td>
+                        <td>${avgPairPct("threePointers")}</td>
+                        <td>${avgPairPct("ft")}</td>
+                        <td>${avgNum("rebounds")}</td>
+                        <td>${avgNum("assists")}</td>
+                        <td>${avgNum("blocks")}</td>
+                        <td>${avgNum("steals")}</td>
+                        <td>${avgNum("fouls")}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>`
+      : "";
+    const careerHtml = _renderProfileCareer(profile, pct1);
+    const highsHtml = _renderProfileHighs(profile);
+    const tabs = [
+      ["recent", "Last 10 Games", recentHtml || `<div style="padding: 20px; color: var(--text-secondary);">No recent games</div>`],
+      ["career", "Career Stats", careerHtml || `<div style="padding: 20px; color: var(--text-secondary);">No career data</div>`],
+      ["highs", "Career Highs", highsHtml || `<div style="padding: 20px; color: var(--text-secondary);">No career highs</div>`],
+    ];
+    const tabsBar = `
+        <div style="display: flex; gap: 8px; margin: 14px 0 12px; flex-wrap: wrap;">
+            ${tabs.map(([k, label]) => `
+                <button class="nav-tab${k === "recent" ? " active" : ""}" data-action="showProfileTab" data-profile-tab="${k}">${label}</button>
+            `).join("")}
+        </div>`;
+    const panels = tabs.map(([k, , html]) => `
+        <div data-profile-panel="${k}" style="display: ${k === "recent" ? "block" : "none"};">${html}</div>
+    `).join("");
+    t.innerHTML = bioHtml + tabsBar + panels;
   } catch (e) {
     t.innerHTML = `
                     <div class="empty-state">
@@ -785,14 +955,7 @@ async function loadLastNGames() {
                 `;
   }
 }
-(_lastNDateBtns.forEach((t) => {
-  t.addEventListener("click", () => {
-    (_lastNDateBtns.forEach((t) => t.classList.remove("active")),
-      t.classList.add("active"),
-      (lastNGamesCount = parseInt(t.dataset.n)));
-  });
-}),
-  initPlayerSearch(
+(initPlayerSearch(
     "lastNSearch",
     "lastNSearchResults",
     (t, e) => {
@@ -1948,7 +2111,7 @@ async function loadBoxscores() {
                                     <th>Score</th>
                                     <th>FG</th>
                                     <th>FG%</th>
-                                    <th>3PT</th>
+                                    <th>3 PT</th>
                                     <th>3P%</th>
                                     <th>FT</th>
                                     <th>FT%</th>
@@ -2189,7 +2352,8 @@ const _ACTIONS = {
   loadTrackedStats: () => loadTrackedStats(),
   loadStandings: () => loadStandings(),
   loadInjuries: () => loadInjuries(),
-  loadLastNGames: () => loadLastNGames(),
+  loadPlayerProfile: () => loadPlayerProfile(),
+  showProfileTab: (t) => showProfileTab(t.dataset.profileTab),
   loadPlayoffs: () => loadPlayoffs(),
   loadTrades: () => loadTrades(true),
   loadSeasonDoubles: () => loadSeasonDoubles(true),

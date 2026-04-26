@@ -28,6 +28,7 @@ def _patch_lgf_playoffs():
     with patch("routes.scores.LeagueGameFinder", m):
         yield
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared test constants
 # ─────────────────────────────────────────────────────────────────────────────
@@ -185,7 +186,14 @@ def make_live_boxscore(game_id=GAME_ID, status="Final"):
                     {"period": 3, "score": 28},
                     {"period": 4, "score": 25},
                 ],
-                "players": [make_live_player(person_id=1629029, name="Jayson Tatum", points=32, reboundsTotal=9)],
+                "players": [
+                    make_live_player(
+                        person_id=1629029,
+                        name="Jayson Tatum",
+                        points=32,
+                        reboundsTotal=9,
+                    )
+                ],
             },
         }
     }

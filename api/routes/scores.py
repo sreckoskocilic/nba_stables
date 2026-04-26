@@ -174,7 +174,9 @@ async def get_scoreboard():
                 for g in games
             ]
         try:
-            _attach_series_to_games(games, _get_playoff_series_cached(get_current_season()))
+            _attach_series_to_games(
+                games, _get_playoff_series_cached(get_current_season())
+            )
         except Exception as ex:  # pragma: no cover
             log_exceptions(ex, "scoreboard_series_attach")
         display_date = sb_date.strftime("%B %d, %Y")

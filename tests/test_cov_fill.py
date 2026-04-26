@@ -318,3 +318,70 @@ def test_security_headers_page_route(client):
     r = client.get("/not-an-api-route")
     csp = r.headers.get("Content-Security-Policy", "")
     assert "fonts.googleapis.com" in csp  # PAGE_CSP includes Google Fonts
+
+
+# ─── /api/players/{id}/profile coverage fill ─────────────────────────────────
+
+
+def test_calc_age_handles_empty_and_invalid():
+    from routes.players import _calc_age
+
+    assert _calc_age(None) is None
+    assert _calc_age("") is None
+    assert _calc_age("not-a-date") is None
+
+
+def test_player_profile_cached_branch(client):
+    cache_key = f"player_profile_{PLAYER_ID}"
+    payload = {"playerId": PLAYER_ID, "bio": {}, "career": [], "careerHighs": []}
+    cache.set(cache_key, payload, 60)
+    r = client.get(f"/api/players/{PLAYER_ID}/profile")
+    assert r.json() == payload
+    cache.clear()
+
+
+def test_player_profile_skips_highs_row_with_blank_stat(client, monkeypatch):
+    """Cover the `if not stat: continue` branch in _fetch_highs."""
+    cpi = MagicMock()
+    cpi.return_value.common_player_info.get_dict.return_value = {
+        "headers": ["DISPLAY_FIRST_LAST"],
+        "data": [["LeBron"]],
+    }
+    pcs = MagicMock()
+    pcs.return_value.season_totals_regular_season.get_dict.return_value = {
+        "headers": [],
+        "data": [],
+    }
+    ppv2 = MagicMock()
+    ppv2.return_value.career_highs.get_dict.return_value = {
+        "headers": ["STAT", "STAT_VALUE", "DATE_EST", "VS_TEAM_ABBREVIATION"],
+        "data": [
+            ["", 0, "", ""],  # blank STAT — should be skipped
+            ["PTS", 51, "2018-05-31T00:00:00", "GSW"],
+        ],
+    }
+    monkeypatch.setattr("routes.players.commonplayerinfo.CommonPlayerInfo", cpi)
+    monkeypatch.setattr("routes.players.playercareerstats.PlayerCareerStats", pcs)
+    monkeypatch.setattr("routes.players.playerprofilev2.PlayerProfileV2", ppv2)
+    cache.clear()
+    r = client.get(f"/api/players/{PLAYER_ID}/profile")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["careerHighs"]) == 1
+    assert body["careerHighs"][0]["stat"] == "PTS"
+    cache.clear()
+
+
+def test_player_profile_404_when_bio_and_career_both_fail(client, monkeypatch):
+    """Cover the _not_found return + 404 raise."""
+    cpi_fail = MagicMock(side_effect=ValueError("boom bio"))
+    pcs_fail = MagicMock(side_effect=ValueError("boom career"))
+    ppv2 = MagicMock()
+    ppv2.return_value.career_highs.get_dict.return_value = {"headers": [], "data": []}
+    monkeypatch.setattr("routes.players.commonplayerinfo.CommonPlayerInfo", cpi_fail)
+    monkeypatch.setattr("routes.players.playercareerstats.PlayerCareerStats", pcs_fail)
+    monkeypatch.setattr("routes.players.playerprofilev2.PlayerProfileV2", ppv2)
+    cache.clear()
+    r = client.get(f"/api/players/{PLAYER_ID}/profile")
+    assert r.status_code == 404
+    cache.clear()

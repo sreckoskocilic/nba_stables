@@ -1155,8 +1155,9 @@ class TestScoreboardSeries:
             ["PG02", TEAM_ID_LAL, "W", 105],
             ["PG02", TEAM_ID_BOS, "L", 98],
         ]
-        with self._patch_sb([make_live_game(gameStatusText="Final")]), patch(
-            "routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)
+        with (
+            self._patch_sb([make_live_game(gameStatusText="Final")]),
+            patch("routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)),
         ):
             r = client.get("/api/scoreboard")
         assert r.status_code == 200

@@ -3,7 +3,6 @@ import json
 import re
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Path, Query
 from constants import (
     BS_AST,
     BS_BLK,
@@ -23,12 +22,12 @@ from constants import (
     PGL_GAME_ID,
     PGL_MATCHUP,
 )
+from fastapi import APIRouter, HTTPException, Path, Query
 from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache, executor
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
-    parse_minutes,
-    with_retry,
+    _reset_nba_stats_http_session,
     count_double_digits,
     find_category_leaders,
     fix_encoding,
@@ -39,10 +38,14 @@ from helpers.stats import (
     load_players_dict,
     load_players_with_lower,
     parse_iso_minutes,
+    parse_minutes,
+    with_retry,
 )
 from nba_api.stats.endpoints import (
+    commonplayerinfo,
     playercareerstats,
     playergamelog,
+    playerprofilev2,
 )
 
 router = APIRouter()
@@ -298,7 +301,7 @@ async def get_game_players(
             ("assists", "AST"),
             ("steals", "STL"),
             ("blocks", "BLK"),
-            ("threePointers", "3PM"),
+            ("threePointers", "3 PT"),
         ]
         top_performers = {}
         if all_active:
@@ -308,19 +311,14 @@ async def get_game_players(
                     "label": label,
                     "value": max_vals[key],
                     "players": [
-                        {"name": p["name"], "team": p["team"]}
-                        for p in max_entries[key]
+                        {"name": p["name"], "team": p["team"]} for p in max_entries[key]
                     ],
                 }
 
         arena_data = game.get("arena") or {}
         arena_name = arena_data.get("arenaName") or ""
         arena_city = arena_data.get("arenaCity") or ""
-        arena = (
-            f"{arena_name}, {arena_city}".rstrip(", ")
-            if arena_name
-            else arena_city
-        )
+        arena = f"{arena_name}, {arena_city}".rstrip(", ") if arena_name else arena_city
 
         officials = []
         for o in game.get("officials") or []:
@@ -554,4 +552,173 @@ async def get_player_season_avg(player_id: int = Path(..., gt=0)):
     if result is _no_data:
         raise HTTPException(status_code=404, detail="No season data found")
     cache.set(cache_key, result, CACHE_TTL["season_leaders"])
+    return result
+
+
+def _calc_age(birthdate_str: str | None) -> int | None:
+    if not birthdate_str:
+        return None
+    try:
+        bd = date.fromisoformat(birthdate_str[:10])
+        today = date.today()
+        return today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
+    except ValueError:
+        return None
+
+
+@router.get("/api/players/{player_id}/profile")
+@route_error_handler("Failed to fetch player profile")
+async def get_player_profile(player_id: int = Path(..., gt=0)):
+    """Get full profile: bio, career season-by-season, career highs."""
+    cache_key = f"player_profile_{player_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    _not_found = object()
+
+    def _fetch_bio():
+        try:
+            info = with_retry(
+                lambda: commonplayerinfo.CommonPlayerInfo(
+                    player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+                )
+            )
+        finally:
+            _reset_nba_stats_http_session()
+        data = info.common_player_info.get_dict()
+        if not data["data"]:
+            return None
+        h = {k: i for i, k in enumerate(data["headers"])}
+        row = data["data"][0]
+
+        def g(key):
+            return row[h[key]] if key in h else None
+
+        return {
+            "name": fix_encoding(g("DISPLAY_FIRST_LAST") or ""),
+            "team": g("TEAM_ABBREVIATION") or "",
+            "teamName": f"{g('TEAM_CITY') or ''} {g('TEAM_NAME') or ''}".strip(),
+            "jersey": g("JERSEY") or "",
+            "position": g("POSITION") or "",
+            "height": g("HEIGHT") or "",
+            "weight": g("WEIGHT") or "",
+            "age": _calc_age(g("BIRTHDATE")),
+            "country": g("COUNTRY") or "",
+            "draftYear": g("DRAFT_YEAR") or "",
+            "draftNumber": g("DRAFT_NUMBER") or "",
+            "school": g("SCHOOL") or "",
+            "experience": g("SEASON_EXP"),
+        }
+
+    def _fetch_career():
+        try:
+            career = with_retry(
+                lambda: playercareerstats.PlayerCareerStats(
+                    player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+                )
+            )
+        finally:
+            _reset_nba_stats_http_session()
+        season_dict = career.season_totals_regular_season.get_dict()
+        sh = {k: i for i, k in enumerate(season_dict["headers"])}
+        career_rows = []
+        for row in season_dict["data"]:
+            gp = row[sh["GP"]] or 1
+
+            def avg(key):
+                return round((row[sh[key]] or 0) / gp, 1)
+
+            def pct(key):
+                v = row[sh[key]]
+                return round(v * 100, 1) if v else 0.0
+
+            career_rows.append(
+                {
+                    "season": row[sh["SEASON_ID"]],
+                    "team": row[sh["TEAM_ABBREVIATION"]] or "",
+                    "gp": gp,
+                    "minutes": avg("MIN"),
+                    "points": avg("PTS"),
+                    "rebounds": avg("REB"),
+                    "assists": avg("AST"),
+                    "steals": avg("STL"),
+                    "blocks": avg("BLK"),
+                    "fgPct": pct("FG_PCT"),
+                    "fg3Pct": pct("FG3_PCT"),
+                    "ftPct": pct("FT_PCT"),
+                }
+            )
+        return career_rows
+
+    def _fetch_highs():
+        # PlayerProfileV2 is slower than other endpoints — bump timeout
+        # well above STATS_TIMEOUT (30s) to avoid empty-response JSONDecodeError.
+        try:
+            prof = with_retry(
+                lambda: playerprofilev2.PlayerProfileV2(
+                    player_id=player_id, proxy=STATS_PROXY, timeout=60
+                )
+            )
+        finally:
+            _reset_nba_stats_http_session()
+        highs_dict = prof.career_highs.get_dict()
+        hh = {k: i for i, k in enumerate(highs_dict["headers"])}
+        stat_idx = hh.get("STAT")
+        val_idx = hh.get("STAT_VALUE")
+        # DATE_EST is ISO format (2018-05-31T...); GAME_DATE is human ("MAY 31 2018")
+        date_idx = hh.get("DATE_EST", hh.get("GAME_DATE"))
+        opp_idx = hh.get("VS_TEAM_ABBREVIATION")
+        highs = []
+        for row in highs_dict["data"]:
+            stat = row[stat_idx] if stat_idx is not None else None
+            if not stat:
+                continue
+            highs.append(
+                {
+                    "stat": stat,
+                    "value": row[val_idx] if val_idx is not None else 0,
+                    "date": row[date_idx][:10]
+                    if date_idx is not None and row[date_idx]
+                    else "",
+                    "opponent": row[opp_idx] if opp_idx is not None else "",
+                }
+            )
+        return highs
+
+    def _sync():
+        bio_future = executor.submit(_fetch_bio)
+        career_future = executor.submit(_fetch_career)
+        highs_future = executor.submit(_fetch_highs)
+        try:
+            bio = bio_future.result(timeout=STATS_TIMEOUT)
+        except Exception as ex:
+            log_exceptions(ex, f"profile_bio player_id={player_id}")
+            bio = None
+        try:
+            career = career_future.result(timeout=STATS_TIMEOUT)
+        except Exception as ex:
+            log_exceptions(ex, f"profile_career player_id={player_id}")
+            career = []
+        try:
+            # Match the longer NBA-side timeout used inside _fetch_highs
+            highs = highs_future.result(timeout=65)
+        except Exception as ex:
+            log_exceptions(ex, f"profile_highs player_id={player_id}")
+            highs = []
+
+        if bio is None and not career:
+            return _not_found
+
+        return {
+            "playerId": player_id,
+            "bio": bio or {},
+            "career": career,
+            "careerHighs": highs,
+        }
+
+    result = await asyncio.to_thread(_sync)
+    if result is _not_found:
+        raise HTTPException(status_code=404, detail="Player not found")
+    cache.set(cache_key, result, CACHE_TTL["historical"])
     return result

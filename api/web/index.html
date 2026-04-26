@@ -1727,7 +1727,7 @@
                         <button class="nav-tab" data-section="tracker">Player Tracker</button>
                         <button class="nav-tab" data-section="standings">Standings</button>
                         <button class="nav-tab" data-section="injuries">Injuries</button>
-                        <button class="nav-tab" data-section="lastngames">Last N Games</button>
+                        <button class="nav-tab" data-section="lastngames">Player Profile</button>
                         <button class="nav-tab" data-section="playoffs">Playoffs</button>
                         <button class="nav-tab" data-section="trades">Trades</button>
                         <button class="nav-tab" data-section="seasonDoubles">Doubles &amp; Triples</button>
@@ -1849,30 +1849,24 @@
                 </div>
             </section>
 
-            <!-- Last N Games Section -->
+            <!-- Player Profile Section -->
             <section id="lastngames" class="section">
-                <div class="section-title">Last N Games</div>
+                <div class="section-title">Player Profile</div>
                 <div class="player-search">
                     <div class="search-container lastn-search-row">
                         <div class="search-input-wrapper lastn-search-wrap">
                             <input type="text" class="search-input" id="lastNSearch" placeholder="Search for a player..." autocomplete="off">
                             <div class="search-results" id="lastNSearchResults"></div>
                         </div>
-                        <button class="btn lastn-get-btn" id="lastNBtn" data-action="loadLastNGames" disabled>Get Stats</button>
-                    </div>
-                    <div style="display: flex; gap: 8px; align-items: center; margin-top: 12px;">
-                        <span style="color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap;">Last:</span>
-                        <button class="date-btn active" data-n="5" style="padding: 8px 10px; min-width: unset;">5</button>
-                        <button class="date-btn" data-n="10" style="padding: 8px 10px; min-width: unset;">10</button>
-                        <button class="date-btn" data-n="15" style="padding: 8px 10px; min-width: unset;">15</button>
+                        <button class="btn lastn-get-btn" id="lastNBtn" data-action="loadPlayerProfile" disabled>Load Profile</button>
                     </div>
                     <div id="lastNPlayerChip" style="margin-top: 10px;"></div>
                 </div>
                 <div id="lastNContent">
                     <div class="empty-state">
-                        <div class="empty-state-icon">&#128202;</div>
-                        <div class="empty-state-title">Last N Games Stats</div>
-                        <p>Search for a player to view their recent game log</p>
+                        <div class="empty-state-icon">&#128100;</div>
+                        <div class="empty-state-title">Player Profile</div>
+                        <p>Search for a player to view their profile, recent form, career stats and career highs</p>
                     </div>
                 </div>
             </section>
