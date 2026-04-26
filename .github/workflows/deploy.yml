@@ -3,7 +3,6 @@ name: CI/CD Pipeline
 on:
   push:
     paths-ignore:
-      - "api/static/*.json"
       - ".github/workflows/**"
       - "README.md"
       - "LICENSE"

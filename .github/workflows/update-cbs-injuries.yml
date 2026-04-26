@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   scrape:
@@ -25,29 +26,26 @@ jobs:
       - name: Scrape CBS injuries
         run: python api/static/update_injuries.py
 
-      - name: Commit and push
-        id: commit
+      - name: Open auto-merging PR
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           if git diff --quiet api/static/cbs_injuries.json; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            git pull origin main
-            git add api/static/cbs_injuries.json
-            git commit -m "update CBS injuries data"
-            git push origin main
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "No changes — skipping PR."
+            exit 0
           fi
 
-      - name: Deploy to server
-        if: steps.commit.outputs.changed == 'true'
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          version: "1.8.4"
-          script: |
-            cd /opt/nba_stables
-            git pull origin main
+          branch="cbs-injuries-$(date -u +%Y-%m-%d-%H%M%S)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add api/static/cbs_injuries.json
+          git commit -m "update CBS injuries data"
+          git push origin "$branch"
+
+          pr_url=$(gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "update CBS injuries data" \
+            --body "Automated daily CBS injuries scrape.")
+          gh pr merge "$pr_url" --auto --squash --delete-branch
