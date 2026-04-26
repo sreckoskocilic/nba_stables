@@ -81,4 +81,7 @@ jobs:
             exit 1
           fi
 
-          gh pr merge "$pr_number" --squash --delete-branch
+          # Use REST API directly — `gh pr merge` checks GraphQL mergeable state
+          # which lags behind required status checks and falsely reports "blocked".
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/merge" -f merge_method=squash
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${branch}"
