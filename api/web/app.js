@@ -369,6 +369,89 @@ async function loadTrackedStats() {
     t.innerHTML = `\n                    <div class="empty-state">\n                        <div class="empty-state-icon">&#9888;</div>\n                        <div class="empty-state-title">Error Loading Stats</div>\n                        <p>${esc(e.message)}</p>\n                    </div>\n                `;
   }
 }
+function _renderQuarterGrid(teams) {
+  if (!teams.length || !teams[0].periods || !teams[0].periods.length) return "";
+  const maxPeriods = Math.max(...teams.map((t) => t.periods.length));
+  const headers = [];
+  for (let i = 0; i < maxPeriods; i++) {
+    headers.push(i < 4 ? `Q${i + 1}` : `OT${i - 3}`);
+  }
+  const headerHtml = headers.map((h) => `<th>${h}</th>`).join("");
+  const rows = teams
+    .map((t) => {
+      const cells = [];
+      for (let i = 0; i < maxPeriods; i++) {
+        const p = t.periods[i];
+        cells.push(`<td>${p ? p.score : "-"}</td>`);
+      }
+      return `<tr><td style="text-align: left; font-weight: 600;">${esc(t.tricode)}</td>${cells.join("")}<td class="highlight">${t.score}</td></tr>`;
+    })
+    .join("");
+  return `
+    <table class="boxscore-table" style="font-size: 0.72rem; width: 100%;">
+      <thead><tr><th style="text-align: left;">Team</th>${headerHtml}<th>F</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function _renderGameInfoTable(body) {
+  const rows = [];
+  if (body.arena) {
+    rows.push(`<tr><td style="text-align: left; color: var(--text-secondary);">Arena</td><td style="text-align: left;">${esc(body.arena)}</td></tr>`);
+  }
+  if (body.attendance) {
+    rows.push(`<tr><td style="text-align: left; color: var(--text-secondary);">Attendance</td><td style="text-align: left;">${body.attendance.toLocaleString("en-US")}</td></tr>`);
+  }
+  if (body.officials && body.officials.length) {
+    rows.push(`<tr><td style="text-align: left; color: var(--text-secondary);">Officials</td><td style="text-align: left;">${body.officials.map((o) => esc(o.name)).join(", ")}</td></tr>`);
+  }
+  if (!rows.length) return "";
+  return `
+    <table class="boxscore-table" style="font-size: 0.72rem; width: 100%;">
+      <tbody>${rows.join("")}</tbody>
+    </table>`;
+}
+
+function _renderTopRow(body) {
+  const quarters = _renderQuarterGrid(body.teams);
+  const info = _renderGameInfoTable(body);
+  if (!quarters && !info) return "";
+  return `
+    <div style="display: flex; gap: 8px; padding: 8px; align-items: flex-start;">
+      <div style="flex: 1; min-width: 0;">${quarters}</div>
+      <div style="flex: 1; min-width: 0;">${info}</div>
+    </div>`;
+}
+
+function _renderTopPerformers(tp) {
+  if (!tp || !Object.keys(tp).length) return "";
+  const order = ["points", "rebounds", "assists", "steals", "blocks", "threePointers"];
+  const cells = order
+    .filter((k) => tp[k] && tp[k].value > 0)
+    .map((k) => {
+      const entry = tp[k];
+      const names = entry.players
+        .map((p) => `${esc(p.name)} <span style="color: var(--text-secondary);">(${esc(p.team)})</span>`)
+        .join(", ");
+      return `
+        <div style="padding: 6px 8px; background: var(--bg-secondary); border-radius: 4px;">
+          <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">${esc(entry.label)}</div>
+          <div style="font-size: 0.95rem; font-weight: 700; color: var(--accent);">${entry.value}</div>
+          <div style="font-size: 0.7rem;">${names}</div>
+        </div>`;
+    })
+    .join("");
+  if (!cells) return "";
+  return `
+    <div style="padding: 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px;">
+      ${cells}
+    </div>`;
+}
+
+function _fmtPct(v) {
+  return ((Number(v) || 0) * 100).toFixed(1) + "%";
+}
+
 async function toggleGameDetails(t, e) {
   const s = document.getElementById(`details-${t}`);
   if ("block" !== s.style.display) {
@@ -381,14 +464,59 @@ async function toggleGameDetails(t, e) {
           `/api/games/${t}/players`,
         ),
         a = await e.json();
-      s.innerHTML = a.teams
+      const tablesHtml = a.teams
         .map((t) => {
           const e = t.players.filter(
             (t) => "0:00" !== t.minutes && "0" !== t.minutes && 0 !== t.minutes,
           );
-          return `\n                    <div style="padding: 8px; border-top: 1px solid var(--border);">\n                        <h4 style="margin-bottom: 6px; color: var(--accent); font-size: 0.75rem;">${esc(t.name)} - ${esc(t.score)}</h4>\n                        <table class="boxscore-table" style="font-size: 0.72rem;">\n                            <thead>\n                                <tr>\n                                    <th style="text-align: left;">Player</th>\n                                    <th>MIN</th>\n                                    <th>PTS</th>\n                                    <th>REB</th>\n                                    <th>AST</th>\n                                    <th>FG</th>\n                                    <th>3PT</th>\n                                    <th>FT</th>\n                                    <th>STL</th>\n                                    <th>BLK</th>\n                                    <th>TO</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                ${e.map((t) => `\n                                    <tr>\n                                        <td style="text-align: left; white-space: nowrap;">${esc(t.name)}</td>\n                                        <td>${t.minutes}</td>\n                                        <td class="${statClass("points", t.points)}">${t.points}</td>\n                                        <td class="${statClass("rebounds", t.rebounds)}">${t.rebounds}</td>\n                                        <td class="${statClass("assists", t.assists)}">${t.assists}</td>\n                                        <td>${t.fg}</td>\n                                        <td>${t.threePt}</td>\n                                        <td>${t.ft}</td>\n                                        <td class="${statClass("steals", t.steals)}">${t.steals}</td>\n                                        <td class="${statClass("blocks", t.blocks)}">${t.blocks}</td>\n                                        <td>${t.turnovers}</td>\n                                    </tr>\n                                `).join("")}\n                            </tbody>\n                        </table>\n                    </div>`;
+          return `
+                    <div style="padding: 8px; border-top: 1px solid var(--border);">
+                        <h4 style="margin-bottom: 6px; color: var(--accent); font-size: 0.75rem;">${esc(t.name)} - ${esc(t.score)}</h4>
+                        <table class="boxscore-table" style="font-size: 0.72rem;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">Player</th>
+                                    <th>MIN</th>
+                                    <th>PTS</th>
+                                    <th>REB (O/D)</th>
+                                    <th>AST</th>
+                                    <th>FG</th>
+                                    <th>FG%</th>
+                                    <th>3PT</th>
+                                    <th>FT</th>
+                                    <th>STL</th>
+                                    <th>BLK</th>
+                                    <th>TO</th>
+                                    <th>PF</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${e.map((t) => `
+                                    <tr>
+                                        <td style="text-align: left; white-space: nowrap;">${esc(t.name)}</td>
+                                        <td>${t.minutes}</td>
+                                        <td class="${statClass("points", t.points)}">${t.points}</td>
+                                        <td class="${statClass("rebounds", t.rebounds)}">${t.rebounds} (${t.offRebounds}/${t.defRebounds})</td>
+                                        <td class="${statClass("assists", t.assists)}">${t.assists}</td>
+                                        <td>${t.fg}</td>
+                                        <td>${_fmtPct(t.fgPct)}</td>
+                                        <td>${t.threePt}</td>
+                                        <td>${t.ft}</td>
+                                        <td class="${statClass("steals", t.steals)}">${t.steals}</td>
+                                        <td class="${statClass("blocks", t.blocks)}">${t.blocks}</td>
+                                        <td>${t.turnovers}</td>
+                                        <td>${t.fouls}</td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>`;
         })
         .join("");
+      s.innerHTML =
+        _renderTopRow(a) +
+        _renderTopPerformers(a.topPerformers) +
+        tablesHtml;
     } catch (t) {
       s.innerHTML = `<div style="padding: 20px; color: var(--text-secondary);">Error loading player stats</div>`;
     }

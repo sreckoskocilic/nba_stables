@@ -153,12 +153,24 @@ def make_live_boxscore(game_id=GAME_ID, status="Final"):
     return {
         "game": {
             "gameStatusText": status,
+            "arena": {"arenaName": "Crypto.com Arena", "arenaCity": "Los Angeles"},
+            "attendance": 18997,
+            "officials": [
+                {"name": "Tony Brothers"},
+                {"firstName": "Scott", "familyName": "Foster"},
+            ],
             "homeTeam": {
                 "teamCity": "Los Angeles",
                 "teamName": "Lakers",
                 "teamTricode": "LAL",
                 "teamId": TEAM_ID_LAL,
                 "score": 110,
+                "periods": [
+                    {"period": 1, "score": 28},
+                    {"period": 2, "score": 25},
+                    {"period": 3, "score": 30},
+                    {"period": 4, "score": 27},
+                ],
                 "players": [make_live_player()],
             },
             "awayTeam": {
@@ -167,7 +179,13 @@ def make_live_boxscore(game_id=GAME_ID, status="Final"):
                 "teamTricode": "BOS",
                 "teamId": TEAM_ID_BOS,
                 "score": 105,
-                "players": [make_live_player(person_id=1629029, name="Jayson Tatum")],
+                "periods": [
+                    {"period": 1, "score": 22},
+                    {"period": 2, "score": 30},
+                    {"period": 3, "score": 28},
+                    {"period": 4, "score": 25},
+                ],
+                "players": [make_live_player(person_id=1629029, name="Jayson Tatum", points=32, reboundsTotal=9)],
             },
         }
     }

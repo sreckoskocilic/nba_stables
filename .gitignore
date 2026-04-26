@@ -29,6 +29,7 @@ coverage/
 htmlcov/
 .nyc_output/
 *.cover
+docs/
 
 #dummy line for commit
 secrets/

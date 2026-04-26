@@ -796,6 +796,39 @@ class TestGamePlayers:
         r = client.get("/api/games/INVALID/players")
         assert r.status_code == 422
 
+    def test_periods_per_team(self, client):
+        with patch(
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
+        ):
+            r = client.get(f"/api/games/{GAME_ID}/players")
+        for team in r.json()["teams"]:
+            assert len(team["periods"]) == 4
+            assert team["periods"][0]["period"] == 1
+            assert sum(p["score"] for p in team["periods"]) == team["score"]
+
+    def test_game_info_fields(self, client):
+        with patch(
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
+        ):
+            r = client.get(f"/api/games/{GAME_ID}/players")
+        body = r.json()
+        assert body["arena"] == "Crypto.com Arena, Los Angeles"
+        assert body["attendance"] == 18997
+        assert [o["name"] for o in body["officials"]] == ["Tony Brothers", "Scott Foster"]
+
+    def test_top_performers(self, client):
+        with patch(
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
+        ):
+            r = client.get(f"/api/games/{GAME_ID}/players")
+        tp = r.json()["topPerformers"]
+        for key in ("points", "rebounds", "assists", "steals", "blocks", "threePointers"):
+            assert key in tp
+        # Tatum scored 32 in fixture, beats LeBron's 28
+        assert tp["points"]["value"] == 32
+        assert tp["points"]["players"][0]["name"] == "Jayson Tatum"
+        assert tp["points"]["players"][0]["team"] == "BOS"
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/players/{id}/last-n-games
