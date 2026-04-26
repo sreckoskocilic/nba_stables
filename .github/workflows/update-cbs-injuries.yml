@@ -39,11 +39,12 @@ jobs:
 
       - name: Deploy to server
         if: steps.commit.outputs.changed == 'true'
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.SERVER_IP }}
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          version: "1.8.4"
           script: |
             cd /opt/nba_stables
             git pull origin main
