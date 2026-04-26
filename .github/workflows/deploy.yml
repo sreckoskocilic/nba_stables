@@ -10,6 +10,7 @@ on:
       - "codecov.yml"
       - "requirements-dev.txt"
       - ".env.example"
+      - "dependabot.yml"
     branches: [main]
   workflow_dispatch: # allow manual trigger
 
