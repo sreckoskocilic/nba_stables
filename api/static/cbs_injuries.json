@@ -103,21 +103,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Isaac Okoro",
-          "updated": "Sat, Apr 11",
-          "injury": "Quadriceps",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Matas Buzelis",
           "updated": "Sat, Apr 11",
           "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Guerschon Yabusele",
-          "updated": "Fri, Apr 10",
-          "injury": "Shoulder",
+          "name": "Isaac Okoro",
+          "updated": "Sat, Apr 11",
+          "injury": "Quadriceps",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -136,6 +130,12 @@
           "name": "Nick Richards",
           "updated": "Fri, Apr 10",
           "injury": "Elbow",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Guerschon Yabusele",
+          "updated": "Fri, Apr 10",
+          "injury": "Shoulder",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -168,18 +168,6 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "PJ Washington",
-          "updated": "Sun, Apr 12",
-          "injury": "Elbow",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Naji Marshall",
-          "updated": "Sun, Apr 12",
-          "injury": "Hip",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Brandon Williams",
           "updated": "Sun, Apr 12",
           "injury": "Illness",
@@ -195,6 +183,18 @@
           "name": "Marvin Bagley III",
           "updated": "Sun, Apr 12",
           "injury": "Shoulder",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "PJ Washington",
+          "updated": "Sun, Apr 12",
+          "injury": "Elbow",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Naji Marshall",
+          "updated": "Sun, Apr 12",
+          "injury": "Hip",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -215,15 +215,20 @@
       "team": "Denver",
       "players": [
         {
-          "name": "Aaron Gordon",
-          "updated": "Fri, Apr 24",
-          "injury": "Calf",
-          "status": "Expected to be out until at least Apr 25"
-        },
-        {
           "name": "Peyton Watson",
           "updated": "Fri, Apr 24",
           "injury": "Hamstring",
+          "status": "Expected to be out until at least Apr 27"
+        }
+      ]
+    },
+    {
+      "team": "Detroit",
+      "players": [
+        {
+          "name": "Kevin Huerter",
+          "updated": "Sat, Apr 25",
+          "injury": "Hip",
           "status": "Expected to be out until at least Apr 27"
         }
       ]
@@ -308,15 +313,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Pascal Siakam",
-          "updated": "Sat, Apr 11",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Aaron Nesmith",
           "updated": "Sat, Apr 11",
           "injury": "Neck",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Pascal Siakam",
+          "updated": "Sat, Apr 11",
+          "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -401,15 +406,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Cedric Coward",
-          "updated": "Sat, Apr 11",
-          "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Taylor Hendricks",
           "updated": "Sat, Apr 11",
           "injury": "Thumb",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Cedric Coward",
+          "updated": "Sat, Apr 11",
+          "injury": "Back",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -425,15 +430,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Ja Morant",
-          "updated": "Tue, Mar 24",
-          "injury": "Elbow",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Brandon Clarke",
           "updated": "Tue, Mar 24",
           "injury": "Calf",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Ja Morant",
+          "updated": "Tue, Mar 24",
+          "injury": "Elbow",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -466,15 +471,15 @@
       "team": "Miami",
       "players": [
         {
-          "name": "Nikola Jovic",
-          "updated": "Tue, Apr 14",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Dru Smith",
           "updated": "Tue, Apr 14",
           "injury": "Foot",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Nikola Jovic",
+          "updated": "Tue, Apr 14",
+          "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -545,20 +550,25 @@
       ]
     },
     {
-      "team": "New Orleans",
+      "team": "Minnesota",
       "players": [
         {
-          "name": "Yves Missi",
-          "updated": "Sat, Apr 11",
-          "injury": "Hand",
-          "status": "Expected to be out until at least Oct 1"
+          "name": "Donte DiVincenzo",
+          "updated": "Sat, Apr 25",
+          "injury": "Achilles",
+          "status": "Expected to be out until at least Apr 25"
         },
         {
-          "name": "Zion Williamson",
-          "updated": "Sat, Apr 11",
+          "name": "Anthony Edwards",
+          "updated": "Sat, Apr 25",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
+          "status": "Expected to be out until at least Apr 27"
+        }
+      ]
+    },
+    {
+      "team": "New Orleans",
+      "players": [
         {
           "name": "Bryce McGowens",
           "updated": "Sat, Apr 11",
@@ -572,15 +582,27 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Trey Murphy III",
+          "name": "Yves Missi",
           "updated": "Sat, Apr 11",
-          "injury": "Ankle",
+          "injury": "Hand",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Zion Williamson",
+          "updated": "Sat, Apr 11",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
         {
           "name": "Dejounte Murray",
           "updated": "Sat, Apr 11",
           "injury": "Hand",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Trey Murphy III",
+          "updated": "Sat, Apr 11",
+          "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -590,9 +612,9 @@
       "players": [
         {
           "name": "Isaiah Joe",
-          "updated": "Fri, Apr 24",
+          "updated": "Sat, Apr 25",
           "injury": "Personal",
-          "status": "Expected to be out until at least Apr 25"
+          "status": "Expected to be out until at least Apr 27"
         },
         {
           "name": "Jalen Williams",
@@ -613,15 +635,21 @@
       "players": [
         {
           "name": "Jonathan Isaac",
-          "updated": "Thu, Apr 23",
+          "updated": "Sat, Apr 25",
           "injury": "Knee",
-          "status": "Expected to be out until at least Apr 25"
+          "status": "Expected to be out until at least Apr 27"
         }
       ]
     },
     {
       "team": "Philadelphia",
       "players": [
+        {
+          "name": "Kelly Oubre Jr.",
+          "updated": "Sat, Apr 25",
+          "injury": "Groin",
+          "status": "Expected to be out until at least Apr 26"
+        },
         {
           "name": "Joel Embiid",
           "updated": "Fri, Apr 24",
@@ -634,22 +662,16 @@
       "team": "Phoenix",
       "players": [
         {
-          "name": "Grayson Allen",
-          "updated": "Fri, Apr 24",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Apr 25"
-        },
-        {
           "name": "Mark Williams",
-          "updated": "Fri, Apr 24",
+          "updated": "Sat, Apr 25",
           "injury": "Foot",
           "status": "Expected to be out until at least Apr 27"
         },
         {
           "name": "Jordan Goodwin",
-          "updated": "Thu, Apr 23",
+          "updated": "Sat, Apr 25",
           "injury": "Calf",
-          "status": "Expected to be out until at least Apr 25"
+          "status": "Expected to be out until at least Apr 27"
         }
       ]
     },
@@ -674,27 +696,27 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "DeMar DeRozan",
-          "updated": "Sat, Apr 11",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Russell Westbrook",
-          "updated": "Sat, Apr 11",
-          "injury": "Toe",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Keegan Murray",
           "updated": "Sat, Apr 11",
           "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         },
         {
+          "name": "DeMar DeRozan",
+          "updated": "Sat, Apr 11",
+          "injury": "Hamstring",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Malik Monk",
           "updated": "Sat, Apr 11",
           "injury": "Personal",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Russell Westbrook",
+          "updated": "Sat, Apr 11",
+          "injury": "Toe",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -727,15 +749,15 @@
       "team": "San Antonio",
       "players": [
         {
-          "name": "Jordan McLaughlin",
-          "updated": "Sat, Apr 25",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Apr 26"
-        },
-        {
           "name": "Victor Wembanyama",
           "updated": "Sat, Apr 25",
           "injury": "Concussion",
+          "status": "Expected to be out until at least Apr 26"
+        },
+        {
+          "name": "Jordan McLaughlin",
+          "updated": "Sat, Apr 25",
+          "injury": "Ankle",
           "status": "Expected to be out until at least Apr 26"
         },
         {
@@ -749,6 +771,12 @@
     {
       "team": "Toronto",
       "players": [
+        {
+          "name": "AJ Lawson",
+          "updated": "Sat, Apr 25",
+          "injury": "Back",
+          "status": "Expected to be out until at least Apr 26"
+        },
         {
           "name": "Immanuel Quickley",
           "updated": "Fri, Apr 24",
@@ -767,7 +795,13 @@
       "team": "Utah",
       "players": [
         {
-          "name": "Isaiah Collier",
+          "name": "EJ Harkless",
+          "updated": "Sat, Apr 11",
+          "injury": "Hamstring",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Keyonte George",
           "updated": "Sat, Apr 11",
           "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
@@ -779,13 +813,7 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Keyonte George",
-          "updated": "Sat, Apr 11",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "EJ Harkless",
+          "name": "Isaiah Collier",
           "updated": "Sat, Apr 11",
           "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
@@ -820,18 +848,6 @@
       "team": "Washington",
       "players": [
         {
-          "name": "Tristan Vukcevic",
-          "updated": "Sat, Apr 11",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Bilal Coulibaly",
-          "updated": "Sat, Apr 11",
-          "injury": "Heel",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Alex Sarr",
           "updated": "Sat, Apr 11",
           "injury": "Toe",
@@ -841,6 +857,18 @@
           "name": "Tre Johnson",
           "updated": "Sat, Apr 11",
           "injury": "Foot",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Bilal Coulibaly",
+          "updated": "Sat, Apr 11",
+          "injury": "Heel",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Tristan Vukcevic",
+          "updated": "Sat, Apr 11",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -877,5 +905,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "April 25, 2026 10:37 UTC"
+  "lastUpdated": "April 26, 2026 10:53 UTC"
 }
