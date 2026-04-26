@@ -971,8 +971,8 @@ class TestSeasonAvg:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _mock_profile_endpoints(bio_overrides=None, career_rows=None, highs=None):
-    """Returns (CPI mock, PCS mock, PPv2 mock) for patching."""
+def _mock_profile_endpoints(bio_overrides=None, career_rows=None):
+    """Returns (CPI mock, PCS mock) for patching."""
     bio_headers = [
         "DISPLAY_FIRST_LAST",
         "TEAM_ABBREVIATION",
@@ -1022,28 +1022,15 @@ def _mock_profile_endpoints(bio_overrides=None, career_rows=None, highs=None):
         "data": career_rows,
     }
 
-    if highs is None:
-        highs = [
-            ["PTS", 61, "2014-03-03T00:00:00", "DAL"],
-            ["REB", 19, "2018-04-04T00:00:00", "NJN"],
-            ["AST", 19, "2017-12-22T00:00:00", "PHX"],
-            ["FG3M", 11, "2010-01-15T00:00:00", "MIA"],
-        ]
-    ppv2 = MagicMock()
-    ppv2.return_value.career_highs.get_dict.return_value = {
-        "headers": ["STAT", "STAT_VALUE", "GAME_DATE", "VS_TEAM_ABBREVIATION"],
-        "data": highs,
-    }
-    return cpi, pcs, ppv2
+    return cpi, pcs
 
 
 class TestPlayerProfile:
     def test_returns_full_profile(self, client):
-        cpi, pcs, ppv2 = _mock_profile_endpoints()
+        cpi, pcs = _mock_profile_endpoints()
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
             patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
-            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
         assert r.status_code == 200
@@ -1055,15 +1042,9 @@ class TestPlayerProfile:
         assert body["bio"]["age"] is not None
         assert len(body["career"]) == 1
         assert body["career"][0]["points"] == 28.0
-        pts_high = next(h for h in body["careerHighs"] if h["stat"] == "PTS")
-        assert pts_high["value"] == 61
-        assert pts_high["opponent"] == "DAL"
-        assert pts_high["date"] == "2014-03-03"
-        # All highs from API are returned (not curated)
-        assert len(body["careerHighs"]) == 4
 
     def test_handles_missing_bio(self, client):
-        cpi, pcs, ppv2 = _mock_profile_endpoints()
+        cpi, pcs = _mock_profile_endpoints()
         cpi.return_value.common_player_info.get_dict.return_value = {
             "headers": [],
             "data": [],
@@ -1071,29 +1052,12 @@ class TestPlayerProfile:
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
             patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
-            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
         assert r.status_code == 200
         body = r.json()
         assert body["bio"] == {}
         assert len(body["career"]) == 1
-
-    def test_highs_failure_keeps_career(self, client):
-        """If PlayerProfileV2 fails (NBA API kvirk), career and bio still return."""
-        cpi, pcs, _ = _mock_profile_endpoints()
-        ppv2_fail = MagicMock(side_effect=ValueError("empty response"))
-        with (
-            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
-            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
-            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2_fail),
-        ):
-            r = client.get(f"/api/players/{PLAYER_ID}/profile")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["bio"]["name"] == "LeBron James"
-        assert len(body["career"]) == 1
-        assert body["careerHighs"] == []
 
 
 # ─────────────────────────────────────────────────────────────────────────────

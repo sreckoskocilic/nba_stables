@@ -664,67 +664,6 @@ function _renderProfileCareer(profile, pct1) {
     </div>`;
 }
 
-const _STAT_LABELS = {
-  PTS: "Points",
-  REB: "Rebounds",
-  AST: "Assists",
-  STL: "Steals",
-  BLK: "Blocks",
-  MIN: "Minutes",
-  TOV: "Turnovers",
-  PF: "Personal Fouls",
-  OREB: "Offensive Rebounds",
-  DREB: "Defensive Rebounds",
-  FGM: "Field Goals Made",
-  FGA: "Field Goals Attempted",
-  FG3M: "3 PT Made",
-  FG3A: "3 PT Attempted",
-  FTM: "Free Throws Made",
-  FTA: "Free Throws Attempted",
-  FG_PCT: "FG%",
-  FG3_PCT: "3P%",
-  FT_PCT: "FT%",
-};
-
-function _renderProfileHighs(profile) {
-  const highs = (profile && profile.careerHighs) || [];
-  const list = Array.isArray(highs) ? highs : [];
-  if (!list.length) return "";
-  const fmtDate = (s) => {
-    if (!s) return "-";
-    const d = new Date(s + "T12:00:00");
-    return isNaN(d)
-      ? esc(s)
-      : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-  };
-  const rows = list
-    .map((h) => {
-      const label = _STAT_LABELS[h.stat] || h.stat;
-      return `
-        <tr>
-            <td>${esc(label)}</td>
-            <td class="highlight">${h.value}</td>
-            <td style="white-space: nowrap; color: var(--text-secondary); font-size: 0.85em;">${fmtDate(h.date)}</td>
-            <td style="color: var(--text-secondary); font-size: 0.85em;">${h.opponent ? "vs " + esc(h.opponent) : "-"}</td>
-        </tr>`;
-    })
-    .join("");
-  return `
-    <div class="card leaders-table-wrap">
-        <table class="leaders-table">
-            <thead>
-                <tr>
-                    <th>Category</th>
-                    <th>High</th>
-                    <th>Date</th>
-                    <th>Opponent</th>
-                </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-        </table>
-    </div>`;
-}
-
 function showProfileTab(name) {
   document.querySelectorAll("[data-profile-tab]").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.profileTab === name);
@@ -929,11 +868,9 @@ async function loadPlayerProfile() {
         </div>`
       : "";
     const careerHtml = _renderProfileCareer(profile, pct1);
-    const highsHtml = _renderProfileHighs(profile);
     const tabs = [
       ["recent", "Last 10 Games", recentHtml || `<div style="padding: 20px; color: var(--text-secondary);">No recent games</div>`],
       ["career", "Career Stats", careerHtml || `<div style="padding: 20px; color: var(--text-secondary);">No career data</div>`],
-      ["highs", "Career Highs", highsHtml || `<div style="padding: 20px; color: var(--text-secondary);">No career highs</div>`],
     ];
     const tabsBar = `
         <div style="display: flex; gap: 8px; margin: 14px 0 12px; flex-wrap: wrap;">

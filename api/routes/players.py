@@ -45,7 +45,6 @@ from nba_api.stats.endpoints import (
     commonplayerinfo,
     playercareerstats,
     playergamelog,
-    playerprofilev2,
 )
 
 router = APIRouter()
@@ -569,7 +568,7 @@ def _calc_age(birthdate_str: str | None) -> int | None:
 @router.get("/api/players/{player_id}/profile")
 @route_error_handler("Failed to fetch player profile")
 async def get_player_profile(player_id: int = Path(..., gt=0)):
-    """Get full profile: bio, career season-by-season, career highs."""
+    """Get full profile: bio, career season-by-season."""
     cache_key = f"player_profile_{player_id}"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -651,45 +650,9 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
             )
         return career_rows
 
-    def _fetch_highs():
-        # PlayerProfileV2 is slower than other endpoints — bump timeout
-        # well above STATS_TIMEOUT (30s) to avoid empty-response JSONDecodeError.
-        try:
-            prof = with_retry(
-                lambda: playerprofilev2.PlayerProfileV2(
-                    player_id=player_id, proxy=STATS_PROXY, timeout=60
-                )
-            )
-        finally:
-            _reset_nba_stats_http_session()
-        highs_dict = prof.career_highs.get_dict()
-        hh = {k: i for i, k in enumerate(highs_dict["headers"])}
-        stat_idx = hh.get("STAT")
-        val_idx = hh.get("STAT_VALUE")
-        # DATE_EST is ISO format (2018-05-31T...); GAME_DATE is human ("MAY 31 2018")
-        date_idx = hh.get("DATE_EST", hh.get("GAME_DATE"))
-        opp_idx = hh.get("VS_TEAM_ABBREVIATION")
-        highs = []
-        for row in highs_dict["data"]:
-            stat = row[stat_idx] if stat_idx is not None else None
-            if not stat:
-                continue
-            highs.append(
-                {
-                    "stat": stat,
-                    "value": row[val_idx] if val_idx is not None else 0,
-                    "date": row[date_idx][:10]
-                    if date_idx is not None and row[date_idx]
-                    else "",
-                    "opponent": row[opp_idx] if opp_idx is not None else "",
-                }
-            )
-        return highs
-
     def _sync():
         bio_future = executor.submit(_fetch_bio)
         career_future = executor.submit(_fetch_career)
-        highs_future = executor.submit(_fetch_highs)
         try:
             bio = bio_future.result(timeout=STATS_TIMEOUT)
         except Exception as ex:
@@ -700,12 +663,6 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
         except Exception as ex:
             log_exceptions(ex, f"profile_career player_id={player_id}")
             career = []
-        try:
-            # Match the longer NBA-side timeout used inside _fetch_highs
-            highs = highs_future.result(timeout=65)
-        except Exception as ex:
-            log_exceptions(ex, f"profile_highs player_id={player_id}")
-            highs = []
 
         if bio is None and not career:
             return _not_found
@@ -714,7 +671,6 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
             "playerId": player_id,
             "bio": bio or {},
             "career": career,
-            "careerHighs": highs,
         }
 
     result = await asyncio.to_thread(_sync)
