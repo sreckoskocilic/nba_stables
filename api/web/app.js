@@ -718,6 +718,8 @@ async function loadPlayerProfile() {
         _fetchWithAbort(
           "playerProfile",
           `/api/players/${lastNSelectedPlayer.id}/profile`,
+          {},
+          40000,
         ),
       ]),
       a = await e.json(),

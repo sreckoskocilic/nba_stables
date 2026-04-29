@@ -29,6 +29,7 @@ from helpers.logger import log_exceptions
 from helpers.stats import (
     _reset_nba_stats_http_session,
     count_double_digits,
+    fetch_player_profile_v2_raw,
     find_category_leaders,
     fix_encoding,
     get_cached_boxscore_v3,
@@ -45,7 +46,6 @@ from nba_api.stats.endpoints import (
     commonplayerinfo,
     playercareerstats,
     playergamelog,
-    playerprofilev2,
 )
 
 router = APIRouter()
@@ -679,19 +679,16 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
         return career_rows
 
     def _fetch_career_highs():
-        try:
-            profile = with_retry(
-                lambda: playerprofilev2.PlayerProfileV2(
-                    player_id=player_id, proxy=STATS_PROXY, timeout=60
-                )
-            )
-        finally:
-            _reset_nba_stats_http_session()
-        highs_dict = profile.career_highs.get_dict()
-        hh = {k: i for i, k in enumerate(highs_dict["headers"])}
+        data = fetch_player_profile_v2_raw(player_id, timeout=30)
+        sets = data.get("resultSets", [])
+        highs_set = next((s for s in sets if s.get("name") == "CareerHighs"), None)
+        if not highs_set:
+            return []
+        headers = highs_set["headers"]
+        hh = {k: i for i, k in enumerate(headers)}
         seen_stats = set()
         career_highs = []
-        for row in highs_dict["data"]:
+        for row in highs_set["rowSet"]:
             stat = row[hh["STAT"]]
             if stat in seen_stats or stat not in _CAREER_HIGH_LABELS:
                 continue
@@ -722,7 +719,7 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
             log_exceptions(ex, f"profile_career player_id={player_id}")
             career = []
         try:
-            career_highs = highs_future.result(timeout=65)
+            career_highs = highs_future.result(timeout=35)
         except Exception as ex:
             log_exceptions(ex, f"profile_highs player_id={player_id}")
             career_highs = []

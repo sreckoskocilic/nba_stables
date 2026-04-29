@@ -1022,10 +1022,22 @@ def _default_career_highs_rows():
     ]
 
 
+def _build_ppv2_payload(career_highs_rows):
+    return {
+        "resultSets": [
+            {
+                "name": "CareerHighs",
+                "headers": CAREER_HIGHS_HEADERS,
+                "rowSet": career_highs_rows,
+            }
+        ]
+    }
+
+
 def _mock_profile_endpoints(
     bio_overrides=None, career_rows=None, career_highs_rows=None
 ):
-    """Returns (CPI mock, PCS mock, PPv2 mock) for patching."""
+    """Returns (CPI mock, PCS mock, PPv2 raw fetch return value) for patching."""
     bio_headers = [
         "DISPLAY_FIRST_LAST",
         "TEAM_ABBREVIATION",
@@ -1076,22 +1088,21 @@ def _mock_profile_endpoints(
         "headers": CAREER_HEADERS,
         "data": career_rows,
     }
-    ppv2 = MagicMock()
-    ppv2.return_value.career_highs.get_dict.return_value = {
-        "headers": CAREER_HIGHS_HEADERS,
-        "data": career_highs_rows,
-    }
+    ppv2_payload = _build_ppv2_payload(career_highs_rows)
 
-    return cpi, pcs, ppv2
+    return cpi, pcs, ppv2_payload
 
 
 class TestPlayerProfile:
     def test_returns_full_profile(self, client):
-        cpi, pcs, ppv2 = _mock_profile_endpoints()
+        cpi, pcs, ppv2_payload = _mock_profile_endpoints()
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
             patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
-            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
+            patch(
+                "routes.players.fetch_player_profile_v2_raw",
+                return_value=ppv2_payload,
+            ),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
         assert r.status_code == 200
@@ -1105,7 +1116,7 @@ class TestPlayerProfile:
         assert body["career"][0]["points"] == 28.0
 
     def test_handles_missing_bio(self, client):
-        cpi, pcs, ppv2 = _mock_profile_endpoints()
+        cpi, pcs, ppv2_payload = _mock_profile_endpoints()
         cpi.return_value.common_player_info.get_dict.return_value = {
             "headers": [],
             "data": [],
@@ -1113,7 +1124,10 @@ class TestPlayerProfile:
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
             patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
-            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
+            patch(
+                "routes.players.fetch_player_profile_v2_raw",
+                return_value=ppv2_payload,
+            ),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
         assert r.status_code == 200
@@ -1122,11 +1136,14 @@ class TestPlayerProfile:
         assert len(body["career"]) == 1
 
     def test_returns_career_highs(self, client):
-        cpi, pcs, ppv2 = _mock_profile_endpoints()
+        cpi, pcs, ppv2_payload = _mock_profile_endpoints()
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
             patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
-            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
+            patch(
+                "routes.players.fetch_player_profile_v2_raw",
+                return_value=ppv2_payload,
+            ),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
         body = r.json()
@@ -1149,11 +1166,14 @@ class TestPlayerProfile:
             make_career_high_row("PTS", 51, "GSW", "2018-05-31T00:00:00", 1),
             make_career_high_row("PTS", 51, "BOS", "2017-05-23T00:00:00", 1),
         ]
-        cpi, pcs, ppv2 = _mock_profile_endpoints(career_highs_rows=rows)
+        cpi, pcs, ppv2_payload = _mock_profile_endpoints(career_highs_rows=rows)
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
             patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
-            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
+            patch(
+                "routes.players.fetch_player_profile_v2_raw",
+                return_value=ppv2_payload,
+            ),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
         highs = r.json()["careerHighs"]
@@ -1163,11 +1183,13 @@ class TestPlayerProfile:
     def test_career_returned_when_highs_endpoint_fails(self, client):
         """PPv2 is unstable on stats.nba.com — career stats must still come through."""
         cpi, pcs, _ = _mock_profile_endpoints()
-        ppv2_fail = MagicMock(side_effect=ValueError("ppv2 down"))
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
             patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
-            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2_fail),
+            patch(
+                "routes.players.fetch_player_profile_v2_raw",
+                side_effect=ValueError("ppv2 down"),
+            ),
             patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
@@ -1179,12 +1201,15 @@ class TestPlayerProfile:
     def test_partial_failure_uses_short_cache_ttl(self, client):
         """When highs fail, cache TTL must be short (5 min) so we retry soon, not 24h."""
         from unittest.mock import ANY
+
         cpi, pcs, _ = _mock_profile_endpoints()
-        ppv2_fail = MagicMock(side_effect=ValueError("ppv2 down"))
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
             patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
-            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2_fail),
+            patch(
+                "routes.players.fetch_player_profile_v2_raw",
+                side_effect=ValueError("ppv2 down"),
+            ),
             patch("helpers.decorators.log_exceptions"),
             patch("routes.players.cache.set") as cache_set,
         ):
@@ -1195,11 +1220,15 @@ class TestPlayerProfile:
         """When highs succeed, cache for 24h."""
         from unittest.mock import ANY
         from helpers.common import CACHE_TTL
-        cpi, pcs, ppv2 = _mock_profile_endpoints()
+
+        cpi, pcs, ppv2_payload = _mock_profile_endpoints()
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
             patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
-            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
+            patch(
+                "routes.players.fetch_player_profile_v2_raw",
+                return_value=ppv2_payload,
+            ),
             patch("routes.players.cache.set") as cache_set,
         ):
             client.get(f"/api/players/{PLAYER_ID}/profile")
