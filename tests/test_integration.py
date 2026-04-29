@@ -1176,6 +1176,35 @@ class TestPlayerProfile:
         assert len(body["career"]) == 1
         assert body["careerHighs"] == []
 
+    def test_partial_failure_uses_short_cache_ttl(self, client):
+        """When highs fail, cache TTL must be short (5 min) so we retry soon, not 24h."""
+        from unittest.mock import ANY
+        cpi, pcs, _ = _mock_profile_endpoints()
+        ppv2_fail = MagicMock(side_effect=ValueError("ppv2 down"))
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2_fail),
+            patch("helpers.decorators.log_exceptions"),
+            patch("routes.players.cache.set") as cache_set,
+        ):
+            client.get(f"/api/players/{PLAYER_ID}/profile")
+        cache_set.assert_called_once_with(ANY, ANY, 300)
+
+    def test_full_success_uses_long_cache_ttl(self, client):
+        """When highs succeed, cache for 24h."""
+        from unittest.mock import ANY
+        from helpers.common import CACHE_TTL
+        cpi, pcs, ppv2 = _mock_profile_endpoints()
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
+            patch("routes.players.cache.set") as cache_set,
+        ):
+            client.get(f"/api/players/{PLAYER_ID}/profile")
+        cache_set.assert_called_once_with(ANY, ANY, CACHE_TTL["historical"])
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/trades

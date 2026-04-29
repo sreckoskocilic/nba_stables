@@ -1,3 +1,4 @@
+import json
 import re
 import threading
 import time
@@ -175,8 +176,8 @@ def count_double_digits(pts: int, reb: int, ast: int, stl: int, blk: int) -> int
 def with_retry(fn, attempts: int = 3, delay: float = 0.2):
     """Run `fn` with exponential backoff retry for transient errors.
 
-    On transient errors (Timeout, ConnectionError), resets nba_api's cached session
-    before backoff to mitigate nba_api issue #633.
+    On transient errors (Timeout, ConnectionError, empty-body JSONDecodeError),
+    resets nba_api's cached session before backoff to mitigate nba_api issue #633.
     """
     last_err: Exception | None = None
     for i in range(attempts):
@@ -187,6 +188,7 @@ def with_retry(fn, attempts: int = 3, delay: float = 0.2):
             TimeoutError,
             OSError,
             requests.RequestException,
+            json.JSONDecodeError,
         ) as ex:  # pragma: no cover - retry logic for network issues
             last_err = ex
             _reset_nba_stats_http_session()

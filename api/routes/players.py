@@ -740,5 +740,6 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
     result = await asyncio.to_thread(_sync)
     if result is _not_found:
         raise HTTPException(status_code=404, detail="Player not found")
-    cache.set(cache_key, result, CACHE_TTL["historical"])
+    ttl = CACHE_TTL["historical"] if result["careerHighs"] else 300
+    cache.set(cache_key, result, ttl)
     return result
