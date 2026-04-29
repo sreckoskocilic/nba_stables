@@ -331,6 +331,15 @@ def test_calc_age_handles_empty_and_invalid():
     assert _calc_age("not-a-date") is None
 
 
+def test_format_career_high_date_handles_empty_and_invalid():
+    from routes.players import _format_career_high_date
+
+    assert _format_career_high_date(None) == ""
+    assert _format_career_high_date("") == ""
+    assert _format_career_high_date("not-a-date") == "not-a-date"
+    assert _format_career_high_date("2018-05-31T00:00:00") == "May 31, 2018"
+
+
 def test_player_profile_cached_branch(client):
     cache_key = f"player_profile_{PLAYER_ID}"
     payload = {"playerId": PLAYER_ID, "bio": {}, "career": []}
@@ -343,9 +352,9 @@ def test_player_profile_cached_branch(client):
 def test_player_profile_404_when_bio_and_career_both_fail(client, monkeypatch):
     """Cover the _not_found return + 404 raise."""
     cpi_fail = MagicMock(side_effect=ValueError("boom bio"))
-    pcs_fail = MagicMock(side_effect=ValueError("boom career"))
+    ppv2_fail = MagicMock(side_effect=ValueError("boom career"))
     monkeypatch.setattr("routes.players.commonplayerinfo.CommonPlayerInfo", cpi_fail)
-    monkeypatch.setattr("routes.players.playercareerstats.PlayerCareerStats", pcs_fail)
+    monkeypatch.setattr("routes.players.playerprofilev2.PlayerProfileV2", ppv2_fail)
     cache.clear()
     r = client.get(f"/api/players/{PLAYER_ID}/profile")
     assert r.status_code == 404

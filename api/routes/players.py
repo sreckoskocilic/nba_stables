@@ -45,6 +45,7 @@ from nba_api.stats.endpoints import (
     commonplayerinfo,
     playercareerstats,
     playergamelog,
+    playerprofilev2,
 )
 
 router = APIRouter()
@@ -565,6 +566,33 @@ def _calc_age(birthdate_str: str | None) -> int | None:
         return None
 
 
+_CAREER_HIGH_LABELS = {
+    "PTS": "PTS",
+    "REB": "REB",
+    "AST": "AST",
+    "STL": "STL",
+    "BLK": "BLK",
+    "FG3M": "3PT-M",
+    "FG3A": "3PT-A",
+    "FGM": "FGM",
+    "FGA": "FGA",
+    "FTM": "FTM",
+    "FTA": "FTA",
+    "OREB": "OREB",
+    "DREB": "DREB",
+}
+
+
+def _format_career_high_date(date_est: str | None) -> str:
+    if not date_est:
+        return ""
+    try:
+        d = date.fromisoformat(str(date_est)[:10])
+        return d.strftime("%b %-d, %Y")
+    except (ValueError, TypeError):
+        return str(date_est)
+
+
 @router.get("/api/players/{player_id}/profile")
 @route_error_handler("Failed to fetch player profile")
 async def get_player_profile(player_id: int = Path(..., gt=0)):
@@ -610,16 +638,16 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
             "experience": g("SEASON_EXP"),
         }
 
-    def _fetch_career():
+    def _fetch_career_and_highs():
         try:
-            career = with_retry(
-                lambda: playercareerstats.PlayerCareerStats(
-                    player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+            profile = with_retry(
+                lambda: playerprofilev2.PlayerProfileV2(
+                    player_id=player_id, proxy=STATS_PROXY, timeout=60
                 )
             )
         finally:
             _reset_nba_stats_http_session()
-        season_dict = career.season_totals_regular_season.get_dict()
+        season_dict = profile.season_totals_regular_season.get_dict()
         sh = {k: i for i, k in enumerate(season_dict["headers"])}
         career_rows = []
         for row in season_dict["data"]:
@@ -648,29 +676,49 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
                     "ftPct": pct("FT_PCT"),
                 }
             )
-        return career_rows
+
+        highs_dict = profile.career_highs.get_dict()
+        hh = {k: i for i, k in enumerate(highs_dict["headers"])}
+        seen_stats = set()
+        career_highs = []
+        for row in highs_dict["data"]:
+            stat = row[hh["STAT"]]
+            if stat in seen_stats or stat not in _CAREER_HIGH_LABELS:
+                continue
+            seen_stats.add(stat)
+            career_highs.append(
+                {
+                    "stat": stat,
+                    "label": _CAREER_HIGH_LABELS[stat],
+                    "value": row[hh["STAT_VALUE"]],
+                    "vsTeam": row[hh["VS_TEAM_ABBREVIATION"]] or "",
+                    "date": _format_career_high_date(row[hh["DATE_EST"]]),
+                }
+            )
+        return career_rows, career_highs
 
     def _sync():
         bio_future = executor.submit(_fetch_bio)
-        career_future = executor.submit(_fetch_career)
+        career_future = executor.submit(_fetch_career_and_highs)
         try:
             bio = bio_future.result(timeout=STATS_TIMEOUT)
         except Exception as ex:
             log_exceptions(ex, f"profile_bio player_id={player_id}")
             bio = None
         try:
-            career = career_future.result(timeout=STATS_TIMEOUT)
+            career, career_highs = career_future.result(timeout=65)
         except Exception as ex:
             log_exceptions(ex, f"profile_career player_id={player_id}")
-            career = []
+            career, career_highs = [], []
 
-        if bio is None and not career:
+        if bio is None and not career and not career_highs:
             return _not_found
 
         return {
             "playerId": player_id,
             "bio": bio or {},
             "career": career,
+            "careerHighs": career_highs,
         }
 
     result = await asyncio.to_thread(_sync)

@@ -971,8 +971,61 @@ class TestSeasonAvg:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _mock_profile_endpoints(bio_overrides=None, career_rows=None):
-    """Returns (CPI mock, PCS mock) for patching."""
+CAREER_HIGHS_HEADERS = [
+    "PLAYER_ID",
+    "GAME_ID",
+    "GAME_DATE",
+    "VS_TEAM_ID",
+    "VS_TEAM_CITY",
+    "VS_TEAM_NAME",
+    "VS_TEAM_ABBREVIATION",
+    "STAT",
+    "STAT_VALUE",
+    "STAT_ORDER",
+    "DATE_EST",
+]
+
+
+def make_career_high_row(
+    stat, value, vs_tri="GSW", date_est="2018-05-31T00:00:00", order=1
+):
+    return [
+        PLAYER_ID,
+        "0041700401",
+        "MAY 31 2018",
+        1610612744,
+        "Golden State",
+        "Warriors",
+        vs_tri,
+        stat,
+        value,
+        order,
+        date_est,
+    ]
+
+
+def _default_career_highs_rows():
+    return [
+        make_career_high_row("PTS", 51, "GSW", "2018-05-31T00:00:00", 1),
+        make_career_high_row("FG3M", 7, "WAS", "2006-04-30T00:00:00", 2),
+        make_career_high_row("FTM", 18, "BOS", "2012-05-30T00:00:00", 3),
+        make_career_high_row("BLK", 5, "BOS", "2011-05-07T00:00:00", 4),
+        make_career_high_row("REB", 20, "MEM", "2023-04-24T00:00:00", 5),
+        make_career_high_row("DREB", 16, "BOS", "2010-05-13T00:00:00", 6),
+        make_career_high_row("STL", 6, "IND", "2012-05-15T00:00:00", 7),
+        make_career_high_row("AST", 16, "POR", "2020-08-18T00:00:00", 8),
+        make_career_high_row("FG3A", 12, "TOR", "2017-05-07T00:00:00", 9),
+        make_career_high_row("FTA", 24, "BOS", "2012-05-30T00:00:00", 10),
+        make_career_high_row("FGM", 20, "ORL", "2009-05-20T00:00:00", 11),
+        make_career_high_row("OREB", 8, "ATL", "2015-05-24T00:00:00", 12),
+        make_career_high_row("FGA", 38, "GSW", "2015-06-04T00:00:00", 13),
+    ]
+
+
+def _mock_profile_endpoints(
+    bio_overrides=None, career_rows=None, career_highs_rows=None
+):
+    """Returns (CPI mock, PPv2 mock) for patching."""
     bio_headers = [
         "DISPLAY_FIRST_LAST",
         "TEAM_ABBREVIATION",
@@ -1016,21 +1069,27 @@ def _mock_profile_endpoints(bio_overrides=None, career_rows=None):
 
     if career_rows is None:
         career_rows = [make_career_row()]
-    pcs = MagicMock()
-    pcs.return_value.season_totals_regular_season.get_dict.return_value = {
+    if career_highs_rows is None:
+        career_highs_rows = _default_career_highs_rows()
+    ppv2 = MagicMock()
+    ppv2.return_value.season_totals_regular_season.get_dict.return_value = {
         "headers": CAREER_HEADERS,
         "data": career_rows,
     }
+    ppv2.return_value.career_highs.get_dict.return_value = {
+        "headers": CAREER_HIGHS_HEADERS,
+        "data": career_highs_rows,
+    }
 
-    return cpi, pcs
+    return cpi, ppv2
 
 
 class TestPlayerProfile:
     def test_returns_full_profile(self, client):
-        cpi, pcs = _mock_profile_endpoints()
+        cpi, ppv2 = _mock_profile_endpoints()
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
-            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
         assert r.status_code == 200
@@ -1044,20 +1103,57 @@ class TestPlayerProfile:
         assert body["career"][0]["points"] == 28.0
 
     def test_handles_missing_bio(self, client):
-        cpi, pcs = _mock_profile_endpoints()
+        cpi, ppv2 = _mock_profile_endpoints()
         cpi.return_value.common_player_info.get_dict.return_value = {
             "headers": [],
             "data": [],
         }
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
-            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
         assert r.status_code == 200
         body = r.json()
         assert body["bio"] == {}
         assert len(body["career"]) == 1
+
+    def test_returns_career_highs(self, client):
+        cpi, ppv2 = _mock_profile_endpoints()
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
+        ):
+            r = client.get(f"/api/players/{PLAYER_ID}/profile")
+        body = r.json()
+        highs = body["careerHighs"]
+        assert len(highs) == 13
+        pts_high = next(h for h in highs if h["stat"] == "PTS")
+        assert pts_high == {
+            "stat": "PTS",
+            "label": "PTS",
+            "value": 51,
+            "vsTeam": "GSW",
+            "date": "May 31, 2018",
+        }
+        labels = {h["stat"]: h["label"] for h in highs}
+        assert labels["FG3M"] == "3PT-M"
+        assert labels["FG3A"] == "3PT-A"
+
+    def test_career_highs_dedupe_on_ties(self, client):
+        rows = [
+            make_career_high_row("PTS", 51, "GSW", "2018-05-31T00:00:00", 1),
+            make_career_high_row("PTS", 51, "BOS", "2017-05-23T00:00:00", 1),
+        ]
+        cpi, ppv2 = _mock_profile_endpoints(career_highs_rows=rows)
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
+        ):
+            r = client.get(f"/api/players/{PLAYER_ID}/profile")
+        highs = r.json()["careerHighs"]
+        assert len(highs) == 1
+        assert highs[0]["vsTeam"] == "GSW"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
