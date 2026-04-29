@@ -1001,7 +1001,58 @@ function drawBracket(t, e, s, piActual, seriesResults) {
       };
     }
   });
-  function $(t, e, s, i) {
+  const _r1Winners = [
+    [0, 1],
+    [2, 3],
+    [4, 5],
+    [6, 7],
+  ].map(([ai, bi]) => {
+    const tA = r[ai],
+      tB = r[bi];
+    if (!tA || !tB || !tA.teamId || !tB.teamId) return null;
+    const sA = serMap[tA.teamId];
+    if (sA && sA.w >= 4) return tA;
+    const sB = serMap[tB.teamId];
+    if (sB && sB.w >= 4) return tB;
+    return null;
+  });
+  function _getSeries(tA, tB) {
+    if (!tA || !tB || !tA.teamId || !tB.teamId) return null;
+    const k = `${Math.min(tA.teamId, tB.teamId)}_${Math.max(tA.teamId, tB.teamId)}`;
+    const sd = _sr[k];
+    if (!sd) return null;
+    return {
+      [tA.teamId]: {
+        w: sd[String(tA.teamId)] || 0,
+        l: sd[String(tB.teamId)] || 0,
+      },
+      [tB.teamId]: {
+        w: sd[String(tB.teamId)] || 0,
+        l: sd[String(tA.teamId)] || 0,
+      },
+    };
+  }
+  function _findWinner(tA, tB, sr) {
+    if (!sr) return null;
+    if (tA && sr[tA.teamId] && sr[tA.teamId].w >= 4) return tA;
+    if (tB && sr[tB.teamId] && sr[tB.teamId].w >= 4) return tB;
+    return null;
+  }
+  const _semiSr = [
+    _getSeries(_r1Winners[0], _r1Winners[1]),
+    _getSeries(_r1Winners[2], _r1Winners[3]),
+  ];
+  const _semiWinners = [
+    _findWinner(_r1Winners[0], _r1Winners[1], _semiSr[0]),
+    _findWinner(_r1Winners[2], _r1Winners[3], _semiSr[1]),
+  ];
+  const _cfSr = _getSeries(_semiWinners[0], _semiWinners[1]);
+  function _recStr(sr, team) {
+    if (!sr || !team || !sr[team.teamId]) return "";
+    const e = sr[team.teamId];
+    return `${e.w}-${e.l}`;
+  }
+  function $(t, e, s, i, recOverride) {
     ((v.fillStyle = i ? "#22222e" : h),
       x(v, t, e, a, n, 5),
       v.fill(),
@@ -1033,11 +1084,13 @@ function drawBracket(t, e, s, piActual, seriesResults) {
       (v.fillStyle = g),
       (v.textAlign = "right"));
     const _sd = serMap[s.teamId];
-    v.fillText(
-      _sd ? `${_sd.w}-${_sd.l}` : `${s.wins}-${s.losses}`,
-      t + a - 6,
-      e + 23,
-    );
+    const _rec =
+      recOverride !== undefined
+        ? recOverride
+        : _sd
+          ? `${_sd.w}-${_sd.l}`
+          : `${s.wins}-${s.losses}`;
+    v.fillText(_rec, t + a - 6, e + 23);
   }
   function x(t, e, s, a, n, i) {
     (t.beginPath(),
@@ -1095,17 +1148,23 @@ function drawBracket(t, e, s, piActual, seriesResults) {
       k.push(l - 19));
   }),
     k.forEach((t, e) => {
-      ((v.fillStyle = h),
-        x(v, w, t, a, n, 5),
-        v.fill(),
-        (v.strokeStyle = y),
-        (v.lineWidth = 1),
-        x(v, w, t, a, n, 5),
-        v.stroke(),
-        (v.font = "10px Inter, sans-serif"),
-        (v.fillStyle = g),
-        (v.textAlign = "center"),
-        v.fillText("Semifinal", 394, t + 19 + 4));
+      const _semiTeam = _r1Winners[e];
+      if (_semiTeam) {
+        const _slotSr = _semiSr[Math.floor(e / 2)];
+        $(w, t, _semiTeam, false, _recStr(_slotSr, _semiTeam));
+      } else {
+        ((v.fillStyle = h),
+          x(v, w, t, a, n, 5),
+          v.fill(),
+          (v.strokeStyle = y),
+          (v.lineWidth = 1),
+          x(v, w, t, a, n, 5),
+          v.stroke(),
+          (v.font = "10px Inter, sans-serif"),
+          (v.fillStyle = g),
+          (v.textAlign = "center"),
+          v.fillText("Semifinal", 394, t + 19 + 4));
+      }
     }));
   const S = [];
   ([
@@ -1136,18 +1195,23 @@ function drawBracket(t, e, s, piActual, seriesResults) {
       v.stroke(),
       S.push(l - 19));
   }),
-    S.forEach((t) => {
-      ((v.fillStyle = h),
-        x(v, A, t, a, n, 5),
-        v.fill(),
-        (v.strokeStyle = u),
-        (v.lineWidth = 1),
-        x(v, A, t, a, n, 5),
-        v.stroke(),
-        (v.font = "bold 10px Inter, sans-serif"),
-        (v.fillStyle = u),
-        (v.textAlign = "center"),
-        v.fillText("Conf. Finals", 662, t + 19 + 4));
+    S.forEach((t, e) => {
+      const _cfTeam = _semiWinners[e];
+      if (_cfTeam) {
+        $(A, t, _cfTeam, true, _recStr(_cfSr, _cfTeam));
+      } else {
+        ((v.fillStyle = h),
+          x(v, A, t, a, n, 5),
+          v.fill(),
+          (v.strokeStyle = u),
+          (v.lineWidth = 1),
+          x(v, A, t, a, n, 5),
+          v.stroke(),
+          (v.font = "bold 10px Inter, sans-serif"),
+          (v.fillStyle = u),
+          (v.textAlign = "center"),
+          v.fillText("Conf. Finals", 662, t + 19 + 4));
+      }
     }),
     (v.font = "bold 10px Inter, sans-serif"),
     (v.fillStyle = g),
