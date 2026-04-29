@@ -31,7 +31,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  const isShellAsset = SHELL_ASSETS.some((asset) => event.request.url.endsWith(asset));
+  const reqPath = new URL(event.request.url).pathname;
+  const isShellAsset = SHELL_ASSETS.includes(reqPath);
 
   event.respondWith(
     fetch(event.request)

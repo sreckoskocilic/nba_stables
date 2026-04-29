@@ -532,8 +532,6 @@ function renderStandings() {
       a(_standingsData.east, "Eastern") + a(_standingsData.west, "Western");
   } catch (e) {
     t.innerHTML = `\n                    <div class="empty-state">\n                        <div class="empty-state-icon">&#9888;</div>\n                        <div class="empty-state-title">Error Loading Standings</div>\n                        <p>${esc(e.message)}</p>\n                    </div>\n                `;
-    t.innerHTML =
-      a(_standingsData.east, "Eastern") + a(_standingsData.west, "Western");
   }
 }
 async function loadStandings(force = false) {
@@ -898,7 +896,7 @@ async function loadPlayerProfile() {
     (t, e) => {
       ((lastNSelectedPlayer = { id: t, name: e }),
         (document.getElementById("lastNPlayerChip").innerHTML =
-          `\n                <div class="player-chip">\n                    <span>${e}</span>\n                    <button class="player-chip-remove" aria-label="Remove player" data-action="clearLastNPlayer">&times;</button>\n                </div>\n            `),
+          `\n                <div class="player-chip">\n                    <span>${esc(e)}</span>\n                    <button class="player-chip-remove" aria-label="Remove player" data-action="clearLastNPlayer">&times;</button>\n                </div>\n            `),
         (document.getElementById("lastNBtn").disabled = !1));
     },
     "lastNBtn",
@@ -1311,29 +1309,39 @@ function drawBracket(t, e, s, piActual, seriesResults) {
       ? 0
       : 1
     : -1;
-  const g1Loser = g1WinIdx >= 0 ? o[1 - g1WinIdx] : null;
   const g2WinIdx = g2Sc
     ? g2Sc[String(o[2].teamId)] >= g2Sc[String(o[3].teamId)]
       ? 0
       : 1
     : -1;
-  const g2Winner = g2WinIdx >= 0 ? o[2 + g2WinIdx] : null;
+  const _g3TopPlaceholder = {
+    rank: "?",
+    name: "G1 Loser",
+    wins: "?",
+    losses: "?",
+  };
+  const _g3BotPlaceholder = {
+    rank: "?",
+    name: "G2 Winner",
+    wins: "?",
+    losses: "?",
+  };
   const g3Top =
     piA.g1LoserTeamId && o[0]
       ? o[0].teamId === piA.g1LoserTeamId
         ? o[0]
         : o[1] && o[1].teamId === piA.g1LoserTeamId
           ? o[1]
-          : null
-      : { rank: "?", name: "G1 Loser", wins: "?", losses: "?" };
+          : _g3TopPlaceholder
+      : _g3TopPlaceholder;
   const g3Bot =
     piA.g2WinnerTeamId && o[2]
       ? o[2].teamId === piA.g2WinnerTeamId
         ? o[2]
         : o[3] && o[3].teamId === piA.g2WinnerTeamId
           ? o[3]
-          : null
-      : { rank: "?", name: "G2 Winner", wins: "?", losses: "?" };
+          : _g3BotPlaceholder
+      : _g3BotPlaceholder;
   const g3Sc = g3Top.teamId && g3Bot.teamId ? scrs[piKey(g3Top, g3Bot)] : null;
   const g3WTop = !!(
     piA.g3WinnerTeamId &&
@@ -1476,7 +1484,7 @@ function renderSeasonDoubles() {
   const tbl = (title, list, isTd) => {
     if (!list || list.length === 0)
       return `<div class="card" style="padding:20px;"><h3 style="margin-bottom:10px;color:var(--accent);">${title}</h3><p style="color:var(--text-secondary);">No data available</p></div>`;
-    return `<div class="card" style="overflow-x:auto;"><h3 style="padding:15px 20px;background:var(--bg-secondary);margin:0;border-bottom:1px solid var(--border);">${title}</h3><table class="doubles-table"><thead><tr><th>Rank</th><th style="text-align:left;">Player</th><th>Team</th><th>Count</th>${isTd ? "<th>Details</th>" : ""}</tr></thead><tbody>${list.map((p) => `<tr id="td-row-${p.playerId}"><td>${p.rank}</td><td style="text-align:left;font-weight:500;">${p.name}</td><td>${p.team}</td><td class="highlight">${p.count}</td>${isTd ? `<td><button class="refresh-btn" style="font-size:0.75rem;padding:2px 8px;" data-action="toggleTdGames" data-player-id="${p.playerId}">Details</button></td>` : ""}</tr>${isTd ? `<tr id="td-details-${p.playerId}" style="display:none;"><td colspan="5"><div id="td-games-${p.playerId}" style="padding:8px;"></div></td></tr>` : ""}`).join("")}</tbody></table></div>`;
+    return `<div class="card" style="overflow-x:auto;"><h3 style="padding:15px 20px;background:var(--bg-secondary);margin:0;border-bottom:1px solid var(--border);">${title}</h3><table class="doubles-table"><thead><tr><th>Rank</th><th style="text-align:left;">Player</th><th>Team</th><th>Count</th>${isTd ? "<th>Details</th>" : ""}</tr></thead><tbody>${list.map((p) => `<tr id="td-row-${p.playerId}"><td>${p.rank}</td><td style="text-align:left;font-weight:500;">${esc(p.name)}</td><td>${esc(p.team)}</td><td class="highlight">${p.count}</td>${isTd ? `<td><button class="refresh-btn" style="font-size:0.75rem;padding:2px 8px;" data-action="toggleTdGames" data-player-id="${p.playerId}">Details</button></td>` : ""}</tr>${isTd ? `<tr id="td-details-${p.playerId}" style="display:none;"><td colspan="5"><div id="td-games-${p.playerId}" style="padding:8px;"></div></td></tr>` : ""}`).join("")}</tbody></table></div>`;
   };
   el.innerHTML = `<div class="season-doubles-grid">${tbl("Double-Doubles", d.doubleDoubles ? d.doubleDoubles.slice(0, 20) : [], false)}${tbl("Triple-Doubles", d.tripleDoubles ? d.tripleDoubles.slice(0, 20) : [], true)}</div>`;
 }
@@ -1503,7 +1511,7 @@ async function toggleTdGames(playerId, btn) {
         '<p style="color:var(--text-secondary);font-size:0.85rem;">No triple-double games found</p>';
       return;
     }
-    container.innerHTML = `<div style="overflow-x:auto;"><table class="boxscore-table" style="font-size:0.72rem;"><thead><tr><th>Date</th><th>Matchup</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th></tr></thead><tbody>${d.games.map((g) => `<tr><td style="white-space:nowrap;">${g.date}</td><td style="white-space:nowrap;">${g.matchup}</td><td class="${statClass("points", g.points)}">${g.points}</td><td class="${statClass("rebounds", g.rebounds)}">${g.rebounds}</td><td class="${statClass("assists", g.assists)}">${g.assists}</td><td class="${statClass("steals", g.steals)}">${g.steals}</td><td class="${statClass("blocks", g.blocks)}">${g.blocks}</td></tr>`).join("")}</tbody></table></div>`;
+    container.innerHTML = `<div style="overflow-x:auto;"><table class="boxscore-table" style="font-size:0.72rem;"><thead><tr><th>Date</th><th>Matchup</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th></tr></thead><tbody>${d.games.map((g) => `<tr><td style="white-space:nowrap;">${esc(g.date)}</td><td style="white-space:nowrap;">${esc(g.matchup)}</td><td class="${statClass("points", g.points)}">${g.points}</td><td class="${statClass("rebounds", g.rebounds)}">${g.rebounds}</td><td class="${statClass("assists", g.assists)}">${g.assists}</td><td class="${statClass("steals", g.steals)}">${g.steals}</td><td class="${statClass("blocks", g.blocks)}">${g.blocks}</td></tr>`).join("")}</tbody></table></div>`;
   } catch (e) {
     container.innerHTML = '<p style="color:#ef4444;">Error loading games</p>';
   }
@@ -1853,7 +1861,12 @@ function _tickerCountDoubles(leader) {
 function _tickerLastName(name) {
   if (!name || name === "null") return "";
   const parts = String(name).trim().split(/\s+/);
-  return parts[parts.length - 1] || "";
+  if (parts.length === 0) return "";
+  const last = parts[parts.length - 1];
+  if (parts.length >= 2 && /^(?:Jr\.?|Sr\.?|II|III|IV|V)$/.test(last)) {
+    return parts[parts.length - 2] + " " + last;
+  }
+  return last || "";
 }
 
 function _buildTickerItems(games) {
@@ -1917,6 +1930,7 @@ function _buildTickerItems(games) {
 async function loadHeaderTicker() {
   const track = document.getElementById("tickerTrack");
   if (!track) return;
+  if (document.hidden) return;
   try {
     const r = await fetch("/api/scoreboard", { cache: "no-store" });
     if (!r.ok) throw new Error("scoreboard fetch failed");
@@ -2377,4 +2391,5 @@ document.addEventListener("click", (e) => {
   if (fn) fn(t, e);
 });
 
-"serviceWorker" in navigator && navigator.serviceWorker.register("/web/sw.js");
+"serviceWorker" in navigator &&
+  navigator.serviceWorker.register("/web/sw.js").catch(() => {});
