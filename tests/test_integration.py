@@ -1025,7 +1025,7 @@ def _default_career_highs_rows():
 def _mock_profile_endpoints(
     bio_overrides=None, career_rows=None, career_highs_rows=None
 ):
-    """Returns (CPI mock, PPv2 mock) for patching."""
+    """Returns (CPI mock, PCS mock, PPv2 mock) for patching."""
     bio_headers = [
         "DISPLAY_FIRST_LAST",
         "TEAM_ABBREVIATION",
@@ -1071,24 +1071,26 @@ def _mock_profile_endpoints(
         career_rows = [make_career_row()]
     if career_highs_rows is None:
         career_highs_rows = _default_career_highs_rows()
-    ppv2 = MagicMock()
-    ppv2.return_value.season_totals_regular_season.get_dict.return_value = {
+    pcs = MagicMock()
+    pcs.return_value.season_totals_regular_season.get_dict.return_value = {
         "headers": CAREER_HEADERS,
         "data": career_rows,
     }
+    ppv2 = MagicMock()
     ppv2.return_value.career_highs.get_dict.return_value = {
         "headers": CAREER_HIGHS_HEADERS,
         "data": career_highs_rows,
     }
 
-    return cpi, ppv2
+    return cpi, pcs, ppv2
 
 
 class TestPlayerProfile:
     def test_returns_full_profile(self, client):
-        cpi, ppv2 = _mock_profile_endpoints()
+        cpi, pcs, ppv2 = _mock_profile_endpoints()
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
             patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
@@ -1103,13 +1105,14 @@ class TestPlayerProfile:
         assert body["career"][0]["points"] == 28.0
 
     def test_handles_missing_bio(self, client):
-        cpi, ppv2 = _mock_profile_endpoints()
+        cpi, pcs, ppv2 = _mock_profile_endpoints()
         cpi.return_value.common_player_info.get_dict.return_value = {
             "headers": [],
             "data": [],
         }
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
             patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
@@ -1119,9 +1122,10 @@ class TestPlayerProfile:
         assert len(body["career"]) == 1
 
     def test_returns_career_highs(self, client):
-        cpi, ppv2 = _mock_profile_endpoints()
+        cpi, pcs, ppv2 = _mock_profile_endpoints()
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
             patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
@@ -1145,15 +1149,32 @@ class TestPlayerProfile:
             make_career_high_row("PTS", 51, "GSW", "2018-05-31T00:00:00", 1),
             make_career_high_row("PTS", 51, "BOS", "2017-05-23T00:00:00", 1),
         ]
-        cpi, ppv2 = _mock_profile_endpoints(career_highs_rows=rows)
+        cpi, pcs, ppv2 = _mock_profile_endpoints(career_highs_rows=rows)
         with (
             patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
             patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2),
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/profile")
         highs = r.json()["careerHighs"]
         assert len(highs) == 1
         assert highs[0]["vsTeam"] == "GSW"
+
+    def test_career_returned_when_highs_endpoint_fails(self, client):
+        """PPv2 is unstable on stats.nba.com — career stats must still come through."""
+        cpi, pcs, _ = _mock_profile_endpoints()
+        ppv2_fail = MagicMock(side_effect=ValueError("ppv2 down"))
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv2_fail),
+            patch("helpers.decorators.log_exceptions"),
+        ):
+            r = client.get(f"/api/players/{PLAYER_ID}/profile")
+        assert r.status_code == 200
+        body = r.json()
+        assert len(body["career"]) == 1
+        assert body["careerHighs"] == []
 
 
 # ─────────────────────────────────────────────────────────────────────────────

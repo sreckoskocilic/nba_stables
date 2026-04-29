@@ -352,8 +352,10 @@ def test_player_profile_cached_branch(client):
 def test_player_profile_404_when_bio_and_career_both_fail(client, monkeypatch):
     """Cover the _not_found return + 404 raise."""
     cpi_fail = MagicMock(side_effect=ValueError("boom bio"))
-    ppv2_fail = MagicMock(side_effect=ValueError("boom career"))
+    pcs_fail = MagicMock(side_effect=ValueError("boom career"))
+    ppv2_fail = MagicMock(side_effect=ValueError("boom highs"))
     monkeypatch.setattr("routes.players.commonplayerinfo.CommonPlayerInfo", cpi_fail)
+    monkeypatch.setattr("routes.players.playercareerstats.PlayerCareerStats", pcs_fail)
     monkeypatch.setattr("routes.players.playerprofilev2.PlayerProfileV2", ppv2_fail)
     cache.clear()
     r = client.get(f"/api/players/{PLAYER_ID}/profile")

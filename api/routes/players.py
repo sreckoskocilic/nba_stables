@@ -638,16 +638,16 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
             "experience": g("SEASON_EXP"),
         }
 
-    def _fetch_career_and_highs():
+    def _fetch_career():
         try:
-            profile = with_retry(
-                lambda: playerprofilev2.PlayerProfileV2(
-                    player_id=player_id, proxy=STATS_PROXY, timeout=60
+            career = with_retry(
+                lambda: playercareerstats.PlayerCareerStats(
+                    player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
                 )
             )
         finally:
             _reset_nba_stats_http_session()
-        season_dict = profile.season_totals_regular_season.get_dict()
+        season_dict = career.season_totals_regular_season.get_dict()
         sh = {k: i for i, k in enumerate(season_dict["headers"])}
         career_rows = []
         for row in season_dict["data"]:
@@ -676,7 +676,17 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
                     "ftPct": pct("FT_PCT"),
                 }
             )
+        return career_rows
 
+    def _fetch_career_highs():
+        try:
+            profile = with_retry(
+                lambda: playerprofilev2.PlayerProfileV2(
+                    player_id=player_id, proxy=STATS_PROXY, timeout=60
+                )
+            )
+        finally:
+            _reset_nba_stats_http_session()
         highs_dict = profile.career_highs.get_dict()
         hh = {k: i for i, k in enumerate(highs_dict["headers"])}
         seen_stats = set()
@@ -695,21 +705,27 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
                     "date": _format_career_high_date(row[hh["DATE_EST"]]),
                 }
             )
-        return career_rows, career_highs
+        return career_highs
 
     def _sync():
         bio_future = executor.submit(_fetch_bio)
-        career_future = executor.submit(_fetch_career_and_highs)
+        career_future = executor.submit(_fetch_career)
+        highs_future = executor.submit(_fetch_career_highs)
         try:
             bio = bio_future.result(timeout=STATS_TIMEOUT)
         except Exception as ex:
             log_exceptions(ex, f"profile_bio player_id={player_id}")
             bio = None
         try:
-            career, career_highs = career_future.result(timeout=65)
+            career = career_future.result(timeout=STATS_TIMEOUT)
         except Exception as ex:
             log_exceptions(ex, f"profile_career player_id={player_id}")
-            career, career_highs = [], []
+            career = []
+        try:
+            career_highs = highs_future.result(timeout=65)
+        except Exception as ex:
+            log_exceptions(ex, f"profile_highs player_id={player_id}")
+            career_highs = []
 
         if bio is None and not career and not career_highs:
             return _not_found
