@@ -398,7 +398,7 @@ def test_fetch_player_profile_v2_raw_no_proxy_when_unset(monkeypatch):
 
 def test_career_highs_returns_empty_when_dataset_missing(client, monkeypatch):
     """If PPv2 response lacks CareerHighs (shouldn't happen but defensive)."""
-    from tests.test_integration import _mock_profile_endpoints
+    from test_integration import _mock_profile_endpoints
 
     cpi, pcs, _ = _mock_profile_endpoints()
     monkeypatch.setattr("routes.players.commonplayerinfo.CommonPlayerInfo", cpi)
