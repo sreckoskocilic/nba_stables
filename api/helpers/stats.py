@@ -1,4 +1,3 @@
-import json
 import re
 import threading
 import time
@@ -173,49 +172,11 @@ def count_double_digits(pts: int, reb: int, ast: int, stl: int, blk: int) -> int
     return sum(1 for v in (pts, reb, ast, stl, blk) if v >= 10)
 
 
-_NBA_BROWSER_HEADERS = {
-    "Host": "stats.nba.com",
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
-    "Referer": "https://www.nba.com/",
-    "Pragma": "no-cache",
-    "Cache-Control": "no-cache",
-    "Sec-Ch-Ua": '"Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Fetch-Dest": "empty",
-}
-
-
-def fetch_player_profile_v2_raw(player_id: int, timeout: int = 30) -> dict:
-    """Fetch PlayerProfileV2 via raw HTTP, bypassing nba_api's persistent Session.
-
-    NBA's stats endpoint detects reused Sessions (TLS fingerprint, keep-alive
-    pattern) as bot traffic and throttles them to read-timeout for PPv2 — even
-    when headers match a browser exactly. A fresh requests.get() call gets a new
-    TCP/TLS connection and consistently goes through.
-    """
-    proxies = None
-    if STATS_PROXY:
-        proxies = {"http": STATS_PROXY, "https": STATS_PROXY}
-    r = requests.get(
-        "https://stats.nba.com/stats/playerprofilev2",
-        params={"PlayerID": player_id, "PerMode": "PerGame", "LeagueID": "00"},
-        headers=_NBA_BROWSER_HEADERS,
-        proxies=proxies,
-        timeout=timeout,
-    )
-    r.raise_for_status()
-    return r.json()
-
-
 def with_retry(fn, attempts: int = 3, delay: float = 0.2):
     """Run `fn` with exponential backoff retry for transient errors.
 
-    On transient errors (Timeout, ConnectionError, empty-body JSONDecodeError),
-    resets nba_api's cached session before backoff to mitigate nba_api issue #633.
+    On transient errors (Timeout, ConnectionError), resets nba_api's cached
+    session before backoff to mitigate nba_api issue #633.
     """
     last_err: Exception | None = None
     for i in range(attempts):
@@ -226,7 +187,6 @@ def with_retry(fn, attempts: int = 3, delay: float = 0.2):
             TimeoutError,
             OSError,
             requests.RequestException,
-            json.JSONDecodeError,
         ) as ex:  # pragma: no cover - retry logic for network issues
             last_err = ex
             _reset_nba_stats_http_session()

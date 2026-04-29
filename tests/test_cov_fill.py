@@ -331,93 +331,6 @@ def test_calc_age_handles_empty_and_invalid():
     assert _calc_age("not-a-date") is None
 
 
-def test_format_career_high_date_handles_empty_and_invalid():
-    from routes.players import _format_career_high_date
-
-    assert _format_career_high_date(None) == ""
-    assert _format_career_high_date("") == ""
-    assert _format_career_high_date("not-a-date") == "not-a-date"
-    assert _format_career_high_date("2018-05-31T00:00:00") == "May 31, 2018"
-
-
-def test_fetch_player_profile_v2_raw_calls_browser_endpoint(monkeypatch):
-    from helpers import stats as stats_mod
-
-    captured = {}
-
-    def fake_get(url, params=None, headers=None, proxies=None, timeout=None):
-        captured.update(
-            {
-                "url": url,
-                "params": params,
-                "headers": headers,
-                "proxies": proxies,
-                "timeout": timeout,
-            }
-        )
-        m = MagicMock()
-        m.json.return_value = {"resultSets": []}
-        m.raise_for_status = lambda: None
-        return m
-
-    monkeypatch.setattr(stats_mod.requests, "get", fake_get)
-    monkeypatch.setattr(stats_mod, "STATS_PROXY", "socks5h://test:1080")
-    out = stats_mod.fetch_player_profile_v2_raw(2544, timeout=12)
-    assert out == {"resultSets": []}
-    assert captured["url"] == "https://stats.nba.com/stats/playerprofilev2"
-    assert captured["params"] == {
-        "PlayerID": 2544,
-        "PerMode": "PerGame",
-        "LeagueID": "00",
-    }
-    assert captured["headers"]["User-Agent"].startswith("Mozilla/5.0")
-    assert captured["proxies"] == {
-        "http": "socks5h://test:1080",
-        "https": "socks5h://test:1080",
-    }
-    assert captured["timeout"] == 12
-
-
-def test_fetch_player_profile_v2_raw_no_proxy_when_unset(monkeypatch):
-    from helpers import stats as stats_mod
-
-    captured = {}
-
-    def fake_get(url, params=None, headers=None, proxies=None, timeout=None):
-        captured["proxies"] = proxies
-        m = MagicMock()
-        m.json.return_value = {"resultSets": []}
-        m.raise_for_status = lambda: None
-        return m
-
-    monkeypatch.setattr(stats_mod.requests, "get", fake_get)
-    monkeypatch.setattr(stats_mod, "STATS_PROXY", None)
-    stats_mod.fetch_player_profile_v2_raw(2544)
-    assert captured["proxies"] is None
-
-
-def test_career_highs_returns_empty_when_dataset_missing(client, monkeypatch):
-    """If PPv2 response lacks CareerHighs (shouldn't happen but defensive)."""
-    from test_integration import _mock_profile_endpoints
-
-    cpi, pcs, _ = _mock_profile_endpoints()
-    monkeypatch.setattr("routes.players.commonplayerinfo.CommonPlayerInfo", cpi)
-    monkeypatch.setattr("routes.players.playercareerstats.PlayerCareerStats", pcs)
-    monkeypatch.setattr(
-        "routes.players.fetch_player_profile_v2_raw",
-        MagicMock(
-            return_value={
-                "resultSets": [{"name": "Other", "headers": [], "rowSet": []}]
-            }
-        ),
-    )
-    cache.clear()
-    r = client.get(f"/api/players/{PLAYER_ID}/profile")
-    assert r.status_code == 200
-    assert r.json()["careerHighs"] == []
-    cache.clear()
-
-
 def test_player_profile_cached_branch(client):
     cache_key = f"player_profile_{PLAYER_ID}"
     payload = {"playerId": PLAYER_ID, "bio": {}, "career": []}
@@ -433,10 +346,6 @@ def test_player_profile_404_when_bio_and_career_both_fail(client, monkeypatch):
     pcs_fail = MagicMock(side_effect=ValueError("boom career"))
     monkeypatch.setattr("routes.players.commonplayerinfo.CommonPlayerInfo", cpi_fail)
     monkeypatch.setattr("routes.players.playercareerstats.PlayerCareerStats", pcs_fail)
-    monkeypatch.setattr(
-        "routes.players.fetch_player_profile_v2_raw",
-        MagicMock(side_effect=ValueError("boom highs")),
-    )
     cache.clear()
     r = client.get(f"/api/players/{PLAYER_ID}/profile")
     assert r.status_code == 404

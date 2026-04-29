@@ -662,35 +662,6 @@ function _renderProfileCareer(profile, pct1) {
     </div>`;
 }
 
-function _renderProfileCareerHighs(profile) {
-  const highs = (profile && profile.careerHighs) || [];
-  if (!highs.length) return "";
-  const rows = highs
-    .map((h) => {
-      const game = [h.vsTeam, h.date].filter(Boolean).join(" · ");
-      return `
-        <tr>
-            <td style="text-align: left; white-space: nowrap; font-weight: 600;">${esc(h.label)}</td>
-            <td class="highlight">${esc(h.value)}</td>
-            <td style="white-space: nowrap;">${esc(game)}</td>
-        </tr>`;
-    })
-    .join("");
-  return `
-    <div class="card lastn-table-wrap" style="width: fit-content; max-width: 100%;">
-        <table class="player-stats-table">
-            <thead>
-                <tr>
-                    <th>Stat</th>
-                    <th>Value</th>
-                    <th>vs / Date</th>
-                </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-        </table>
-    </div>`;
-}
-
 function showProfileTab(name) {
   document.querySelectorAll("[data-profile-tab]").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.profileTab === name);
@@ -718,8 +689,6 @@ async function loadPlayerProfile() {
         _fetchWithAbort(
           "playerProfile",
           `/api/players/${lastNSelectedPlayer.id}/profile`,
-          {},
-          40000,
         ),
       ]),
       a = await e.json(),
@@ -897,11 +866,9 @@ async function loadPlayerProfile() {
         </div>`
       : "";
     const careerHtml = _renderProfileCareer(profile, pct1);
-    const careerHighsHtml = _renderProfileCareerHighs(profile);
     const tabs = [
       ["recent", "Last 10 Games", recentHtml || `<div style="padding: 20px; color: var(--text-secondary);">No recent games</div>`],
       ["career", "Career Stats", careerHtml || `<div style="padding: 20px; color: var(--text-secondary);">No career data</div>`],
-      ["highs", "Career Highs", careerHighsHtml || `<div style="padding: 20px; color: var(--text-secondary);">No career highs</div>`],
     ];
     const tabsBar = `
         <div style="display: flex; gap: 8px; margin: 14px 0 12px; flex-wrap: wrap;">

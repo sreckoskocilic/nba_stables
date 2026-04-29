@@ -29,7 +29,6 @@ from helpers.logger import log_exceptions
 from helpers.stats import (
     _reset_nba_stats_http_session,
     count_double_digits,
-    fetch_player_profile_v2_raw,
     find_category_leaders,
     fix_encoding,
     get_cached_boxscore_v3,
@@ -566,37 +565,10 @@ def _calc_age(birthdate_str: str | None) -> int | None:
         return None
 
 
-_CAREER_HIGH_LABELS = {
-    "PTS": "PTS",
-    "REB": "REB",
-    "AST": "AST",
-    "STL": "STL",
-    "BLK": "BLK",
-    "FG3M": "3PT-M",
-    "FG3A": "3PT-A",
-    "FGM": "FGM",
-    "FGA": "FGA",
-    "FTM": "FTM",
-    "FTA": "FTA",
-    "OREB": "OREB",
-    "DREB": "DREB",
-}
-
-
-def _format_career_high_date(date_est: str | None) -> str:
-    if not date_est:
-        return ""
-    try:
-        d = date.fromisoformat(str(date_est)[:10])
-        return d.strftime("%b %-d, %Y")
-    except (ValueError, TypeError):
-        return str(date_est)
-
-
 @router.get("/api/players/{player_id}/profile")
 @route_error_handler("Failed to fetch player profile")
 async def get_player_profile(player_id: int = Path(..., gt=0)):
-    """Get full profile: bio, career season-by-season."""
+    """Get player profile: bio + career season-by-season."""
     cache_key = f"player_profile_{player_id}"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -678,36 +650,9 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
             )
         return career_rows
 
-    def _fetch_career_highs():
-        data = fetch_player_profile_v2_raw(player_id, timeout=30)
-        sets = data.get("resultSets", [])
-        highs_set = next((s for s in sets if s.get("name") == "CareerHighs"), None)
-        if not highs_set:
-            return []
-        headers = highs_set["headers"]
-        hh = {k: i for i, k in enumerate(headers)}
-        seen_stats = set()
-        career_highs = []
-        for row in highs_set["rowSet"]:
-            stat = row[hh["STAT"]]
-            if stat in seen_stats or stat not in _CAREER_HIGH_LABELS:
-                continue
-            seen_stats.add(stat)
-            career_highs.append(
-                {
-                    "stat": stat,
-                    "label": _CAREER_HIGH_LABELS[stat],
-                    "value": row[hh["STAT_VALUE"]],
-                    "vsTeam": row[hh["VS_TEAM_ABBREVIATION"]] or "",
-                    "date": _format_career_high_date(row[hh["DATE_EST"]]),
-                }
-            )
-        return career_highs
-
     def _sync():
         bio_future = executor.submit(_fetch_bio)
         career_future = executor.submit(_fetch_career)
-        highs_future = executor.submit(_fetch_career_highs)
         try:
             bio = bio_future.result(timeout=STATS_TIMEOUT)
         except Exception as ex:
@@ -718,25 +663,18 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
         except Exception as ex:
             log_exceptions(ex, f"profile_career player_id={player_id}")
             career = []
-        try:
-            career_highs = highs_future.result(timeout=35)
-        except Exception as ex:
-            log_exceptions(ex, f"profile_highs player_id={player_id}")
-            career_highs = []
 
-        if bio is None and not career and not career_highs:
+        if bio is None and not career:
             return _not_found
 
         return {
             "playerId": player_id,
             "bio": bio or {},
             "career": career,
-            "careerHighs": career_highs,
         }
 
     result = await asyncio.to_thread(_sync)
     if result is _not_found:
         raise HTTPException(status_code=404, detail="Player not found")
-    ttl = CACHE_TTL["historical"] if result["careerHighs"] else 300
-    cache.set(cache_key, result, ttl)
+    cache.set(cache_key, result, CACHE_TTL["historical"])
     return result
