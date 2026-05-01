@@ -4,16 +4,16 @@
       "team": "Atlanta",
       "players": [
         {
+          "name": "Jock Landale",
+          "updated": "Thu, Apr 30",
+          "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Keshon Gilbert",
           "updated": "Wed, Apr 22",
           "injury": "Abdomen",
           "status": "Expected to be out until at least Jul 2"
-        },
-        {
-          "name": "Jock Landale",
-          "updated": "Thu, Apr 16",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least May 2"
         }
       ]
     },
@@ -215,22 +215,28 @@
       "team": "Denver",
       "players": [
         {
+          "name": "Aaron Gordon",
+          "updated": "Fri, May 1",
+          "injury": "Calf",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Peyton Watson",
           "updated": "Wed, Apr 29",
           "injury": "Hamstring",
           "status": "Expected to be out until at least May 2"
-        },
-        {
-          "name": "Aaron Gordon",
-          "updated": "Tue, Apr 28",
-          "injury": "Calf",
-          "status": "Expected to be out until at least Apr 30"
         }
       ]
     },
     {
       "team": "Detroit",
       "players": [
+        {
+          "name": "Tobias Harris",
+          "updated": "Thu, Apr 30",
+          "injury": "Ankle",
+          "status": "Expected to be out until at least May 1"
+        },
         {
           "name": "Kevin Huerter",
           "updated": "Wed, Apr 29",
@@ -559,10 +565,16 @@
       "team": "Minnesota",
       "players": [
         {
-          "name": "Bones Hyland",
-          "updated": "Wed, Apr 29",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Apr 30"
+          "name": "Ayo Dosunmu",
+          "updated": "Fri, May 1",
+          "injury": "Calf",
+          "status": "Expected to be out until at least May 4"
+        },
+        {
+          "name": "Kyle Anderson",
+          "updated": "Fri, May 1",
+          "injury": "Illness",
+          "status": "Expected to be out until at least May 4"
         },
         {
           "name": "Anthony Edwards",
@@ -620,17 +632,6 @@
       ]
     },
     {
-      "team": "New York",
-      "players": [
-        {
-          "name": "Josh Hart",
-          "updated": "Wed, Apr 29",
-          "injury": "Back",
-          "status": "Expected to be out until at least Apr 30"
-        }
-      ]
-    },
-    {
       "team": "Oklahoma City",
       "players": [
         {
@@ -651,27 +652,16 @@
       "team": "Orlando",
       "players": [
         {
+          "name": "Franz Wagner",
+          "updated": "Thu, Apr 30",
+          "injury": "Calf",
+          "status": "Expected to be out until at least May 3"
+        },
+        {
           "name": "Jonathan Isaac",
           "updated": "Wed, Apr 29",
           "injury": "Knee",
           "status": "Expected to be out until at least May 1"
-        },
-        {
-          "name": "Franz Wagner",
-          "updated": "Wed, Apr 29",
-          "injury": "Calf",
-          "status": "Expected to be out until at least May 1"
-        }
-      ]
-    },
-    {
-      "team": "Philadelphia",
-      "players": [
-        {
-          "name": "Joel Embiid",
-          "updated": "Wed, Apr 29",
-          "injury": "Abdomen",
-          "status": "Expected to be out until at least Apr 30"
         }
       ]
     },
@@ -883,15 +873,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Anthony Davis",
-          "updated": "Tue, Apr 7",
-          "injury": "Finger",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Trae Young",
           "updated": "Tue, Apr 7",
           "injury": "Quadriceps",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Anthony Davis",
+          "updated": "Tue, Apr 7",
+          "injury": "Finger",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -910,5 +900,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "April 30, 2026 11:24 UTC"
+  "lastUpdated": "May 01, 2026 11:02 UTC"
 }
