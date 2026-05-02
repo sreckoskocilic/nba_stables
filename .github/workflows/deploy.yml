@@ -35,8 +35,8 @@ jobs:
             set -exuo pipefail
             cd /opt/nba_stables
             git pull origin main
-            find . -type f -name "*.py[co]" -delete -or -type d -name "__pycache__" -delete
-            docker compose --profile prod up -d --build
+            find . -depth \( -type f -name "*.py[co]" -o -type d -name "__pycache__" \) -delete
+            docker compose --profile prod up -d --build --wait
             docker image prune -f
             cp /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile
             sudo systemctl reload caddy

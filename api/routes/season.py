@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Path, Query
 from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache
 from helpers.decorators import route_error_handler
 from helpers.stats import (
+    _reset_nba_stats_http_session,
     with_retry,
     count_double_digits,
     find_category_leaders,
@@ -47,14 +48,17 @@ async def get_season_highs(
         return cached
 
     def _sync():
-        log = with_retry(
-            lambda: leaguegamelog.LeagueGameLog(
-                season=resolved_season,
-                player_or_team_abbreviation="P",
-                proxy=STATS_PROXY,
-                timeout=STATS_TIMEOUT,
+        try:
+            log = with_retry(
+                lambda: leaguegamelog.LeagueGameLog(
+                    season=resolved_season,
+                    player_or_team_abbreviation="P",
+                    proxy=STATS_PROXY,
+                    timeout=STATS_TIMEOUT,
+                )
             )
-        )
+        finally:
+            _reset_nba_stats_http_session()
         data = log.get_dict()
         headers = data["resultSets"][0]["headers"]
         rows = data["resultSets"][0]["rowSet"]
@@ -113,14 +117,17 @@ async def get_season_doubles(
         return cached
 
     def _sync():
-        stats = with_retry(
-            lambda: leaguedashplayerstats.LeagueDashPlayerStats(
-                per_mode_detailed="Totals",
-                season=resolved_season,
-                proxy=STATS_PROXY,
-                timeout=STATS_TIMEOUT,
+        try:
+            stats = with_retry(
+                lambda: leaguedashplayerstats.LeagueDashPlayerStats(
+                    per_mode_detailed="Totals",
+                    season=resolved_season,
+                    proxy=STATS_PROXY,
+                    timeout=STATS_TIMEOUT,
+                )
             )
-        )
+        finally:
+            _reset_nba_stats_http_session()
         data = stats.get_dict()
         headers = data["resultSets"][0]["headers"]
         rows = data["resultSets"][0]["rowSet"]
@@ -185,14 +192,17 @@ async def get_triple_double_games(
             return _not_found
         player_name = fix_encoding(player_row[1])
 
-        log = with_retry(
-            lambda: playergamelog.PlayerGameLog(
-                player_id=player_id,
-                season=resolved_season,
-                proxy=STATS_PROXY,
-                timeout=STATS_TIMEOUT,
+        try:
+            log = with_retry(
+                lambda: playergamelog.PlayerGameLog(
+                    player_id=player_id,
+                    season=resolved_season,
+                    proxy=STATS_PROXY,
+                    timeout=STATS_TIMEOUT,
+                )
             )
-        )
+        finally:
+            _reset_nba_stats_http_session()
         data = log.get_dict()
         headers = data["resultSets"][0]["headers"]
         rows = data["resultSets"][0]["rowSet"]

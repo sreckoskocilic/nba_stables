@@ -19,7 +19,7 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4 lxml
+        run: pip install 'requests>=2.31,<3' 'beautifulsoup4>=4.12,<5' 'lxml>=5.1,<6'
 
       - name: Scrape CBS injuries
         run: python api/static/update_injuries.py

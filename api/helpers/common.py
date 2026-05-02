@@ -73,10 +73,14 @@ class SimpleCache:
             and self._heap
             and evicted < self._MAX_EVICT_PER_OP
         ):
-            _, oldest_key = heapq.heappop(self._heap)
-            if oldest_key in self._cache:
-                self._cache.pop(oldest_key)
-                evicted += 1
+            exp, oldest_key = heapq.heappop(self._heap)
+            entry = self._cache.get(oldest_key)
+            if entry is None:
+                continue
+            if entry["expires"] != exp:
+                continue
+            self._cache.pop(oldest_key)
+            evicted += 1
 
     def _evict_expired(self):
         now = time.time()

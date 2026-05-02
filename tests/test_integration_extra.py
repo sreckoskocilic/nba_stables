@@ -765,6 +765,19 @@ class TestScoresErrorHandlers:
             r = client.get("/api/scoreboard")
         assert r.status_code == 500
 
+    def test_boxscores_timeout_returns_empty(self, client):
+        with (
+            patch(
+                "routes.scores.get_games_leaders_list",
+                return_value={"g1": [], "g2": []},
+            ),
+            patch("routes.scores.executor") as mock_exec,
+        ):
+            mock_exec.map.side_effect = TimeoutError("timed out")
+            r = client.get("/api/boxscores?days_offset=1")
+        assert r.status_code == 200
+        assert r.json()["boxscores"] == []
+
     def test_boxscores_500_on_error(self, client):
         with (
             patch(

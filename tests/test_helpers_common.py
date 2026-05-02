@@ -221,6 +221,32 @@ class TestSimpleCache:
         # After eviction, cache should be at or under maxsize
         assert len(small._cache) <= 2
 
+    def test_evict_oldest_skips_already_evicted_entries(self):
+        with fake_clock():
+            small = SimpleCache(maxsize=1)
+            # Double-set creates two heap entries for "a" with same expiry
+            small.set("a", 1, ttl_seconds=10)
+            small.set("a", 2, ttl_seconds=10)
+            # Adding "b" evicts "a" via the first heap entry
+            small.set("b", 3, ttl_seconds=20)
+            assert "a" not in small._cache
+            # Adding "c" triggers _evict_oldest which pops the leftover
+            # (1010, "a") heap entry — cache.get("a") → None (line 79)
+            small.set("c", 4, ttl_seconds=30)
+            assert small.get("c") == 4
+
+    def test_evict_oldest_skips_phantom_entries(self):
+        with fake_clock():
+            small = SimpleCache(maxsize=2)
+            small.set("a", 1, ttl_seconds=10)
+            small.set("b", 2, ttl_seconds=20)
+            small.set("a", "updated", ttl_seconds=60)
+            # Now add "c" to exceed maxsize → triggers _evict_oldest
+            small.set("c", 3, ttl_seconds=30)
+            # "a" should survive because its phantom entry (exp=10) doesn't
+            # match the current expiry (exp=60)
+            assert small.get("a") == "updated"
+
 
 class TestLogExceptions:
     def test_calls_logger_exception(self):

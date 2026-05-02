@@ -2,7 +2,7 @@ import asyncio
 
 import requests
 from fastapi import APIRouter, HTTPException
-from helpers.common import CACHE_TTL, STATS_TIMEOUT, TEAMS, cache
+from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, TEAMS, cache
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import with_retry, load_players_dict
@@ -35,10 +35,14 @@ async def get_trades():
     _unavailable = object()
 
     def _sync():
+        proxies = {"https": STATS_PROXY} if STATS_PROXY else None
         try:
             resp = with_retry(
                 lambda: requests.get(
-                    NBA_PLAYER_MOVEMENT_URL, headers=_NBA_HEADERS, timeout=STATS_TIMEOUT
+                    NBA_PLAYER_MOVEMENT_URL,
+                    headers=_NBA_HEADERS,
+                    timeout=STATS_TIMEOUT,
+                    proxies=proxies,
                 )
             )
             resp.raise_for_status()
@@ -52,8 +56,11 @@ async def get_trades():
 
         transactions = []
         for row in rows:
-            team_id = int(row.get("TEAM_ID") or 0)
-            player_id = int(row.get("PLAYER_ID") or 0)
+            try:
+                team_id = int(row.get("TEAM_ID") or 0)
+                player_id = int(row.get("PLAYER_ID") or 0)
+            except (ValueError, TypeError):
+                continue
             date_raw = row.get("TRANSACTION_DATE", "")
             date_key = date_raw[:10] if date_raw else ""
 

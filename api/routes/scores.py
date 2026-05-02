@@ -47,6 +47,7 @@ from helpers.common import (
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
+    _reset_nba_stats_http_session,
     convert_et_to_cet,
     with_retry,
     fetch_single_boxscore,
@@ -121,14 +122,18 @@ async def get_boxscores(
 
     def _sync():
         leaders_by_game = get_games_leaders_list(days_offset)
-        results = list(
-            executor.map(
-                fetch_single_boxscore,
-                leaders_by_game.keys(),
-                leaders_by_game.values(),
-                timeout=STATS_TIMEOUT,
+        try:
+            results = list(
+                executor.map(
+                    fetch_single_boxscore,
+                    leaders_by_game.keys(),
+                    leaders_by_game.values(),
+                    timeout=STATS_TIMEOUT,
+                )
             )
-        )
+        except TimeoutError as ex:
+            log_exceptions(ex, "boxscores_timeout")
+            results = []
         boxscores_list = [r for r in results if r is not None]
         boxscores_list.sort(key=lambda x: x.get("gameId", ""))
         return {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
@@ -288,7 +293,7 @@ def _scoreboard_from_v3(sb) -> list[dict]:
 
         teams_str = game_code.split("/")[1] if "/" in game_code else ""
         away_tri = teams_str[:3]
-        home_tri = teams_str[3:]
+        home_tri = teams_str[3:6]
 
         game_teams = teams_by_game.get(game_id, {})
         home_row, home_team_id = game_teams.get(home_tri, (None, None))
@@ -394,11 +399,14 @@ def _fetch_standings_teams() -> list:
     cached = cache.get("raw_standings")
     if cached is not None:  # pragma: no cover
         return cached
-    standings = with_retry(
-        lambda: leaguestandings.LeagueStandings(
-            proxy=STATS_PROXY, timeout=STATS_TIMEOUT
-        ).get_dict()
-    )
+    try:
+        standings = with_retry(
+            lambda: leaguestandings.LeagueStandings(
+                proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+            ).get_dict()
+        )
+    finally:
+        _reset_nba_stats_http_session()
     teams = standings["resultSets"][0]["rowSet"]
     cache.set("raw_standings", teams, CACHE_TTL["standings"] // 2)
     return teams
@@ -474,6 +482,8 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
             season_nullable=season,
             season_type_nullable="PlayIn",
             league_id_nullable="00",
+            proxy=STATS_PROXY,
+            timeout=STATS_TIMEOUT,
         ).get_dict()["resultSets"][0]
 
         headers = data["headers"]

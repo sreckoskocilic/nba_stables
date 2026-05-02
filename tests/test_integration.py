@@ -1175,6 +1175,19 @@ class TestTrades:
             r = client.get("/api/trades")
         assert r.json()["total"] == 5
 
+    def test_bad_team_id_skips_row(self, client):
+        row = self._row(TEAM_ID="not_a_number", PLAYER_ID="also_bad")
+        good_row = self._row()
+        with (
+            patch(
+                "routes.trades.requests.get",
+                return_value=self._resp([row, good_row]),
+            ),
+            patch("routes.trades.load_players_dict", return_value={}),
+        ):
+            r = client.get("/api/trades")
+        assert r.json()["total"] == 1
+
     def test_cached_on_second_call(self, client):
         with (
             patch(

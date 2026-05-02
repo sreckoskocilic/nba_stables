@@ -303,7 +303,11 @@ def get_cached_live_boxscore(game_id: str) -> dict | None:  # pragma: no cover
         ).get_dict(),
     )
     status = data.get("game", {}).get("gameStatusText", "")
-    ttl = CACHE_TTL["historical"] if "Final" in status else CACHE_TTL["boxscores"]
+    ttl = (
+        CACHE_TTL["historical"]
+        if status.startswith("Final")
+        else CACHE_TTL["boxscores"]
+    )
     cache.set(cache_key, data, ttl)
     return data
 

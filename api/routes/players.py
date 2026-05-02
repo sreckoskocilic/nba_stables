@@ -28,6 +28,7 @@ from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
     _reset_nba_stats_http_session,
+    _today_et,
     count_double_digits,
     find_category_leaders,
     fix_encoding,
@@ -342,7 +343,7 @@ async def get_game_players(
     result = await asyncio.to_thread(_sync)
     ttl = (
         CACHE_TTL["historical"]
-        if "Final" in result["status"]
+        if result["status"].startswith("Final")
         else CACHE_TTL["boxscores"]
     )
     cache.set(cache_key, result, ttl)
@@ -373,10 +374,10 @@ async def get_last_n_games_stats(
         player_name = fix_encoding(player[1])
 
         # Load player game log (works for all players including traded/free agents)
-        raw_cache_key = f"player_games_raw_{player_id}"
+        season = get_current_season()
+        raw_cache_key = f"player_games_raw_{player_id}_{season}"
         game_rows_all = cache.get(raw_cache_key)
         if game_rows_all is None:
-            season = get_current_season()
             try:
                 pgl = with_retry(
                     lambda: playergamelog.PlayerGameLog(
@@ -502,11 +503,14 @@ async def get_player_season_avg(player_id: int = Path(..., gt=0)):
     _no_data = object()
 
     def _sync():
-        career = with_retry(
-            lambda: playercareerstats.PlayerCareerStats(
-                player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+        try:
+            career = with_retry(
+                lambda: playercareerstats.PlayerCareerStats(
+                    player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+                )
             )
-        )
+        finally:
+            _reset_nba_stats_http_session()
         season_data = career.season_totals_regular_season.get_dict()
         headers = season_data["headers"]
         rows = season_data["data"]
@@ -559,7 +563,7 @@ def _calc_age(birthdate_str: str | None) -> int | None:
         return None
     try:
         bd = date.fromisoformat(birthdate_str[:10])
-        today = date.today()
+        today = _today_et()
         return today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
     except ValueError:
         return None
