@@ -277,7 +277,8 @@ def load_players_with_lower() -> list:  # pragma: no cover
 
 def get_cached_scoreboard() -> Any:  # pragma: no cover
     """Return cached live ScoreBoard().games.data."""
-    cached = cache.get("raw_scoreboard")
+    sb_key = f"raw_scoreboard_{scoreboard_date().isoformat()}"
+    cached = cache.get(sb_key)
     if cached is not None:  # pragma: no cover
         return cached
     try:
@@ -290,7 +291,7 @@ def get_cached_scoreboard() -> Any:  # pragma: no cover
         )
     finally:
         _reset_nba_stats_http_session()
-    cache.set("raw_scoreboard", data, CACHE_TTL["scoreboard"])
+    cache.set(sb_key, data, CACHE_TTL["scoreboard"])
     return data
 
 

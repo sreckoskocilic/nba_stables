@@ -48,6 +48,7 @@ from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
     _reset_nba_stats_http_session,
+    _today_et,
     convert_et_to_cet,
     with_retry,
     fetch_single_boxscore,
@@ -87,7 +88,8 @@ def _sort_by_rank(teams: list) -> list:
 @route_error_handler("Failed to fetch date labels")
 async def get_date_labels():
     """Return display dates and game availability for day offsets 0-7"""
-    cached = cache.get("dates")
+    today_str = _today_et().isoformat()
+    cached = cache.get(f"dates_{today_str}")
     if cached is not None:  # pragma: no cover
         return cached
 
@@ -105,7 +107,7 @@ async def get_date_labels():
         "dates": [get_display_date(i) for i in range(DAYS_OFFSET_MAX + 1)],
         "hasGames": has_games,
     }
-    cache.set("dates", result, CACHE_TTL["leaders"])
+    cache.set(f"dates_{today_str}", result, CACHE_TTL["leaders"])
     return result
 
 
@@ -153,13 +155,13 @@ async def get_scoreboard():
     started (gameStatus >= 2), switches to the live scoreboard API for
     real-time scores and leaders.
     """
-    cache_key = "scoreboard"
+    sb_date = scoreboard_date()
+    cache_key = f"scoreboard_{sb_date.isoformat()}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
     def _sync():
-        sb_date = scoreboard_date()
         sb = get_scoreboard_v3_by_date(sb_date)
         games = _scoreboard_from_v3(sb)
         try:

@@ -38,7 +38,8 @@ jobs:
             cd /opt/nba_stables
             git pull origin main
             find . -depth \( -type f -name "*.py[co]" -o -type d -name "__pycache__" \) -delete || true
-            docker compose --profile prod up -d --build --wait
+            docker compose --profile prod build
+            docker compose --profile prod up -d --wait
             docker image prune -f
             if ! diff -q /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile >/dev/null 2>&1; then
               cp /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile

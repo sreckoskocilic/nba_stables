@@ -520,8 +520,11 @@ async def get_player_season_avg(player_id: int = Path(..., gt=0)):
         if not rows:
             return _no_data
 
-        row = rows[-1]
         h = {k: i for i, k in enumerate(headers)}
+        target_season = rows[-1][h["SEASON_ID"]]
+        season_rows = [r for r in rows if r[h["SEASON_ID"]] == target_season]
+        tot = [r for r in season_rows if r[h["TEAM_ABBREVIATION"]] == "TOT"]
+        row = tot[0] if tot else season_rows[-1]
         gp = row[h["GP"]] or 1
 
         def avg(key):
