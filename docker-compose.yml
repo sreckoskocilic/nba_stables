@@ -37,7 +37,7 @@ services:
         target: /app
   umami:
     profiles: [ "prod" ]
-    image: ghcr.io/umami-software/umami:postgresql-v3.1.0
+    image: ghcr.io/umami-software/umami:3.1.0
     environment:
       DATABASE_URL: postgresql://umami:umami@umami-db:5432/umami
       APP_SECRET_FILE: /run/secrets/umami_password
