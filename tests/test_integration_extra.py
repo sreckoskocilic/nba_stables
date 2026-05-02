@@ -1022,12 +1022,8 @@ class TestExecutorTimeouts:
         assert r.json()["players"] == []
 
     def test_last_n_games_timeout_returns_empty_games(self, client):
-        cache.set(
-            f"player_games_raw_{PLAYER_ID}",
-            [["LAL @ BOS", GAME_ID, "2026-03-01"]],
-            60,
-        )
         with (
+            patch("routes.players.get_current_season", return_value="2025-26"),
             patch(
                 "routes.players.load_players_dict",
                 return_value={PLAYER_ID: [PLAYER_ID, "Test Player", TEAM_ID_LAL]},
@@ -1035,6 +1031,11 @@ class TestExecutorTimeouts:
             patch("routes.players.executor") as mock_exec,
             patch("routes.players.log_exceptions"),
         ):
+            cache.set(
+                f"player_games_raw_{PLAYER_ID}_2025-26",
+                [["LAL @ BOS", GAME_ID, "2026-03-01"]],
+                60,
+            )
             mock_exec.map.side_effect = TimeoutError("timed out")
             r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
         assert r.status_code == 200
