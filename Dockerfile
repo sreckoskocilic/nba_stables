@@ -17,9 +17,6 @@ COPY . .
 RUN chown -R deploy:deploy /app
 USER deploy
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:8000/api/health', timeout=3)"]
-
 EXPOSE 8000
 
 WORKDIR /app/api

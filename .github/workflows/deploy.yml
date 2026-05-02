@@ -1,5 +1,7 @@
 name: CI/CD Pipeline
 
+permissions: {}
+
 on:
   push:
     paths-ignore:
@@ -25,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to server
-        uses: appleboy/ssh-action@v1.2.5
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.SERVER_IP }}
           username: deploy
@@ -35,8 +37,10 @@ jobs:
             set -exuo pipefail
             cd /opt/nba_stables
             git pull origin main
-            find . -depth \( -type f -name "*.py[co]" -o -type d -name "__pycache__" \) -delete
+            find . -depth \( -type f -name "*.py[co]" -o -type d -name "__pycache__" \) -delete || true
             docker compose --profile prod up -d --build --wait
             docker image prune -f
-            cp /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile
-            sudo systemctl reload caddy
+            if ! diff -q /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile >/dev/null 2>&1; then
+              cp /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile
+              sudo systemctl reload caddy
+            fi

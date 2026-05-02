@@ -1,5 +1,8 @@
 name: Tests
 
+permissions:
+  contents: read
+
 on:
   pull_request:
     branches: [ main ]
@@ -14,16 +17,16 @@ jobs:
       TZ: Europe/Berlin
       STATS_TIMEOUT: 2
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.12"
 
       - name: Cache virtualenv
         id: cache-venv
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
@@ -38,7 +41,7 @@ jobs:
         run: .venv/bin/pytest tests/ --cov=api --cov-report=xml -n auto --dist=loadfile
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml

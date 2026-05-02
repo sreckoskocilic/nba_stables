@@ -391,10 +391,12 @@ async def get_last_n_games_stats(
             except Exception as e:
                 log_exceptions(e)
                 return _unavailable
+            finally:
+                _reset_nba_stats_http_session()
             game_rows_all = [
                 [row[PGL_MATCHUP], row[PGL_GAME_ID], row[PGL_GAME_DATE]] for row in data
             ]
-            cache.set(raw_cache_key, game_rows_all, CACHE_TTL["historical"])
+            cache.set(raw_cache_key, game_rows_all, CACHE_TTL["season_leaders"])
 
         if not game_rows_all:
             return _unavailable
@@ -487,7 +489,7 @@ async def get_last_n_games_stats(
         raise HTTPException(
             status_code=503, detail="Player game data temporarily unavailable"
         )
-    cache.set(cache_key, result, CACHE_TTL["historical"])
+    cache.set(cache_key, result, CACHE_TTL["season_leaders"])
     return result
 
 
@@ -495,7 +497,7 @@ async def get_last_n_games_stats(
 @route_error_handler("Failed to fetch season averages")
 async def get_player_season_avg(player_id: int = Path(..., gt=0)):
     """Get current season averages for a player"""
-    cache_key = f"season_avg_{player_id}"
+    cache_key = f"season_avg_{player_id}_{get_current_season()}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -680,5 +682,5 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
     result = await asyncio.to_thread(_sync)
     if result is _not_found:
         raise HTTPException(status_code=404, detail="Player not found")
-    cache.set(cache_key, result, CACHE_TTL["historical"])
+    cache.set(cache_key, result, CACHE_TTL["season_leaders"])
     return result

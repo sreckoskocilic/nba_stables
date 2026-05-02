@@ -545,6 +545,8 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
         result["west"] = process_conf(west_playin)
     except Exception as ex:
         log_exceptions(ex, "playin_data_fetch")
+    finally:
+        _reset_nba_stats_http_session()
 
     return result
 
@@ -633,6 +635,8 @@ def _fetch_playoff_series_data(season: str) -> dict:
     except Exception as ex:
         log_exceptions(ex, f"playoff_series_fetch season={season}")
         return {}
+    finally:
+        _reset_nba_stats_http_session()
 
 
 @router.get("/api/playoffs")

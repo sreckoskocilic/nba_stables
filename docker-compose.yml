@@ -27,9 +27,7 @@ services:
       retries: 3
       start_period: 10s
     volumes:
-      - type: bind
-        source: /opt/nba_stables
-        target: /app
+      - /opt/nba_stables/api/static/cbs_injuries.json:/app/api/static/cbs_injuries.json:ro
   nba-stables-dev:
     <<: *nba-common
     profiles: ["dev"]
@@ -39,7 +37,7 @@ services:
         target: /app
   umami:
     profiles: [ "prod" ]
-    image: ghcr.io/umami-software/umami:postgresql-latest
+    image: ghcr.io/umami-software/umami:postgresql-v3.1.0
     environment:
       DATABASE_URL: postgresql://umami:umami@umami-db:5432/umami
       APP_SECRET_FILE: /run/secrets/umami_password

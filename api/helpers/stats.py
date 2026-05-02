@@ -280,13 +280,16 @@ def get_cached_scoreboard() -> Any:  # pragma: no cover
     cached = cache.get("raw_scoreboard")
     if cached is not None:  # pragma: no cover
         return cached
-    data = with_retry(
-        lambda: (
-            live_scoreboard.ScoreBoard(
-                proxy=STATS_PROXY, timeout=STATS_TIMEOUT
-            ).games.data
-        ),
-    )
+    try:
+        data = with_retry(
+            lambda: (
+                live_scoreboard.ScoreBoard(
+                    proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+                ).games.data
+            ),
+        )
+    finally:
+        _reset_nba_stats_http_session()
     cache.set("raw_scoreboard", data, CACHE_TTL["scoreboard"])
     return data
 
@@ -297,11 +300,14 @@ def get_cached_live_boxscore(game_id: str) -> dict | None:  # pragma: no cover
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    data = with_retry(
-        lambda: live_boxscore.BoxScore(
-            game_id=game_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
-        ).get_dict(),
-    )
+    try:
+        data = with_retry(
+            lambda: live_boxscore.BoxScore(
+                game_id=game_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+            ).get_dict(),
+        )
+    finally:
+        _reset_nba_stats_http_session()
     status = data.get("game", {}).get("gameStatusText", "")
     ttl = (
         CACHE_TTL["historical"]
