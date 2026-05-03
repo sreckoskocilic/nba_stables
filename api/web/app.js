@@ -589,9 +589,20 @@ function _renderProfileBio(profile, fallbackName) {
   const teamLine = [bio.teamName, bio.jersey ? `#${bio.jersey}` : "", bio.position]
     .filter(Boolean)
     .join(" · ");
+  let heightStr = bio.height || "";
+  const hParts = heightStr.match(/^(\d+)-(\d+)$/);
+  if (hParts) {
+    const cm = Math.round(parseInt(hParts[1]) * 30.48 + parseInt(hParts[2]) * 2.54);
+    heightStr = `${heightStr} (${cm} cm)`;
+  }
+  let weightStr = "";
+  if (bio.weight) {
+    const kg = Math.round(parseInt(bio.weight) * 0.4536);
+    weightStr = `${bio.weight} lbs (${kg} kg)`;
+  }
   const physical = [
-    bio.height,
-    bio.weight ? `${bio.weight} lbs` : "",
+    heightStr,
+    weightStr,
     bio.age ? `Age ${bio.age}` : "",
     bio.country,
   ]
