@@ -952,6 +952,14 @@ class TestSeasonErrorHandlers:
             r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
         assert r.status_code == 500
 
+    def test_trades_503_on_malformed_json(self, client):
+        bad_resp = MagicMock()
+        bad_resp.raise_for_status.return_value = None
+        bad_resp.json.side_effect = ValueError("No JSON")
+        with patch("routes.trades.with_retry", return_value=bad_resp):
+            r = client.get("/api/trades")
+        assert r.status_code == 503
+
     def test_trades_500_on_unexpected_error(self, client):
         with (
             patch("routes.trades.requests.get", side_effect=TypeError("unexpected")),
