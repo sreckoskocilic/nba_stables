@@ -43,6 +43,7 @@ jobs:
             docker compose --profile prod up -d --wait
             docker image prune -f
             if ! diff -q /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile >/dev/null 2>&1; then
+              caddy validate --config /opt/nba_stables/Caddyfile
               cp /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile
               sudo systemctl reload caddy
             fi

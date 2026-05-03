@@ -357,7 +357,7 @@ async def get_last_n_games_stats(
     n: int = Query(default=5, ge=1, le=15),
 ):
     """Get last N games stats for a specific player"""
-    cache_key = f"last_n_games_{player_id}_{n}"
+    cache_key = f"last_n_games_{player_id}_{n}_{get_current_season()}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached

@@ -974,7 +974,7 @@ class TestSeasonErrorHandlers:
                 patch("helpers.decorators.log_exceptions"),
             ):
                 r = client.get("/api/injuries")
-            assert r.status_code == 500
+            assert r.status_code == 503
         finally:
             os.unlink(tmp)
 

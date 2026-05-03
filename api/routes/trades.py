@@ -49,7 +49,10 @@ async def get_trades():
         except requests.RequestException as e:
             log_exceptions(e)
             return _unavailable
-        data = resp.json()
+        try:
+            data = resp.json()
+        except ValueError:
+            return _unavailable
 
         rows = data.get("NBA_Player_Movement", {}).get("rows", [])
         players_dict = load_players_dict()

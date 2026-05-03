@@ -13,6 +13,7 @@ from helpers.common import (
     SimpleCache,  # noqa: E402
     cache,  # noqa: E402
 )
+from helpers.stats import get_current_season  # noqa: E402
 from helpers.logger import log_exceptions, logger  # noqa: E402
 from main import app  # noqa: E402
 
@@ -73,7 +74,7 @@ def test_players_search_http_exception_passthrough(client, monkeypatch):
 
 
 def test_last_n_games_cached_branch(client):
-    cache_key = f"last_n_games_{PLAYER_ID}_5"
+    cache_key = f"last_n_games_{PLAYER_ID}_5_{get_current_season()}"
     cached_val = {"playerId": PLAYER_ID, "games": [{"gameId": "cached"}]}
     cache.set(cache_key, cached_val, 60)
     r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
