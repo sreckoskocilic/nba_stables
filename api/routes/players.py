@@ -376,18 +376,31 @@ async def get_last_n_games_stats(
         # Load player game log (works for all players including traded/free agents)
         season = get_current_season()
         raw_cache_key = f"player_games_raw_{player_id}_{season}"
-        game_rows_all = cache.get(raw_cache_key)
-        if game_rows_all is None:
+        cached = cache.get(raw_cache_key)
+        if cached is None:
             try:
-                pgl = with_retry(
+                pgl_regular = with_retry(
                     lambda: playergamelog.PlayerGameLog(
                         player_id=player_id,
                         season=season,
+                        season_type_all_star="Regular Season",
                         proxy=STATS_PROXY,
                         timeout=STATS_TIMEOUT,
                     )
                 )
-                data = pgl.player_game_log.get_dict()["data"]
+                pgl_playoffs = with_retry(
+                    lambda: playergamelog.PlayerGameLog(
+                        player_id=player_id,
+                        season=season,
+                        season_type_all_star="Playoffs",
+                        proxy=STATS_PROXY,
+                        timeout=STATS_TIMEOUT,
+                    )
+                )
+                data_regular = pgl_regular.player_game_log.get_dict()["data"]
+                data_playoffs = pgl_playoffs.player_game_log.get_dict()["data"]
+                playoff_count = len(data_playoffs)
+                data = data_playoffs + data_regular
             except Exception as e:
                 log_exceptions(e)
                 return _unavailable
@@ -396,7 +409,10 @@ async def get_last_n_games_stats(
             game_rows_all = [
                 [row[PGL_MATCHUP], row[PGL_GAME_ID], row[PGL_GAME_DATE]] for row in data
             ]
-            cache.set(raw_cache_key, game_rows_all, CACHE_TTL["season_leaders"])
+            cached = (game_rows_all, playoff_count)
+            cache.set(raw_cache_key, cached, CACHE_TTL["season_leaders"])
+        else:
+            game_rows_all, playoff_count = cached
 
         if not game_rows_all:
             return _unavailable
@@ -480,6 +496,7 @@ async def get_last_n_games_stats(
             "playerId": player_id,
             "playerName": player_name,
             "games": games,
+            "playoffGames": min(playoff_count, n),
         }
 
     result = await asyncio.to_thread(_sync)

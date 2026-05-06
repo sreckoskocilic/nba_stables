@@ -813,16 +813,16 @@ async function loadPlayerProfile() {
                 </thead>
                 <tbody>
                     ${a.games
-                      .map((g) =>
+                      .map((g, i) =>
                         g.dnp
                           ? `
-                        <tr class="dnp-row">
+                        <tr class="dnp-row${i < a.playoffGames ? " playoff-row" : ""}">
                             <td>${esc(g.matchup)}</td>
                             <td colspan="10" class="dnp-cell">DNP</td>
                         </tr>
                     `
                           : `
-                        <tr>
+                        <tr${i < a.playoffGames ? ' class="playoff-row"' : ""}>
                             <td>${esc(g.matchup)}</td>
                             <td>${g.minutes}</td>
                             <td class="${statClass("points", g.points)}">${g.points}</td>
@@ -881,11 +881,13 @@ async function loadPlayerProfile() {
       ["recent", "Last 10 Games", recentHtml || `<div style="padding: 20px; color: var(--text-secondary);">No recent games</div>`],
       ["career", "Career Stats", careerHtml || `<div style="padding: 20px; color: var(--text-secondary);">No career data</div>`],
     ];
+    const playoffNote = a.playoffGames ? `<span style="font-size:0.7rem;color:rgba(255,215,0,0.8);margin-left:auto;">Highlighted rows are playoff games</span>` : "";
     const tabsBar = `
-        <div style="display: flex; gap: 8px; margin: 14px 0 12px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 8px; margin: 14px 0 12px; flex-wrap: wrap; align-items: center;">
             ${tabs.map(([k, label]) => `
                 <button class="nav-tab${k === "recent" ? " active" : ""}" data-action="showProfileTab" data-profile-tab="${k}">${label}</button>
             `).join("")}
+            ${playoffNote}
         </div>`;
     const panels = tabs.map(([k, , html]) => `
         <div data-profile-panel="${k}" style="display: ${k === "recent" ? "block" : "none"};">${html}</div>

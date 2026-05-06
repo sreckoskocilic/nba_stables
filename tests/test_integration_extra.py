@@ -77,7 +77,7 @@ class TestCacheHits:
         ):
             client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
             client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
-        mock.assert_called_once()
+        assert mock.call_count == 2
 
     def test_season_avg_served_from_cache(self, client):
         h = {k: i for i, k in enumerate(CAREER_HEADERS)}
@@ -1041,7 +1041,7 @@ class TestExecutorTimeouts:
         ):
             cache.set(
                 f"player_games_raw_{PLAYER_ID}_2025-26",
-                [["LAL @ BOS", GAME_ID, "2026-03-01"]],
+                ([["LAL @ BOS", GAME_ID, "2026-03-01"]], 0),
                 60,
             )
             mock_exec.map.side_effect = TimeoutError("timed out")
