@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Tracker — NBA Stables</title>
+    <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#ff6b35">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/web/widget-manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="/web/icon-192.png">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #e0e8f0;
+            font-size: 14px;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #12121a;
+            border-bottom: 1px solid #1e2e40;
+            -webkit-app-region: drag;
+            flex-shrink: 0;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header img { height: 20px; }
+        .header h1 {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #8aaccc;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .status {
+            font-size: 0.72rem;
+            color: #5a6a7a;
+            -webkit-app-region: no-drag;
+        }
+        .status.live { color: #4ade80; }
+        .search-area {
+            padding: 8px 12px;
+            display: flex;
+            gap: 8px;
+            background: #12121a;
+            border-bottom: 1px solid #1e2e40;
+            flex-shrink: 0;
+        }
+        .search-wrap { position: relative; flex: 1; }
+        .search-input {
+            width: 100%;
+            padding: 6px 10px;
+            background: #1a1a2e;
+            border: 1px solid #2a3a4a;
+            border-radius: 6px;
+            color: #e0e8f0;
+            font-size: 0.82rem;
+            font-family: inherit;
+            outline: none;
+        }
+        .search-input:focus { border-color: #ff6b35; }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #1a1a2e;
+            border: 1px solid #2a3a4a;
+            border-radius: 0 0 6px 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 10;
+            display: none;
+        }
+        .search-results.open { display: block; }
+        .search-result {
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            border-bottom: 1px solid #1a2a3a;
+        }
+        .search-result:hover { background: #2a3a4a; }
+        .search-result span { color: #5a6a7a; margin-left: 6px; font-size: 0.75rem; }
+        .btn {
+            padding: 6px 14px;
+            background: #ff6b35;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .btn:hover { background: #e55a2a; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .chips {
+            padding: 4px 12px 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            background: #12121a;
+            border-bottom: 1px solid #1e2e40;
+            flex-shrink: 0;
+        }
+        .chips:empty { display: none; }
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: #1a1a2e;
+            border: 1px solid #ff6b35;
+            border-radius: 14px;
+            font-size: 0.75rem;
+            color: #e0e8f0;
+        }
+        .chip-x {
+            cursor: pointer;
+            color: #ff6b35;
+            font-weight: 700;
+            font-size: 0.8rem;
+            line-height: 1;
+        }
+        .chip-x:hover { color: #ff4500; }
+        .table-wrap {
+            flex: 1;
+            overflow: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+        th, td {
+            padding: 4px 6px;
+            text-align: center;
+            border: 1px solid #2a3a4a;
+            white-space: nowrap;
+        }
+        th {
+            background: #1a2a3a;
+            color: #8aaccc;
+            font-weight: 600;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        td:first-child, th:first-child {
+            text-align: left;
+            padding-left: 10px;
+        }
+        tbody tr:nth-child(even) td { background: #13131c; }
+        tbody tr:hover td { background: #1e2e40 !important; }
+        .stat-elite { color: #f59e0b; font-weight: 700; }
+        .stat-great { color: #4ade80; font-weight: 600; }
+        .stat-good { color: #38bdf8; font-weight: 500; }
+        .empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            color: #5a6a7a;
+            text-align: center;
+            padding: 20px;
+        }
+        .empty-icon { font-size: 2rem; margin-bottom: 8px; }
+        .empty-title { font-size: 0.92rem; color: #8aaccc; font-weight: 600; margin-bottom: 4px; }
+        .auto-label {
+            font-size: 0.7rem;
+            color: #5a6a7a;
+            padding: 0 12px 6px;
+            background: #12121a;
+            flex-shrink: 0;
+        }
+        .auto-label label { cursor: pointer; }
+        .auto-label input { margin-right: 4px; vertical-align: middle; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <img src="/web/logo.png" alt="">
+            <h1>Player Tracker</h1>
+        </div>
+        <span class="status" id="status"></span>
+    </div>
+    <div class="search-area">
+        <div class="search-wrap">
+            <input type="text" class="search-input" id="search" placeholder="Search player..." autocomplete="off">
+            <div class="search-results" id="results"></div>
+        </div>
+        <button class="btn" id="loadBtn" disabled>Get Stats</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="auto-label">
+        <label><input type="checkbox" id="autoRefresh" checked> Auto-refresh 30s</label>
+    </div>
+    <div class="table-wrap" id="content">
+        <div class="empty">
+            <div class="empty-icon">&#127942;</div>
+            <div class="empty-title">Track Players</div>
+            <p>Search and select players to see live stats</p>
+        </div>
+    </div>
+    <script defer src="/web/widget.js"></script>
+</body>
+</html>
