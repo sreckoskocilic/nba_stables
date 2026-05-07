@@ -87,11 +87,15 @@ def _highs_row(
 
 
 def _mock_gamelog(rows):
-    mock = MagicMock()
-    mock.get_dict.return_value = {
+    full = MagicMock()
+    full.get_dict.return_value = {
         "resultSets": [{"headers": HIGHS_HEADERS, "rowSet": rows}]
     }
-    return mock
+    empty = MagicMock()
+    empty.get_dict.return_value = {
+        "resultSets": [{"headers": HIGHS_HEADERS, "rowSet": []}]
+    }
+    return (full, empty)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -101,10 +105,12 @@ def _mock_gamelog(rows):
 
 class TestGetSeasonHighs:
     def _call(self, client, rows):
-        mock = _mock_gamelog(rows)
+        full, empty = _mock_gamelog(rows)
         with (
             patch("routes.season.get_current_season", return_value="2024-25"),
-            patch("routes.season.leaguegamelog.LeagueGameLog", return_value=mock),
+            patch(
+                "routes.season.leaguegamelog.LeagueGameLog", side_effect=[full, empty]
+            ),
         ):
             return client.get("/api/season/highs")
 
@@ -226,16 +232,16 @@ class TestGetSeasonHighs:
         assert resp.json()["highs"]["points"]["players"][0]["name"] == original
 
     def test_cache_hit_skips_api_call(self, client):
-        mock = _mock_gamelog([_highs_row(pts=30)])
+        full, empty = _mock_gamelog([_highs_row(pts=30)])
         with (
             patch("routes.season.get_current_season", return_value="2024-25"),
             patch(
-                "routes.season.leaguegamelog.LeagueGameLog", return_value=mock
+                "routes.season.leaguegamelog.LeagueGameLog", side_effect=[full, empty]
             ) as api_mock,
         ):
             client.get("/api/season/highs")
             client.get("/api/season/highs")
-        api_mock.assert_called_once()
+        assert api_mock.call_count == 2
 
     def test_empty_rows_returns_all_zeros(self, client):
         resp = self._call(client, [])
@@ -271,12 +277,16 @@ def _doubles_row(player_id=1, name="Player", team="LAL", dd2=0, td3=0):
     return row
 
 
-def _mock_dash_stats(rows):
-    mock = MagicMock()
-    mock.get_dict.return_value = {
+def _mock_dash_stats(rows, playoff_rows=None):
+    full = MagicMock()
+    full.get_dict.return_value = {
         "resultSets": [{"headers": DOUBLES_HEADERS, "rowSet": rows}]
     }
-    return mock
+    playoff = MagicMock()
+    playoff.get_dict.return_value = {
+        "resultSets": [{"headers": DOUBLES_HEADERS, "rowSet": playoff_rows or []}]
+    }
+    return (full, playoff)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -286,10 +296,10 @@ def _mock_dash_stats(rows):
 
 class TestGetSeasonDoubles:
     def _call(self, client, rows):
-        mock = _mock_dash_stats(rows)
+        full, empty = _mock_dash_stats(rows)
         with patch(
             "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
-            return_value=mock,
+            side_effect=[full, empty],
         ):
             return client.get("/api/season/doubles")
 
@@ -380,14 +390,44 @@ class TestGetSeasonDoubles:
         assert len(resp.json()["tripleDoubles"]) == 20
 
     def test_cache_hit_skips_api_call(self, client):
-        mock = _mock_dash_stats([])
+        full, empty = _mock_dash_stats([])
         with patch(
             "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
-            return_value=mock,
+            side_effect=[full, empty],
         ) as api_mock:
             client.get("/api/season/doubles")
             client.get("/api/season/doubles")
-        api_mock.assert_called_once()
+        assert api_mock.call_count == 2
+
+    def test_playoff_counts_included(self, client):
+        regular_rows = [_doubles_row(player_id=1, name="A", dd2=10, td3=3)]
+        playoff_rows = [_doubles_row(player_id=1, name="A", dd2=4, td3=2)]
+        full, playoff = _mock_dash_stats(regular_rows, playoff_rows)
+        with patch(
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            side_effect=[full, playoff],
+        ):
+            resp = client.get("/api/season/doubles")
+        body = resp.json()
+        dd = body["doubleDoubles"][0]
+        td = body["tripleDoubles"][0]
+        assert dd["count"] == 14
+        assert dd["playoff"] == 4
+        assert td["count"] == 5
+        assert td["playoff"] == 2
+
+    def test_playoff_only_player(self, client):
+        playoff_rows = [_doubles_row(player_id=2, name="B", team="BOS", dd2=3, td3=0)]
+        full, playoff = _mock_dash_stats([], playoff_rows)
+        with patch(
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            side_effect=[full, playoff],
+        ):
+            resp = client.get("/api/season/doubles")
+        body = resp.json()
+        dd = body["doubleDoubles"][0]
+        assert dd["count"] == 3
+        assert dd["playoff"] == 3
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -413,11 +453,15 @@ def _td_game_row(
 
 
 def _mock_player_gamelog(rows):
-    mock = MagicMock()
-    mock.get_dict.return_value = {
+    full = MagicMock()
+    full.get_dict.return_value = {
         "resultSets": [{"headers": TD_GAMES_HEADERS, "rowSet": rows}]
     }
-    return mock
+    empty = MagicMock()
+    empty.get_dict.return_value = {
+        "resultSets": [{"headers": TD_GAMES_HEADERS, "rowSet": []}]
+    }
+    return (full, empty)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -430,14 +474,16 @@ _FAKE_PLAYER = {PLAYER_ID: [PLAYER_ID, "LeBron James", 1]}
 
 class TestGetTripleDoubleGames:
     def _call(self, client, rows, player_id=PLAYER_ID, season=None):
-        mock = _mock_player_gamelog(rows)
+        full, empty = _mock_player_gamelog(rows)
         url = f"/api/season/triple-double-games/{player_id}"
         if season:
             url += f"?season={season}"
         with (
             patch("routes.season.get_current_season", return_value="2024-25"),
             patch("routes.season.load_players_dict", return_value=_FAKE_PLAYER),
-            patch("routes.season.playergamelog.PlayerGameLog", return_value=mock),
+            patch(
+                "routes.season.playergamelog.PlayerGameLog", side_effect=[full, empty]
+            ),
         ):
             return client.get(url)
 
@@ -507,42 +553,45 @@ class TestGetTripleDoubleGames:
         assert len(resp.json()["games"]) == 2
 
     def test_cache_hit_skips_api_call(self, client):
-        mock = _mock_player_gamelog([])
+        full, empty = _mock_player_gamelog([])
         with (
             patch("routes.season.get_current_season", return_value="2024-25"),
             patch("routes.season.load_players_dict", return_value=_FAKE_PLAYER),
             patch(
-                "routes.season.playergamelog.PlayerGameLog", return_value=mock
+                "routes.season.playergamelog.PlayerGameLog", side_effect=[full, empty]
             ) as api_mock,
         ):
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
-        api_mock.assert_called_once()
+        assert api_mock.call_count == 2
 
     def test_season_param_accepted(self, client):
         resp = self._call(client, [], season="2023-24")
         assert resp.status_code == 200
 
     def test_season_param_uses_historical_ttl(self, client):
-        # Different season params produce independent cache keys
-        mock = _mock_player_gamelog([])
+        full1, empty1 = _mock_player_gamelog([])
+        full2, empty2 = _mock_player_gamelog([])
         with (
             patch("routes.season.get_current_season", return_value="2024-25"),
             patch("routes.season.load_players_dict", return_value=_FAKE_PLAYER),
             patch(
-                "routes.season.playergamelog.PlayerGameLog", return_value=mock
+                "routes.season.playergamelog.PlayerGameLog",
+                side_effect=[full1, empty1, full2, empty2],
             ) as api_mock,
         ):
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}?season=2023-24")
-        assert api_mock.call_count == 2
+        assert api_mock.call_count == 4
 
     def test_unknown_player_returns_404(self, client):
-        mock = _mock_player_gamelog([])
+        full, empty = _mock_player_gamelog([])
         with (
             patch("routes.season.get_current_season", return_value="2024-25"),
             patch("routes.season.load_players_dict", return_value={}),
-            patch("routes.season.playergamelog.PlayerGameLog", return_value=mock),
+            patch(
+                "routes.season.playergamelog.PlayerGameLog", side_effect=[full, empty]
+            ),
         ):
             resp = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
         assert resp.status_code == 404

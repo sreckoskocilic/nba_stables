@@ -573,10 +573,15 @@ def _make_doubles_row(pid, name, team, dd2, td3):
 
 
 def _mock_league_dash(rows):
-    m = MagicMock()
-    m.return_value.get_dict.return_value = {
+    empty = MagicMock()
+    empty.get_dict.return_value = {
+        "resultSets": [{"headers": DOUBLES_HEADERS, "rowSet": []}]
+    }
+    full = MagicMock()
+    full.get_dict.return_value = {
         "resultSets": [{"headers": DOUBLES_HEADERS, "rowSet": rows}]
     }
+    m = MagicMock(side_effect=[full, empty])
     return m
 
 
@@ -596,10 +601,15 @@ def _make_gamelog_row(date, matchup, pts, reb, ast, stl=0, blk=0):
 
 
 def _mock_gamelog(rows):
-    m = MagicMock()
-    m.return_value.get_dict.return_value = {
+    empty = MagicMock()
+    empty.get_dict.return_value = {
+        "resultSets": [{"headers": GAMELOG_HEADERS, "rowSet": []}]
+    }
+    full = MagicMock()
+    full.get_dict.return_value = {
         "resultSets": [{"headers": GAMELOG_HEADERS, "rowSet": rows}]
     }
+    m = MagicMock(side_effect=[full, empty])
     return m
 
 
@@ -667,7 +677,7 @@ class TestSeasonDoubles:
         with patch("routes.season.leaguedashplayerstats.LeagueDashPlayerStats", mock):
             client.get("/api/season/doubles")
             client.get("/api/season/doubles")
-        mock.assert_called_once()
+        assert mock.call_count == 2
 
 
 _TD_FAKE_PLAYER = {PLAYER_ID: [PLAYER_ID, "LeBron James", 1]}
@@ -725,7 +735,7 @@ class TestTripleDoubleGames:
         ):
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
             client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
-        mock.assert_called_once()
+        assert mock.call_count == 2
 
     def test_empty_returns_empty_games(self, client):
         with (

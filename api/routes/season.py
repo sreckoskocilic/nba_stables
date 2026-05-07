@@ -49,9 +49,19 @@ async def get_season_highs(
 
     def _sync():
         try:
-            log = with_retry(
+            log_regular = with_retry(
                 lambda: leaguegamelog.LeagueGameLog(
                     season=resolved_season,
+                    season_type_all_star="Regular Season",
+                    player_or_team_abbreviation="P",
+                    proxy=STATS_PROXY,
+                    timeout=STATS_TIMEOUT,
+                )
+            )
+            log_playoffs = with_retry(
+                lambda: leaguegamelog.LeagueGameLog(
+                    season=resolved_season,
+                    season_type_all_star="Playoffs",
                     player_or_team_abbreviation="P",
                     proxy=STATS_PROXY,
                     timeout=STATS_TIMEOUT,
@@ -59,18 +69,22 @@ async def get_season_highs(
             )
         finally:
             _reset_nba_stats_http_session()
-        data = log.get_dict()
-        headers = data["resultSets"][0]["headers"]
-        rows = data["resultSets"][0]["rowSet"]
+        data_regular = log_regular.get_dict()
+        data_playoffs = log_playoffs.get_dict()
+        headers = data_regular["resultSets"][0]["headers"]
+        rows_regular = data_regular["resultSets"][0]["rowSet"]
+        rows_playoffs = data_playoffs["resultSets"][0]["rowSet"]
+        playoff_set = set(id(r) for r in rows_playoffs)
         h = {k: i for i, k in enumerate(headers)}
 
         players = []
-        for row in rows:
+        for row in rows_regular + rows_playoffs:
             entry = {
                 "name": fix_encoding(row[h["PLAYER_NAME"]]),
                 "team": row[h["TEAM_ABBREVIATION"]],
                 "date": row[h["GAME_DATE"]],
                 "matchup": row[h["MATCHUP"]],
+                "playoff": id(row) in playoff_set,
             }
             for col, key, _ in SEASON_HIGH_CATEGORIES:
                 entry[key] = row[h[col]] or 0
@@ -79,7 +93,7 @@ async def get_season_highs(
         cat_keys = [(key, label) for _, key, label in SEASON_HIGH_CATEGORIES]
         max_vals, max_entries = find_category_leaders(players, cat_keys)
 
-        _display_fields = {"name", "team", "date", "matchup"}
+        _display_fields = {"name", "team", "date", "matchup", "playoff"}
         highs = {}
         for _, key, label in SEASON_HIGH_CATEGORIES:
             highs[key] = {
@@ -118,39 +132,92 @@ async def get_season_doubles(
 
     def _sync():
         try:
-            stats = with_retry(
+            stats_regular = with_retry(
                 lambda: leaguedashplayerstats.LeagueDashPlayerStats(
                     per_mode_detailed="Totals",
                     season=resolved_season,
+                    season_type_all_star="Regular Season",
+                    proxy=STATS_PROXY,
+                    timeout=STATS_TIMEOUT,
+                )
+            )
+            stats_playoffs = with_retry(
+                lambda: leaguedashplayerstats.LeagueDashPlayerStats(
+                    per_mode_detailed="Totals",
+                    season=resolved_season,
+                    season_type_all_star="Playoffs",
                     proxy=STATS_PROXY,
                     timeout=STATS_TIMEOUT,
                 )
             )
         finally:
             _reset_nba_stats_http_session()
-        data = stats.get_dict()
-        headers = data["resultSets"][0]["headers"]
-        rows = data["resultSets"][0]["rowSet"]
+        data_regular = stats_regular.get_dict()
+        data_playoffs = stats_playoffs.get_dict()
+        headers = data_regular["resultSets"][0]["headers"]
+        rows_regular = data_regular["resultSets"][0]["rowSet"]
+        rows_playoffs = data_playoffs["resultSets"][0]["rowSet"]
 
         h = {k: i for i, k in enumerate(headers)}
 
+        combined = {}
+        for row in rows_regular:
+            pid = row[h["PLAYER_ID"]]
+            if pid not in combined:
+                combined[pid] = {
+                    "name": row[h["PLAYER_NAME"]],
+                    "team": row[h["TEAM_ABBREVIATION"]],
+                    "dd2": 0,
+                    "td3": 0,
+                    "playoffDd2": 0,
+                    "playoffTd3": 0,
+                }
+            combined[pid]["dd2"] += row[h["DD2"]] or 0
+            combined[pid]["td3"] += row[h["TD3"]] or 0
+        for row in rows_playoffs:
+            pid = row[h["PLAYER_ID"]]
+            if pid not in combined:
+                combined[pid] = {
+                    "name": row[h["PLAYER_NAME"]],
+                    "team": row[h["TEAM_ABBREVIATION"]],
+                    "dd2": 0,
+                    "td3": 0,
+                    "playoffDd2": 0,
+                    "playoffTd3": 0,
+                }
+            combined[pid]["dd2"] += row[h["DD2"]] or 0
+            combined[pid]["td3"] += row[h["TD3"]] or 0
+            combined[pid]["playoffDd2"] += row[h["DD2"]] or 0
+            combined[pid]["playoffTd3"] += row[h["TD3"]] or 0
+
         dd_list = []
         td_list = []
-        for row in rows:
-            player_id = row[h["PLAYER_ID"]]
-            name = row[h["PLAYER_NAME"]]
-            team = row[h["TEAM_ABBREVIATION"]]
-            dd2 = row[h["DD2"]] or 0
-            td3 = row[h["TD3"]] or 0
+        for player_id, info in combined.items():
+            name = info["name"]
+            team = info["team"]
+            dd2 = info["dd2"]
+            td3 = info["td3"]
 
             if dd2 > 0:
-                dd_list.append(
-                    {"name": name, "team": team, "playerId": player_id, "count": dd2}
-                )
+                entry = {
+                    "name": name,
+                    "team": team,
+                    "playerId": player_id,
+                    "count": dd2,
+                }
+                if info["playoffDd2"]:
+                    entry["playoff"] = info["playoffDd2"]
+                dd_list.append(entry)
             if td3 > 0:
-                td_list.append(
-                    {"name": name, "team": team, "playerId": player_id, "count": td3}
-                )
+                entry = {
+                    "name": name,
+                    "team": team,
+                    "playerId": player_id,
+                    "count": td3,
+                }
+                if info["playoffTd3"]:
+                    entry["playoff"] = info["playoffTd3"]
+                td_list.append(entry)
 
         top_dd = heapq.nlargest(30, dd_list, key=lambda x: x["count"])
         top_td = heapq.nlargest(20, td_list, key=lambda x: x["count"])
@@ -193,19 +260,33 @@ async def get_triple_double_games(
         player_name = fix_encoding(player_row[1])
 
         try:
-            log = with_retry(
+            log_regular = with_retry(
                 lambda: playergamelog.PlayerGameLog(
                     player_id=player_id,
                     season=resolved_season,
+                    season_type_all_star="Regular Season",
+                    proxy=STATS_PROXY,
+                    timeout=STATS_TIMEOUT,
+                )
+            )
+            log_playoffs = with_retry(
+                lambda: playergamelog.PlayerGameLog(
+                    player_id=player_id,
+                    season=resolved_season,
+                    season_type_all_star="Playoffs",
                     proxy=STATS_PROXY,
                     timeout=STATS_TIMEOUT,
                 )
             )
         finally:
             _reset_nba_stats_http_session()
-        data = log.get_dict()
-        headers = data["resultSets"][0]["headers"]
-        rows = data["resultSets"][0]["rowSet"]
+        data_regular = log_regular.get_dict()
+        data_playoffs = log_playoffs.get_dict()
+        headers = data_regular["resultSets"][0]["headers"]
+        rows = (
+            data_regular["resultSets"][0]["rowSet"]
+            + data_playoffs["resultSets"][0]["rowSet"]
+        )
         h = {k: i for i, k in enumerate(headers)}
 
         games = []
