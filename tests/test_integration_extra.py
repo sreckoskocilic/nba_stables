@@ -14,6 +14,7 @@ from conftest import (
     make_live_game,
     make_live_player_stats,
     make_standings_row,
+    make_v3_game_boxscore,
 )
 from fastapi.testclient import TestClient
 from helpers.common import cache
@@ -511,7 +512,7 @@ class TestPlayerErrorHandlers:
     def test_game_players_500_on_boxscore_error(self, client):
         with (
             patch(
-                "routes.players.get_cached_live_boxscore",
+                "routes.players.get_cached_boxscore_v3",
                 side_effect=Exception("nba down"),
             ),
             patch("helpers.decorators.log_exceptions"),
@@ -781,9 +782,11 @@ class TestScoresErrorHandlers:
                 "routes.scores.get_games_leaders_list",
                 return_value={"g1": [], "g2": []},
             ),
-            patch("routes.scores.executor") as mock_exec,
+            patch(
+                "routes.scores.fetch_single_boxscore",
+                return_value=None,
+            ),
         ):
-            mock_exec.map.side_effect = TimeoutError("timed out")
             r = client.get("/api/boxscores?days_offset=1")
         assert r.status_code == 200
         assert r.json()["boxscores"] == []
@@ -849,7 +852,8 @@ class TestMoreCacheHits:
 
     def test_game_players_cached(self, client):
         with patch(
-            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
+            "routes.players.get_cached_boxscore_v3",
+            return_value=make_v3_game_boxscore(),
         ) as mock:
             client.get(f"/api/games/{GAME_ID}/players")
             client.get(f"/api/games/{GAME_ID}/players")
@@ -865,7 +869,7 @@ class TestEmptyBoxscoreResults:
     def test_leaders_skips_empty_boxscore(self, client):
         with (
             patch("routes.scores.get_games_list", return_value=[GAME_ID]),
-            patch("routes.scores.get_cached_live_boxscore", return_value={}),
+            patch("routes.scores.get_cached_boxscore_v3", return_value=None),
         ):
             r = client.get("/api/leaders?days_offset=1")
         assert r.status_code == 200
@@ -882,7 +886,7 @@ class TestInnerExceptionHandlers:
         with (
             patch("routes.scores.get_games_list", return_value=[GAME_ID]),
             patch(
-                "routes.scores.get_cached_live_boxscore", side_effect=Exception("boom")
+                "routes.scores.get_cached_boxscore_v3", side_effect=Exception("boom")
             ),
             patch("routes.scores.log_exceptions"),
         ):
@@ -891,11 +895,13 @@ class TestInnerExceptionHandlers:
 
     def test_leaders_survives_malformed_boxscore(self, client):
         """A boxscore missing expected keys must not crash the endpoint."""
+        malformed = MagicMock()
+        malformed.player_stats.get_dict.side_effect = Exception("bad data")
         with (
             patch("routes.scores.get_games_list", return_value=[GAME_ID]),
             patch(
-                "routes.scores.get_cached_live_boxscore",
-                return_value={"game": {"homeTeam": {}}},
+                "routes.scores.get_cached_boxscore_v3",
+                return_value=malformed,
             ),
             patch("routes.scores.log_exceptions"),
         ):
@@ -1003,13 +1009,15 @@ class TestSeasonErrorHandlers:
 
 
 class TestExecutorTimeouts:
-    def test_leaders_boxscore_timeout_returns_empty(self, client):
+    def test_leaders_boxscore_failure_returns_empty(self, client):
         with (
             patch("routes.scores.get_games_list", return_value=["0022400001"]),
-            patch("routes.scores.executor") as mock_exec,
+            patch(
+                "routes.scores.get_cached_boxscore_v3",
+                side_effect=Exception("nba down"),
+            ),
             patch("routes.scores.log_exceptions"),
         ):
-            mock_exec.map.side_effect = TimeoutError("timed out")
             r = client.get("/api/leaders?days_offset=1")
         assert r.status_code == 200
         assert r.json()["leaders"] == {}

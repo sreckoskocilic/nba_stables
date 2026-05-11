@@ -215,85 +215,85 @@ async def get_game_players(
         return cached
 
     def _sync():
-        bs = get_cached_live_boxscore(game_id)
-        game = bs["game"]
+        bs = get_cached_boxscore_v3(game_id)
+        ps = bs.player_stats.get_dict()
+        headers = ps["headers"]
+        players_raw = [dict(zip(headers, row)) for row in ps["data"]]
 
-        teams = []
+        ts = bs.team_stats.get_dict()
+        teams_raw = [dict(zip(ts["headers"], row)) for row in ts["data"]]
+        team_scores = {t["teamId"]: t["points"] for t in teams_raw}
+
+        teams_by_id = {}
         all_active = []
 
-        for team_key in ["homeTeam", "awayTeam"]:
-            team = game[team_key]
-            tricode = team["teamTricode"]
-            periods = [
-                {"period": p.get("period"), "score": p.get("score", 0)}
-                for p in team.get("periods", [])
-            ]
-            team_data = {
-                "name": f"{team['teamCity']} {team['teamName']}",
-                "tricode": tricode,
-                "score": team["score"],
-                "periods": periods,
-                "players": [],
-            }
+        for p in players_raw:
+            tid = p["teamId"]
+            if tid not in teams_by_id:
+                teams_by_id[tid] = {
+                    "name": f"{p['teamCity']} {p['teamName']}",
+                    "tricode": p["teamTricode"],
+                    "score": team_scores.get(tid, 0),
+                    "players": [],
+                }
 
-            for player in team["players"]:
-                if player["status"] == "ACTIVE":
-                    stats = player["statistics"]
-                    minutes = parse_iso_minutes(stats["minutes"])
+            if not p["minutes"]:
+                continue
 
-                    fgm = stats["fieldGoalsMade"]
-                    fga = stats["fieldGoalsAttempted"]
-                    tpm = stats["threePointersMade"]
-                    ftm = stats["freeThrowsMade"]
-                    fta = stats["freeThrowsAttempted"]
-                    pts = stats["points"]
-                    reb = stats["reboundsTotal"]
-                    ast = stats["assists"]
-                    stl = stats["steals"]
-                    blk = stats["blocks"]
-                    name = fix_encoding(player["name"])
+            fgm = p["fieldGoalsMade"]
+            fga = p["fieldGoalsAttempted"]
+            tpm = p["threePointersMade"]
+            tpa = p["threePointersAttempted"]
+            ftm = p["freeThrowsMade"]
+            fta = p["freeThrowsAttempted"]
+            pts = p["points"]
+            reb = p["reboundsTotal"]
+            ast = p["assists"]
+            stl = p["steals"]
+            blk = p["blocks"]
+            name = fix_encoding(f"{p['firstName']} {p['familyName']}")
 
-                    team_data["players"].append(
-                        {
-                            "id": player["personId"],
-                            "name": name,
-                            "minutes": minutes,
-                            "points": pts,
-                            "rebounds": reb,
-                            "offRebounds": stats["reboundsOffensive"],
-                            "defRebounds": stats["reboundsDefensive"],
-                            "assists": ast,
-                            "steals": stl,
-                            "blocks": blk,
-                            "turnovers": stats["turnovers"],
-                            "fouls": stats["foulsPersonal"],
-                            "fg": f"{fgm}/{fga}",
-                            "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
-                            "threePt": f"{tpm}/{stats['threePointersAttempted']}",
-                            "ft": f"{ftm}/{fta}",
-                            "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
-                        }
-                    )
+            teams_by_id[tid]["players"].append(
+                {
+                    "id": p["personId"],
+                    "name": name,
+                    "minutes": p["minutes"],
+                    "points": pts,
+                    "rebounds": reb,
+                    "offRebounds": p["reboundsOffensive"],
+                    "defRebounds": p["reboundsDefensive"],
+                    "assists": ast,
+                    "steals": stl,
+                    "blocks": blk,
+                    "turnovers": p["turnovers"],
+                    "fouls": p["foulsPersonal"],
+                    "fg": f"{fgm}/{fga}",
+                    "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
+                    "threePt": f"{tpm}/{tpa}",
+                    "ft": f"{ftm}/{fta}",
+                    "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
+                }
+            )
 
-                    all_active.append(
-                        {
-                            "name": name,
-                            "team": tricode,
-                            "points": pts,
-                            "rebounds": reb,
-                            "assists": ast,
-                            "steals": stl,
-                            "blocks": blk,
-                            "threePointers": tpm,
-                        }
-                    )
+            all_active.append(
+                {
+                    "name": name,
+                    "team": p["teamTricode"],
+                    "points": pts,
+                    "rebounds": reb,
+                    "assists": ast,
+                    "steals": stl,
+                    "blocks": blk,
+                    "threePointers": tpm,
+                }
+            )
 
-            # Sort by minutes played (descending)
+        teams = list(teams_by_id.values())
+        for team_data in teams:
             team_data["players"].sort(
                 key=lambda x: parse_minutes(x["minutes"]),
                 reverse=True,
             )
-            teams.append(team_data)
 
         categories = [
             ("points", "PTS"),
@@ -315,38 +315,15 @@ async def get_game_players(
                     ],
                 }
 
-        arena_data = game.get("arena") or {}
-        arena_name = arena_data.get("arenaName") or ""
-        arena_city = arena_data.get("arenaCity") or ""
-        arena = f"{arena_name}, {arena_city}".rstrip(", ") if arena_name else arena_city
-
-        officials = []
-        for o in game.get("officials") or []:
-            name = o.get("name")
-            if not name:
-                first = o.get("firstName", "")
-                last = o.get("familyName", "")
-                name = f"{first} {last}".strip()
-            if name:
-                officials.append({"name": name})
-
         return {
             "gameId": game_id,
-            "status": game["gameStatusText"],
-            "arena": arena,
-            "attendance": game.get("attendance") or 0,
-            "officials": officials,
+            "status": "Final",
             "topPerformers": top_performers,
             "teams": teams,
         }
 
     result = await asyncio.to_thread(_sync)
-    ttl = (
-        CACHE_TTL["historical"]
-        if result["status"].startswith("Final")
-        else CACHE_TTL["boxscores"]
-    )
-    cache.set(cache_key, result, ttl)
+    cache.set(cache_key, result, CACHE_TTL["historical"])
     return result
 
 
