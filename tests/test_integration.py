@@ -84,8 +84,8 @@ def make_player_stats_row(person_id=PLAYER_ID, minutes="28:00"):
     row[22] = 4  # FTA
     row[26] = 8  # REB
     row[27] = 6  # AST
-    row[28] = 0  # BLK
-    row[29] = 1  # STL
+    row[28] = 1  # STL
+    row[29] = 0  # BLK
     row[31] = 2  # PF
     row[32] = 28  # PTS
     return row
