@@ -52,8 +52,10 @@ from helpers.stats import (
     convert_et_to_cet,
     with_retry,
     fetch_single_boxscore,
+    fetch_single_wnba_boxscore,
     find_category_leaders,
     fix_encoding,
+    get_cached_boxscore_v3,
     get_cached_live_boxscore,
     get_cached_scoreboard,
     get_current_season,
@@ -61,9 +63,11 @@ from helpers.stats import (
     get_games_leaders_list,
     get_games_list,
     get_scoreboard_v3_by_date,
+    get_wnba_current_season,
     scoreboard_date,
 )
 from nba_api.stats.endpoints import leaguestandings, LeagueGameFinder
+from nba_api.stats.library.http import NBAStatsHTTP
 
 router = APIRouter()
 
@@ -76,7 +80,7 @@ PLAYOFF_SEED_PLAYIN = 10  # Seeds 7-10 make play-in tournament
 # Series counts only change after a playoff game ends; cache longer than scoreboard.
 _PLAYOFF_SERIES_TTL = 300
 
-_TRICODE_TO_TEAM_ID = {tri: tid for tid, (tri, _) in TEAMS.items()}
+_TRICODE_TO_TEAM_ID = {tri: tid for tid, (tri, _) in TEAMS.items() if tid < 1611661000}
 
 
 def _sort_by_rank(teams: list) -> list:
@@ -86,16 +90,18 @@ def _sort_by_rank(teams: list) -> list:
 
 @router.get("/api/dates")
 @route_error_handler("Failed to fetch date labels")
-async def get_date_labels():
+async def get_date_labels(league: str = "nba"):
     """Return display dates and game availability for day offsets 0-7"""
+    league_id = "10" if league == "wnba" else "00"
     today_str = _today_et().isoformat()
-    cached = cache.get(f"dates_{today_str}")
+    cache_key = f"dates_{league_id}_{today_str}"
+    cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
 
     async def _check_games(i):
         try:
-            return bool(await asyncio.to_thread(get_games_list, i))
+            return bool(await asyncio.to_thread(get_games_list, i, league_id=league_id))
         except Exception as ex:
             log_exceptions(ex)
             return False
@@ -107,7 +113,7 @@ async def get_date_labels():
         "dates": [get_display_date(i) for i in range(DAYS_OFFSET_MAX + 1)],
         "hasGames": has_games,
     }
-    cache.set(f"dates_{today_str}", result, CACHE_TTL["leaders"])
+    cache.set(cache_key, result, CACHE_TTL["leaders"])
     return result
 
 
@@ -115,18 +121,23 @@ async def get_date_labels():
 @route_error_handler("Failed to fetch boxscores")
 async def get_boxscores(
     days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
+    league: str = Query(default="nba"),
 ):
     """Get detailed box scores for games"""
-    cache_key = f"boxscores_{days_offset}"
+    league_id = "10" if league == "wnba" else "00"
+    cache_key = f"{league_id}:boxscores_{days_offset}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
     def _sync():
-        leaders_by_game = get_games_leaders_list(days_offset)
+        leaders_by_game = get_games_leaders_list(days_offset, league_id=league_id)
+        fetch_fn = (
+            fetch_single_wnba_boxscore if league_id == "10" else fetch_single_boxscore
+        )
         boxscores_list = []
         for game_id, leaders_data in leaders_by_game.items():
-            result = fetch_single_boxscore(game_id, leaders_data)
+            result = fetch_fn(game_id, leaders_data)
             if result is not None:
                 boxscores_list.append(result)
         boxscores_list.sort(key=lambda x: x.get("gameId", ""))
@@ -140,24 +151,25 @@ async def get_boxscores(
 
 @router.get("/api/scoreboard")
 @route_error_handler("Failed to fetch scoreboard")
-async def get_scoreboard():
+async def get_scoreboard(league: str = Query(default="nba")):
     """Get live scoreboard with game results and leading scorers.
 
     Uses ScoreboardV3 to show today's scheduled games. Once any game has
     started (gameStatus >= 2), switches to the live scoreboard API for
     real-time scores and leaders.
     """
+    league_id = "10" if league == "wnba" else "00"
     sb_date = scoreboard_date()
-    cache_key = f"scoreboard_{sb_date.isoformat()}"
+    cache_key = f"{league_id}:scoreboard_{sb_date.isoformat()}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
     def _sync():
-        sb = get_scoreboard_v3_by_date(sb_date)
+        sb = get_scoreboard_v3_by_date(sb_date, league_id=league_id)
         games = _scoreboard_from_v3(sb)
         try:
-            live_raw = get_cached_scoreboard()
+            live_raw = get_cached_scoreboard(league_id=league_id)
             started_ids = {g["gameId"] for g in live_raw if g["gameStatus"] >= 2}
         except Exception:  # pragma: no cover
             started_ids = set()
@@ -171,12 +183,13 @@ async def get_scoreboard():
                 live_by_id.get(g["gameId"], g) if g["gameId"] in started_ids else g
                 for g in games
             ]
-        try:
-            _attach_series_to_games(
-                games, _get_playoff_series_cached(get_current_season())
-            )
-        except Exception as ex:  # pragma: no cover
-            log_exceptions(ex, "scoreboard_series_attach")
+        if league_id == "00":
+            try:
+                _attach_series_to_games(
+                    games, _get_playoff_series_cached(get_current_season())
+                )
+            except Exception as ex:  # pragma: no cover
+                log_exceptions(ex, "scoreboard_series_attach")
         display_date = sb_date.strftime("%B %d, %Y")
         return {"games": games, "date": display_date}
 
@@ -309,39 +322,38 @@ def _scoreboard_from_v3(sb) -> list[dict]:
 @route_error_handler("Failed to fetch daily leaders")
 async def get_daily_leaders(
     days_offset: int = Query(default=1, ge=DAYS_OFFSET_MIN, le=DAYS_OFFSET_MAX),
+    league: str = Query(default="nba"),
 ):
     """Get daily leaders across statistical categories"""
-    cache_key = f"leaders_{days_offset}"
+    league_id = "10" if league == "wnba" else "00"
+    cache_key = f"{league_id}:leaders_{days_offset}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
     def _sync():
-        game_ids = get_games_list(days_offset)
+        game_ids = get_games_list(days_offset, league_id=league_id)
         all_players = []
 
-        def fetch_leaders_boxscore(gid):
-            try:
-                return get_cached_live_boxscore(gid)
-            except Exception as ex:
-                log_exceptions(ex)
-                return {}
-
-        boxscore_results = [fetch_leaders_boxscore(gid) for gid in game_ids]
-
-        for bs in boxscore_results:
-            if not bs:
-                continue
-            try:
-                for team_key in ["homeTeam", "awayTeam"]:
-                    team = bs["game"][team_key]
-                    tricode = team["teamTricode"]
-                    for player in team["players"]:
-                        if player["status"] == "ACTIVE":
-                            stats = player["statistics"]
+        if league_id == "10":
+            for gid in game_ids:
+                try:
+                    bs = get_cached_boxscore_v3(gid)
+                    bst = bs.get_dict().get("boxScoreTraditional", {})
+                    for team_key in ["homeTeam", "awayTeam"]:
+                        team = bst[team_key]
+                        tricode = team["teamTricode"]
+                        for player in team.get("players", []):
+                            stats = player.get("statistics")
+                            if not stats:
+                                continue
+                            name = (
+                                player.get("name")
+                                or f"{player.get('firstName', '')} {player.get('familyName', '')}".strip()
+                            )
                             all_players.append(
                                 {
-                                    "name": fix_encoding(player["name"]),
+                                    "name": fix_encoding(name),
                                     "team": tricode,
                                     "points": stats["points"],
                                     "rebounds": stats["reboundsTotal"],
@@ -351,8 +363,43 @@ async def get_daily_leaders(
                                     "threePointers": stats["threePointersMade"],
                                 }
                             )
-            except Exception as ex:
-                log_exceptions(ex, "leaders_boxscore_parse")
+                except Exception as ex:
+                    log_exceptions(ex, "wnba_leaders_boxscore_parse")
+        else:
+
+            def fetch_leaders_boxscore(gid):
+                try:
+                    return get_cached_live_boxscore(gid)
+                except Exception as ex:
+                    log_exceptions(ex)
+                    return {}
+
+            boxscore_results = [fetch_leaders_boxscore(gid) for gid in game_ids]
+
+            for bs in boxscore_results:
+                if not bs:
+                    continue
+                try:
+                    for team_key in ["homeTeam", "awayTeam"]:
+                        team = bs["game"][team_key]
+                        tricode = team["teamTricode"]
+                        for player in team["players"]:
+                            if player["status"] == "ACTIVE":
+                                stats = player["statistics"]
+                                all_players.append(
+                                    {
+                                        "name": fix_encoding(player["name"]),
+                                        "team": tricode,
+                                        "points": stats["points"],
+                                        "rebounds": stats["reboundsTotal"],
+                                        "assists": stats["assists"],
+                                        "blocks": stats["blocks"],
+                                        "steals": stats["steals"],
+                                        "threePointers": stats["threePointersMade"],
+                                    }
+                                )
+                except Exception as ex:
+                    log_exceptions(ex, "leaders_boxscore_parse")
 
         categories = [
             ("points", "Points"),
@@ -417,31 +464,93 @@ def _parse_team_row(team) -> dict:
     }
 
 
+_WS_TEAM_ID = 2
+_WS_CITY = 3
+_WS_NAME = 4
+_WS_CONF = 6
+_WS_RANK = 8
+_WS_WINS = 13
+_WS_LOSSES = 14
+_WS_WIN_PCT = 15
+_WS_HOME = 18
+_WS_AWAY = 19
+_WS_L10 = 20
+_WS_STREAK = 37
+_WS_GAMES_BACK = 38
+
+
+def _fetch_wnba_standings_teams() -> list:
+    cached = cache.get("raw_standings_wnba")
+    if cached is not None:  # pragma: no cover
+        return cached
+    try:
+        resp = NBAStatsHTTP().send_api_request(
+            endpoint="leaguestandingsv3",
+            parameters={
+                "LeagueID": "10",
+                "Season": get_wnba_current_season(),
+                "SeasonType": "Regular Season",
+            },
+            timeout=STATS_TIMEOUT,
+        )
+        teams = resp.get_dict()["resultSets"][0]["rowSet"]
+    finally:
+        _reset_nba_stats_http_session()
+    cache.set("raw_standings_wnba", teams, CACHE_TTL["standings"] // 2)
+    return teams
+
+
+def _parse_wnba_team_row(team) -> dict:
+    win_pct = team[_WS_WIN_PCT] if team[_WS_WIN_PCT] is not None else 0
+    team_info = TEAMS.get(team[_WS_TEAM_ID])
+    return {
+        "teamId": team[_WS_TEAM_ID],
+        "rank": team[_WS_RANK] or 0,
+        "name": f"{team[_WS_CITY]} {team[_WS_NAME]}",
+        "tricode": team_info[0] if team_info else (team[_WS_CITY] or "")[:3].upper(),
+        "wins": team[_WS_WINS] or 0,
+        "losses": team[_WS_LOSSES] or 0,
+        "winPct": round(win_pct, 3) if win_pct else 0,
+        "gamesBack": team[_WS_GAMES_BACK] if team[_WS_GAMES_BACK] is not None else "-",
+        "streak": team[_WS_STREAK] or "-",
+        "last10": team[_WS_L10] or "0-0",
+        "homeRecord": team[_WS_HOME] or "0-0",
+        "awayRecord": team[_WS_AWAY] or "0-0",
+    }
+
+
 @router.get("/api/standings")
 @route_error_handler("Failed to fetch standings")
-async def get_standings():
-    """Get current NBA standings by conference"""
-    cache_key = "standings"
+async def get_standings(league: str = Query(default="nba")):
+    """Get current standings by conference"""
+    league_id = "10" if league == "wnba" else "00"
+    cache_key = f"{league_id}:standings"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
     def _sync():
+        if league_id == "10":
+            teams = _fetch_wnba_standings_teams()
+            east, west = [], []
+            for team in teams:
+                team_data = _parse_wnba_team_row(team)
+                if team[_WS_CONF] == "East":
+                    east.append(team_data)
+                else:
+                    west.append(team_data)
+            return {"east": _sort_by_rank(east), "west": _sort_by_rank(west)}
+
         teams = _fetch_standings_teams()
-
-        east = []
-        west = []
-
+        east, west = [], []
         for team in teams:
             team_data = _parse_team_row(team)
             team_data["homeRecord"] = team[ST_HOME_RECORD] or "0-0"
             team_data["awayRecord"] = team[ST_AWAY_RECORD] or "0-0"
-
             if team[ST_CONF] == "East":
                 east.append(team_data)
             else:
                 west.append(team_data)
-
         return {"east": _sort_by_rank(east), "west": _sort_by_rank(west)}
 
     result = await asyncio.to_thread(_sync)

@@ -9,7 +9,14 @@ function esc(s) {
 }
 let trackedPlayerIds = [],
   currentBoxscoreOffset = 0,
-  currentLeadersOffset = 0;
+  currentLeadersOffset = 0,
+  currentLeague = localStorage.getItem("league") || "nba";
+function leagueParam() {
+  return currentLeague === "wnba" ? "&league=wnba" : "";
+}
+function leagueQuery() {
+  return currentLeague === "wnba" ? "?league=wnba" : "";
+}
 const _abortControllers = {};
 function _fetchWithAbort(t, e, s = {}, a = 15e3) {
   _abortControllers[t] && _abortControllers[t].abort();
@@ -49,6 +56,14 @@ const TEAM_TZ = {
   TOR: "America/Toronto",
   UTA: "America/Denver",
   WAS: "America/New_York",
+  // WNBA
+  CON: "America/New_York",
+  NYL: "America/New_York",
+  SEA: "America/Los_Angeles",
+  LVA: "America/Los_Angeles",
+  LAS: "America/Los_Angeles",
+  GSV: "America/Los_Angeles",
+  PDX: "America/Los_Angeles",
 };
 function homeTeamLocalTime(t) {
   const e = TEAM_TZ[t];
@@ -90,7 +105,7 @@ function _dateLabel(t) {
   );
 }
 function _loadDateLabels() {
-  fetch("/api/dates")
+  fetch(`/api/dates${leagueQuery()}`)
     .then((t) => t.json())
     .then((t) => {
       const e = (t) => {
@@ -526,7 +541,7 @@ let _standingsData = null;
 function renderStandings() {
   const t = document.getElementById("standingsContent");
   const a = (t, e) =>
-    `\n                    <div class="card" style="overflow-x: auto;">\n                        <h3 style="padding: 15px 20px; background: var(--bg-secondary); margin: 0;">${e} Conference</h3>\n                        <table class="boxscore-table">\n                            <thead>\n                                <tr>\n                                    <th>#</th>\n                                    <th style="text-align: left;">Team</th>\n                                    <th>W</th>\n                                    <th>L</th>\n                                    <th>PCT</th>\n                                    <th>GB</th>\n                                    <th>Streak</th>\n                                    <th>L10</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                ${t.map((t, e) => `\n                                    <tr class="${e < 6 ? "playoff-row" : e < 10 ? "playin-row" : ""}">\n                                        <td style="text-align: center; font-weight: 600;">${t.rank}</td>\n                                        <td style="text-align: left; font-weight: 500;">${esc(t.name)}</td>\n                                        <td class="highlight">${t.wins}</td>\n                                        <td>${t.losses}</td>\n                                        <td>${(100 * t.winPct).toFixed(1)}%</td>\n                                        <td>${esc(t.gamesBack)}</td>\n                                        <td>${esc(t.streak)}</td>\n                                        <td>${esc(t.last10)}</td>\n                                    </tr>\n                                `).join("")}\n                            </tbody>\n                        </table>\n                    </div>\n                `;
+    `\n                    <div class="card" style="overflow-x: auto;">\n                        <h3 style="padding: 15px 20px; background: var(--bg-secondary); margin: 0;">${e} Conference</h3>\n                        <table class="boxscore-table">\n                            <thead>\n                                <tr>\n                                    <th>#</th>\n                                    <th style="text-align: left;">Team</th>\n                                    <th>W</th>\n                                    <th>L</th>\n                                    <th>PCT</th>\n                                    <th>GB</th>\n                                    <th>Streak</th>\n                                    <th>L10</th>\n                                </tr>\n                            </thead>\n                            <tbody>\n                                ${t.map((t, e) => `\n                                    <tr class="${e < 6 ? "playoff-row" : e < 10 ? "playin-row" : ""}">\n                                        <td style="text-align: center; font-weight: 600;">${e + 1}</td>\n                                        <td style="text-align: left; font-weight: 500;">${esc(t.name)}</td>\n                                        <td class="highlight">${t.wins}</td>\n                                        <td>${t.losses}</td>\n                                        <td>${(100 * t.winPct).toFixed(1)}%</td>\n                                        <td>${esc(t.gamesBack)}</td>\n                                        <td>${esc(t.streak)}</td>\n                                        <td>${esc(t.last10)}</td>\n                                    </tr>\n                                `).join("")}\n                            </tbody>\n                        </table>\n                    </div>\n                `;
   try {
     t.innerHTML =
       a(_standingsData.east, "Eastern") + a(_standingsData.west, "Western");
@@ -543,7 +558,7 @@ async function loadStandings(force = false) {
   t.innerHTML =
     '<div class="loading"><div class="spinner"></div> Loading standings...</div>';
   try {
-    const e = await _fetchWithAbort("standings", "/api/standings");
+    const e = await _fetchWithAbort("standings", `/api/standings${leagueQuery()}`);
     _standingsData = await e.json();
     renderStandings();
   } catch (e) {
@@ -1541,7 +1556,7 @@ async function loadScoreboard() {
   content.innerHTML =
     '<div class="loading"><div class="spinner"></div> Loading games...</div>';
   try {
-    const response = await _fetchWithAbort("scoreboard", "/api/scoreboard");
+    const response = await _fetchWithAbort("scoreboard", `/api/scoreboard${leagueQuery()}`);
     const data = await response.json();
     if (!response.ok)
       throw new Error(data.detail || "Failed to load scoreboard");
@@ -1677,7 +1692,7 @@ async function loadLeaders() {
   try {
     const response = await _fetchWithAbort(
       "leaders",
-      `/api/leaders?days_offset=${currentLeadersOffset}`,
+      `/api/leaders?days_offset=${currentLeadersOffset}${leagueParam()}`,
     );
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || "Failed to load leaders");
@@ -1948,7 +1963,7 @@ async function loadHeaderTicker() {
   if (!track) return;
   if (document.hidden) return;
   try {
-    const r = await fetch("/api/scoreboard", { cache: "no-store" });
+    const r = await fetch(`/api/scoreboard${leagueQuery()}`, { cache: "no-store" });
     if (!r.ok) throw new Error("scoreboard fetch failed");
     const data = await r.json();
     const games = Array.isArray(data?.games) ? data.games : [];
@@ -2067,7 +2082,7 @@ async function loadBoxscores() {
   try {
     const response = await _fetchWithAbort(
       "boxscores",
-      `/api/boxscores?days_offset=${currentBoxscoreOffset}`,
+      `/api/boxscores?days_offset=${currentBoxscoreOffset}${leagueParam()}`,
     );
     const data = await response.json();
     if (!response.ok)
@@ -2406,6 +2421,54 @@ document.addEventListener("click", (e) => {
   const fn = _ACTIONS[t.dataset.action];
   if (fn) fn(t, e);
 });
+
+// === NBA / WNBA league toggle ===
+const _NBA_ONLY_TABS = ["injuries", "playoffs", "trades", "tracker", "lastngames", "seasonDoubles", "seasonHighs"];
+function _applyLeagueToggle() {
+  const btns = document.querySelectorAll("#leagueToggle [data-league]");
+  btns.forEach((b) =>
+    b.classList.toggle("active", b.dataset.league === currentLeague),
+  );
+  _navTabs.forEach((tab) => {
+    if (_NBA_ONLY_TABS.includes(tab.dataset.section)) {
+      tab.style.display = currentLeague === "wnba" ? "none" : "";
+    }
+  });
+}
+document.querySelectorAll("#leagueToggle [data-league]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.league === currentLeague) return;
+    currentLeague = btn.dataset.league;
+    localStorage.setItem("league", currentLeague);
+    _applyLeagueToggle();
+    _standingsData = null;
+    _boxscoreDateBtns.forEach((b) => (b.hidden = false));
+    _leaderDateBtns.forEach((b) => (b.hidden = false));
+    _loadDateLabels();
+    const activeSection = document.querySelector(".section.active");
+    const id = activeSection ? activeSection.id : "scoreboard";
+    if (_NBA_ONLY_TABS.includes(id)) {
+      document.querySelector('.nav-tab[data-section="scoreboard"]').click();
+    } else {
+      switch (id) {
+        case "scoreboard":
+          loadScoreboard();
+          break;
+        case "boxscores":
+          loadBoxscores();
+          break;
+        case "leaders":
+          loadLeaders();
+          break;
+        case "standings":
+          loadStandings(true);
+          break;
+      }
+    }
+    loadHeaderTicker();
+  });
+});
+_applyLeagueToggle();
 
 "serviceWorker" in navigator &&
   navigator.serviceWorker.register("/web/sw.js").catch(() => {});

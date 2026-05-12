@@ -118,6 +118,12 @@ def get_current_season() -> str:
     return f"{year}-{str(year + 1)[-2:]}"
 
 
+def get_wnba_current_season() -> str:
+    today = _today_et()
+    year = today.year if today.month >= 5 else today.year - 1
+    return f"{year}-{str(year + 1)[-2:]}"
+
+
 def convert_et_to_cet(time_str: str) -> str:
     """Convert NBA game time from US/Eastern to CET (e.g. '7:00 pm ET' -> '23:00 CET')"""
     try:
@@ -279,20 +285,23 @@ def load_players_with_lower() -> list:  # pragma: no cover
     return _players_cache_lower
 
 
-def get_cached_scoreboard() -> Any:  # pragma: no cover
+def get_cached_scoreboard(league_id: str = "00") -> Any:  # pragma: no cover
     """Return cached live ScoreBoard().games.data."""
-    sb_key = f"raw_scoreboard_{scoreboard_date().isoformat()}"
+    sb_key = f"raw_scoreboard_{league_id}_{scoreboard_date().isoformat()}"
     cached = cache.get(sb_key)
     if cached is not None:  # pragma: no cover
         return cached
     try:
-        data = with_retry(
-            lambda: (
-                live_scoreboard.ScoreBoard(
-                    proxy=STATS_PROXY, timeout=STATS_TIMEOUT
-                ).games.data
-            ),
-        )
+
+        def _fetch():
+            sb = live_scoreboard.ScoreBoard(
+                proxy=STATS_PROXY, timeout=STATS_TIMEOUT, get_request=False
+            )
+            sb.endpoint_url = f"scoreboard/todaysScoreboard_{league_id}.json"
+            sb.get_request()
+            return sb.games.data
+
+        data = with_retry(_fetch)
     finally:
         _reset_nba_stats_http_session()
     cache.set(sb_key, data, CACHE_TTL["scoreboard"])
@@ -323,16 +332,20 @@ def get_cached_live_boxscore(game_id: str) -> dict | None:  # pragma: no cover
     return data
 
 
-def get_cached_scoreboard_v3(days_offset: int = 1) -> Any:
+def get_cached_scoreboard_v3(days_offset: int = 1, league_id: str = "00") -> Any:
     """Return a cached ScoreboardV3 object for the given days_offset."""
     target_date = _today_et() - timedelta(days=days_offset)
-    return get_scoreboard_v3_by_date(target_date, historical=days_offset >= 2)
+    return get_scoreboard_v3_by_date(
+        target_date, historical=days_offset >= 2, league_id=league_id
+    )
 
 
-def get_scoreboard_v3_by_date(game_date: date, historical: bool = False) -> Any:
+def get_scoreboard_v3_by_date(
+    game_date: date, historical: bool = False, league_id: str = "00"
+) -> Any:
     """Return a cached ScoreboardV3 object for a specific date."""
     date_str = game_date.strftime("%Y-%m-%d")
-    cache_key = f"raw_scoreboard_v3_{date_str}"
+    cache_key = f"raw_scoreboard_v3_{league_id}_{date_str}"
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
@@ -340,6 +353,7 @@ def get_scoreboard_v3_by_date(game_date: date, historical: bool = False) -> Any:
         sb = with_retry(
             lambda: scoreboardv3.ScoreboardV3(
                 game_date=date_str,
+                league_id=league_id,
                 proxy=STATS_PROXY,
                 timeout=STATS_TIMEOUT,
             ),
@@ -384,11 +398,11 @@ def find_category_leaders(
     return max_vals, max_entries
 
 
-def get_games_list(days_offset: int = 1) -> list:
+def get_games_list(days_offset: int = 1, league_id: str = "00") -> list:
     """Get list of game IDs for a given date offset"""
     g_set = set()
     try:
-        sb = get_cached_scoreboard_v3(days_offset)
+        sb = get_cached_scoreboard_v3(days_offset, league_id=league_id)
         games = sb.game_header.get_dict()
         for g in games["data"]:
             if g[GH_GAME_STATUS] > STATUS_SCHEDULED:
@@ -398,11 +412,11 @@ def get_games_list(days_offset: int = 1) -> list:
     return list(g_set)
 
 
-def get_games_leaders_list(days_offset: int = 1) -> dict:
+def get_games_leaders_list(days_offset: int = 1, league_id: str = "00") -> dict:
     """Get games with their leaders"""
     g_dict = {}
     try:
-        sb = get_cached_scoreboard_v3(days_offset)
+        sb = get_cached_scoreboard_v3(days_offset, league_id=league_id)
         games = sb.game_header.get_dict()
         leaders = sb.game_leaders.get_dict()
 
@@ -479,6 +493,61 @@ def fetch_single_boxscore(game_id: str, leaders_data: list) -> dict | None:
                 {
                     "name": f"{team['teamCity']} {team['teamName']}",
                     "score": team["score"],
+                    "stats": {
+                        "fg": f"{s['fieldGoalsMade']}/{s['fieldGoalsAttempted']}",
+                        "fgPct": s["fieldGoalsPercentage"],
+                        "threePt": f"{s['threePointersMade']}/{s['threePointersAttempted']}",
+                        "threePtPct": s["threePointersPercentage"],
+                        "ft": f"{s['freeThrowsMade']}/{s['freeThrowsAttempted']}",
+                        "ftPct": s["freeThrowsPercentage"],
+                        "rebounds": s["reboundsTotal"],
+                        "offRebounds": s["reboundsOffensive"],
+                        "assists": s["assists"],
+                        "steals": s["steals"],
+                        "blocks": s["blocks"],
+                        "turnovers": s["turnovers"],
+                        "fouls": s["foulsPersonal"],
+                    },
+                    "leader": leader,
+                }
+            )
+
+        return game_box
+    except Exception as ex:
+        log_exceptions(ex)
+        return game_box
+
+
+def fetch_single_wnba_boxscore(game_id: str, leaders_data: list) -> dict | None:
+    """Fetch boxscore for a WNBA game via BoxScoreTraditionalV3."""
+    game_box = None
+    try:
+        bs = get_cached_boxscore_v3(game_id)
+        bst = bs.get_dict().get("boxScoreTraditional", {})
+        game_box = {"gameId": game_id, "teams": []}
+        leaders_by_team = {
+            ld[_CL_TEAM_ID]: ld for ld in leaders_data if len(ld) > _CL_TEAM_ID
+        }
+
+        for team_key in ["homeTeam", "awayTeam"]:
+            team = bst[team_key]
+            team_id = team["teamId"]
+            s = team["statistics"]
+
+            leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
+            ld = leaders_by_team.get(team_id)
+            if ld:
+                leader = {
+                    "name": ld[_CL_PLAYER_NAME],
+                    "points": ld[_CL_PTS],
+                    "rebounds": ld[_CL_REB],
+                    "assists": ld[_CL_AST],
+                }
+
+            game_box["teams"].append(
+                {
+                    "name": f"{team['teamCity']} {team['teamName']}",
+                    "score": s["points"],
                     "stats": {
                         "fg": f"{s['fieldGoalsMade']}/{s['fieldGoalsAttempted']}",
                         "fgPct": s["fieldGoalsPercentage"],

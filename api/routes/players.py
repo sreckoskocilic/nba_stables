@@ -206,7 +206,7 @@ async def get_player_stats(
 @router.get("/api/games/{game_id}/players")
 @route_error_handler("Failed to fetch game players")
 async def get_game_players(
-    game_id: str = Path(..., pattern=r"^00[1245]\d{7}$"),
+    game_id: str = Path(..., pattern=r"^(?:00[1245]|10[0-9])\d{7}$"),
 ):
     """Get all player stats for a specific game with advanced metrics"""
     cache_key = f"game_players_{game_id}"
@@ -214,130 +214,12 @@ async def get_game_players(
     if cached is not None:
         return cached
 
+    is_wnba = game_id.startswith("10")
+
     def _sync():
-        bs = get_cached_live_boxscore(game_id)
-        game = bs["game"]
-
-        teams = []
-        all_active = []
-
-        for team_key in ["homeTeam", "awayTeam"]:
-            team = game[team_key]
-            tricode = team["teamTricode"]
-            periods = [
-                {"period": p.get("period"), "score": p.get("score", 0)}
-                for p in team.get("periods", [])
-            ]
-            team_data = {
-                "name": f"{team['teamCity']} {team['teamName']}",
-                "tricode": tricode,
-                "score": team["score"],
-                "periods": periods,
-                "players": [],
-            }
-
-            for player in team["players"]:
-                if player["status"] == "ACTIVE":
-                    stats = player["statistics"]
-                    minutes = parse_iso_minutes(stats["minutes"])
-
-                    fgm = stats["fieldGoalsMade"]
-                    fga = stats["fieldGoalsAttempted"]
-                    tpm = stats["threePointersMade"]
-                    ftm = stats["freeThrowsMade"]
-                    fta = stats["freeThrowsAttempted"]
-                    pts = stats["points"]
-                    reb = stats["reboundsTotal"]
-                    ast = stats["assists"]
-                    stl = stats["steals"]
-                    blk = stats["blocks"]
-                    name = fix_encoding(player["name"])
-
-                    team_data["players"].append(
-                        {
-                            "id": player["personId"],
-                            "name": name,
-                            "minutes": minutes,
-                            "points": pts,
-                            "rebounds": reb,
-                            "offRebounds": stats["reboundsOffensive"],
-                            "defRebounds": stats["reboundsDefensive"],
-                            "assists": ast,
-                            "steals": stl,
-                            "blocks": blk,
-                            "turnovers": stats["turnovers"],
-                            "fouls": stats["foulsPersonal"],
-                            "fg": f"{fgm}/{fga}",
-                            "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
-                            "threePt": f"{tpm}/{stats['threePointersAttempted']}",
-                            "ft": f"{ftm}/{fta}",
-                            "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
-                        }
-                    )
-
-                    all_active.append(
-                        {
-                            "name": name,
-                            "team": tricode,
-                            "points": pts,
-                            "rebounds": reb,
-                            "assists": ast,
-                            "steals": stl,
-                            "blocks": blk,
-                            "threePointers": tpm,
-                        }
-                    )
-
-            team_data["players"].sort(
-                key=lambda x: parse_minutes(x["minutes"]),
-                reverse=True,
-            )
-            teams.append(team_data)
-
-        categories = [
-            ("points", "PTS"),
-            ("rebounds", "REB"),
-            ("assists", "AST"),
-            ("steals", "STL"),
-            ("blocks", "BLK"),
-            ("threePointers", "3 PT"),
-        ]
-        top_performers = {}
-        if all_active:
-            max_vals, max_entries = find_category_leaders(all_active, categories)
-            for key, label in categories:
-                top_performers[key] = {
-                    "label": label,
-                    "value": max_vals[key],
-                    "players": [
-                        {"name": p["name"], "team": p["team"]} for p in max_entries[key]
-                    ],
-                }
-
-        arena_data = game.get("arena") or {}
-        arena_name = arena_data.get("arenaName") or ""
-        arena_city = arena_data.get("arenaCity") or ""
-        arena = f"{arena_name}, {arena_city}".rstrip(", ") if arena_name else arena_city
-
-        officials = []
-        for o in game.get("officials") or []:
-            name = o.get("name")
-            if not name:
-                first = o.get("firstName", "")
-                last = o.get("familyName", "")
-                name = f"{first} {last}".strip()
-            if name:
-                officials.append({"name": name})
-
-        return {
-            "gameId": game_id,
-            "status": game["gameStatusText"],
-            "arena": arena,
-            "attendance": game.get("attendance") or 0,
-            "officials": officials,
-            "topPerformers": top_performers,
-            "teams": teams,
-        }
+        if is_wnba:
+            return _game_players_from_v3(game_id)
+        return _game_players_from_live(game_id)
 
     result = await asyncio.to_thread(_sync)
     ttl = (
@@ -347,6 +229,244 @@ async def get_game_players(
     )
     cache.set(cache_key, result, ttl)
     return result
+
+
+def _game_players_from_live(game_id: str) -> dict:
+    bs = get_cached_live_boxscore(game_id)
+    game = bs["game"]
+
+    teams = []
+    all_active = []
+
+    for team_key in ["homeTeam", "awayTeam"]:
+        team = game[team_key]
+        tricode = team["teamTricode"]
+        periods = [
+            {"period": p.get("period"), "score": p.get("score", 0)}
+            for p in team.get("periods", [])
+        ]
+        team_data = {
+            "name": f"{team['teamCity']} {team['teamName']}",
+            "tricode": tricode,
+            "score": team["score"],
+            "periods": periods,
+            "players": [],
+        }
+
+        for player in team["players"]:
+            if player["status"] == "ACTIVE":
+                stats = player["statistics"]
+                minutes = parse_iso_minutes(stats["minutes"])
+
+                fgm = stats["fieldGoalsMade"]
+                fga = stats["fieldGoalsAttempted"]
+                tpm = stats["threePointersMade"]
+                ftm = stats["freeThrowsMade"]
+                fta = stats["freeThrowsAttempted"]
+                pts = stats["points"]
+                reb = stats["reboundsTotal"]
+                ast = stats["assists"]
+                stl = stats["steals"]
+                blk = stats["blocks"]
+                name = fix_encoding(player["name"])
+
+                team_data["players"].append(
+                    {
+                        "id": player["personId"],
+                        "name": name,
+                        "minutes": minutes,
+                        "points": pts,
+                        "rebounds": reb,
+                        "offRebounds": stats["reboundsOffensive"],
+                        "defRebounds": stats["reboundsDefensive"],
+                        "assists": ast,
+                        "steals": stl,
+                        "blocks": blk,
+                        "turnovers": stats["turnovers"],
+                        "fouls": stats["foulsPersonal"],
+                        "fg": f"{fgm}/{fga}",
+                        "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
+                        "threePt": f"{tpm}/{stats['threePointersAttempted']}",
+                        "ft": f"{ftm}/{fta}",
+                        "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
+                    }
+                )
+
+                all_active.append(
+                    {
+                        "name": name,
+                        "team": tricode,
+                        "points": pts,
+                        "rebounds": reb,
+                        "assists": ast,
+                        "steals": stl,
+                        "blocks": blk,
+                        "threePointers": tpm,
+                    }
+                )
+
+        team_data["players"].sort(
+            key=lambda x: parse_minutes(x["minutes"]),
+            reverse=True,
+        )
+        teams.append(team_data)
+
+    categories = [
+        ("points", "PTS"),
+        ("rebounds", "REB"),
+        ("assists", "AST"),
+        ("steals", "STL"),
+        ("blocks", "BLK"),
+        ("threePointers", "3 PT"),
+    ]
+    top_performers = {}
+    if all_active:
+        max_vals, max_entries = find_category_leaders(all_active, categories)
+        for key, label in categories:
+            top_performers[key] = {
+                "label": label,
+                "value": max_vals[key],
+                "players": [
+                    {"name": p["name"], "team": p["team"]} for p in max_entries[key]
+                ],
+            }
+
+    arena_data = game.get("arena") or {}
+    arena_name = arena_data.get("arenaName") or ""
+    arena_city = arena_data.get("arenaCity") or ""
+    arena = f"{arena_name}, {arena_city}".rstrip(", ") if arena_name else arena_city
+
+    officials = []
+    for o in game.get("officials") or []:
+        name = o.get("name")
+        if not name:
+            first = o.get("firstName", "")
+            last = o.get("familyName", "")
+            name = f"{first} {last}".strip()
+        if name:
+            officials.append({"name": name})
+
+    return {
+        "gameId": game_id,
+        "status": game["gameStatusText"],
+        "arena": arena,
+        "attendance": game.get("attendance") or 0,
+        "officials": officials,
+        "topPerformers": top_performers,
+        "teams": teams,
+    }
+
+
+def _game_players_from_v3(game_id: str) -> dict:
+    bs = get_cached_boxscore_v3(game_id)
+    bst = bs.get_dict()["boxScoreTraditional"]
+
+    teams = []
+    all_active = []
+
+    for team_key in ["homeTeam", "awayTeam"]:
+        team = bst[team_key]
+        tricode = team["teamTricode"]
+        team_data = {
+            "name": f"{team['teamCity']} {team['teamName']}",
+            "tricode": tricode,
+            "score": team["statistics"]["points"],
+            "periods": [],
+            "players": [],
+        }
+
+        for player in team.get("players", []):
+            stats = player.get("statistics")
+            if not stats:
+                continue
+            minutes = stats.get("minutes", "0:00")
+
+            fgm = stats["fieldGoalsMade"]
+            fga = stats["fieldGoalsAttempted"]
+            tpm = stats["threePointersMade"]
+            ftm = stats["freeThrowsMade"]
+            fta = stats["freeThrowsAttempted"]
+            pts = stats["points"]
+            reb = stats["reboundsTotal"]
+            ast = stats["assists"]
+            stl = stats["steals"]
+            blk = stats["blocks"]
+            name = (
+                player.get("name")
+                or f"{player.get('firstName', '')} {player.get('familyName', '')}".strip()
+            )
+            name = fix_encoding(name)
+
+            team_data["players"].append(
+                {
+                    "id": player["personId"],
+                    "name": name,
+                    "minutes": minutes,
+                    "points": pts,
+                    "rebounds": reb,
+                    "offRebounds": stats["reboundsOffensive"],
+                    "defRebounds": stats["reboundsDefensive"],
+                    "assists": ast,
+                    "steals": stl,
+                    "blocks": blk,
+                    "turnovers": stats["turnovers"],
+                    "fouls": stats["foulsPersonal"],
+                    "fg": f"{fgm}/{fga}",
+                    "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
+                    "threePt": f"{tpm}/{stats['threePointersAttempted']}",
+                    "ft": f"{ftm}/{fta}",
+                    "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
+                }
+            )
+
+            all_active.append(
+                {
+                    "name": name,
+                    "team": tricode,
+                    "points": pts,
+                    "rebounds": reb,
+                    "assists": ast,
+                    "steals": stl,
+                    "blocks": blk,
+                    "threePointers": tpm,
+                }
+            )
+
+        team_data["players"].sort(
+            key=lambda x: parse_minutes(x["minutes"]),
+            reverse=True,
+        )
+        teams.append(team_data)
+
+    categories = [
+        ("points", "PTS"),
+        ("rebounds", "REB"),
+        ("assists", "AST"),
+        ("steals", "STL"),
+        ("blocks", "BLK"),
+        ("threePointers", "3 PT"),
+    ]
+    top_performers = {}
+    if all_active:
+        max_vals, max_entries = find_category_leaders(all_active, categories)
+        for key, label in categories:
+            top_performers[key] = {
+                "label": label,
+                "value": max_vals[key],
+                "players": [
+                    {"name": p["name"], "team": p["team"]} for p in max_entries[key]
+                ],
+            }
+
+    return {
+        "gameId": game_id,
+        "status": "Final",
+        "arena": "",
+        "attendance": 0,
+        "officials": [],
+        "topPerformers": top_performers,
+        "teams": teams,
+    }
 
 
 @router.get("/api/players/{player_id}/last-n-games")
