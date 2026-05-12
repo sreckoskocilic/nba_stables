@@ -322,3 +322,136 @@ def make_standings_row(rank, city, name, conf, wins, losses, team_id=1610612738)
     row[36] = "W3"
     row[37] = 2.5
     return row
+
+
+# WNBA standings use different column indices (_WS_* in scores.py)
+def make_wnba_standings_row(rank, city, name, conf, wins, losses, team_id=1611661313):
+    row = [None] * 40
+    row[2] = team_id  # _WS_TEAM_ID
+    row[3] = city  # _WS_CITY
+    row[4] = name  # _WS_NAME
+    row[6] = conf  # _WS_CONF
+    row[8] = rank  # _WS_RANK
+    row[13] = wins  # _WS_WINS
+    row[14] = losses  # _WS_LOSSES
+    row[15] = wins / (wins + losses) if (wins + losses) else 0.0  # _WS_WIN_PCT
+    row[18] = f"{wins // 2}-{losses // 2}"  # _WS_HOME
+    row[19] = f"{wins // 2}-{losses // 2}"  # _WS_AWAY
+    row[20] = "8-2"  # _WS_L10
+    row[37] = "W3"  # _WS_STREAK
+    row[38] = 2.5  # _WS_GAMES_BACK
+    return row
+
+
+WNBA_GAME_ID = "1022600001"
+WNBA_TEAM_ID_NYL = 1611661313
+WNBA_TEAM_ID_LVA = 1611661319
+
+
+def _make_v3_player_stats(**kw):
+    stats = {
+        "minutes": "28:00",
+        "fieldGoalsMade": 11,
+        "fieldGoalsAttempted": 20,
+        "threePointersMade": 2,
+        "threePointersAttempted": 5,
+        "freeThrowsMade": 4,
+        "freeThrowsAttempted": 4,
+        "reboundsOffensive": 1,
+        "reboundsDefensive": 7,
+        "reboundsTotal": 8,
+        "assists": 6,
+        "steals": 1,
+        "blocks": 0,
+        "turnovers": 2,
+        "foulsPersonal": 2,
+        "points": 28,
+    }
+    stats.update(kw)
+    return stats
+
+
+def make_v3_boxscore(game_id=WNBA_GAME_ID):
+    m = MagicMock()
+    m.get_dict.return_value = {
+        "boxScoreTraditional": {
+            "gameId": game_id,
+            "homeTeam": {
+                "teamId": WNBA_TEAM_ID_NYL,
+                "teamCity": "New York",
+                "teamName": "Liberty",
+                "teamTricode": "NYL",
+                "statistics": {
+                    "points": 85,
+                    "fieldGoalsMade": 30,
+                    "fieldGoalsAttempted": 65,
+                    "threePointersMade": 8,
+                    "threePointersAttempted": 20,
+                    "freeThrowsMade": 17,
+                    "freeThrowsAttempted": 20,
+                    "reboundsTotal": 35,
+                    "reboundsOffensive": 8,
+                    "assists": 20,
+                    "steals": 7,
+                    "blocks": 4,
+                    "turnovers": 12,
+                    "foulsPersonal": 18,
+                    "freeThrowsPercentage": 0.85,
+                    "fieldGoalsPercentage": 0.462,
+                    "threePointersPercentage": 0.4,
+                },
+                "players": [
+                    {
+                        "personId": 100001,
+                        "name": None,
+                        "firstName": "Sabrina",
+                        "familyName": "Ionescu",
+                        "status": "ACTIVE",
+                        "statistics": _make_v3_player_stats(points=25, assists=8),
+                    },
+                ],
+            },
+            "awayTeam": {
+                "teamId": WNBA_TEAM_ID_LVA,
+                "teamCity": "Las Vegas",
+                "teamName": "Aces",
+                "teamTricode": "LVA",
+                "statistics": {
+                    "points": 80,
+                    "fieldGoalsMade": 28,
+                    "fieldGoalsAttempted": 62,
+                    "threePointersMade": 6,
+                    "threePointersAttempted": 18,
+                    "freeThrowsMade": 18,
+                    "freeThrowsAttempted": 22,
+                    "reboundsTotal": 32,
+                    "reboundsOffensive": 6,
+                    "assists": 18,
+                    "steals": 5,
+                    "blocks": 3,
+                    "turnovers": 14,
+                    "foulsPersonal": 20,
+                    "freeThrowsPercentage": 0.818,
+                    "fieldGoalsPercentage": 0.452,
+                    "threePointersPercentage": 0.333,
+                },
+                "players": [
+                    {
+                        "personId": 100002,
+                        "name": None,
+                        "firstName": "A'ja",
+                        "familyName": "Wilson",
+                        "status": "ACTIVE",
+                        "statistics": _make_v3_player_stats(
+                            points=30,
+                            reboundsTotal=12,
+                            reboundsOffensive=3,
+                            reboundsDefensive=9,
+                            assists=3,
+                        ),
+                    },
+                ],
+            },
+        }
+    }
+    return m
