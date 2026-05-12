@@ -34,6 +34,7 @@ from helpers.common import (
 from helpers.logger import log_exceptions
 from nba_api.live.nba.endpoints import boxscore as live_boxscore
 from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
+from nba_api.live.nba.library.http import NBALiveHTTP
 from nba_api.library.http import NBAHTTP
 from nba_api.stats.endpoints import (
     boxscoretraditionalv3,
@@ -41,6 +42,9 @@ from nba_api.stats.endpoints import (
     scoreboardv3,
 )
 from nba_api.stats.library.http import NBAStatsHTTP
+
+# CDN now requires Referer header (returns 403 without it)
+NBALiveHTTP.headers["Referer"] = "https://www.nba.com/"
 
 
 def _reset_nba_stats_http_session() -> None:
