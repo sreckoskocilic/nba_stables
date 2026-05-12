@@ -469,7 +469,7 @@ class TestBoxscores:
     def test_default_offset(self, client):
         with patch("routes.scores.get_games_leaders_list", return_value={}) as mock:
             client.get("/api/boxscores")
-        mock.assert_called_once_with(1)
+        mock.assert_called_once_with(1, league_id="00")
 
     def test_one_game_fails_others_succeed(self, client):
         """A game returning None (internal error) is skipped; successful games are still returned."""
