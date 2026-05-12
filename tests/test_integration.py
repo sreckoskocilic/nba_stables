@@ -19,8 +19,6 @@ from conftest import (
     make_live_game,
     make_scoreboard_v3,
     make_standings_row,
-    make_v3_boxscore_for_leaders,
-    make_v3_game_boxscore,
 )
 from fastapi.testclient import TestClient
 from helpers.common import cache
@@ -503,35 +501,45 @@ class TestBoxscores:
 
 
 class TestLeaders:
-    def _bs_mock(self):
-        return make_v3_boxscore_for_leaders(
-            [
-                {
-                    "firstName": "LeBron",
-                    "familyName": "James",
+    def _bs_dict(self):
+        return {
+            "game": {
+                "homeTeam": {
                     "teamTricode": "LAL",
-                    "minutes": "36:00",
-                    "points": 35,
-                    "reboundsTotal": 10,
-                    "assists": 8,
-                    "blocks": 2,
-                    "steals": 3,
-                    "threePointersMade": 4,
+                    "players": [
+                        {
+                            "status": "ACTIVE",
+                            "name": "LeBron James",
+                            "statistics": {
+                                "points": 35,
+                                "reboundsTotal": 10,
+                                "assists": 8,
+                                "blocks": 2,
+                                "steals": 3,
+                                "threePointersMade": 4,
+                            },
+                        }
+                    ],
                 },
-                {
-                    "firstName": "Jayson",
-                    "familyName": "Tatum",
+                "awayTeam": {
                     "teamTricode": "BOS",
-                    "minutes": "34:00",
-                    "points": 30,
-                    "reboundsTotal": 8,
-                    "assists": 5,
-                    "blocks": 1,
-                    "steals": 2,
-                    "threePointersMade": 3,
+                    "players": [
+                        {
+                            "status": "ACTIVE",
+                            "name": "Jayson Tatum",
+                            "statistics": {
+                                "points": 30,
+                                "reboundsTotal": 8,
+                                "assists": 5,
+                                "blocks": 1,
+                                "steals": 2,
+                                "threePointersMade": 3,
+                            },
+                        }
+                    ],
                 },
-            ]
-        )
+            }
+        }
 
     def test_no_games_returns_empty(self, client):
         with patch("routes.scores.get_games_list", return_value=[]):
@@ -542,7 +550,9 @@ class TestLeaders:
     def test_points_leader_computed(self, client):
         with (
             patch("routes.scores.get_games_list", return_value=[GAME_ID]),
-            patch("routes.scores.get_cached_boxscore_v3", return_value=self._bs_mock()),
+            patch(
+                "routes.scores.get_cached_live_boxscore", return_value=self._bs_dict()
+            ),
         ):
             r = client.get("/api/leaders?days_offset=1")
         leaders = r.json()["leaders"]
@@ -552,7 +562,9 @@ class TestLeaders:
     def test_all_categories_present(self, client):
         with (
             patch("routes.scores.get_games_list", return_value=[GAME_ID]),
-            patch("routes.scores.get_cached_boxscore_v3", return_value=self._bs_mock()),
+            patch(
+                "routes.scores.get_cached_live_boxscore", return_value=self._bs_dict()
+            ),
         ):
             r = client.get("/api/leaders?days_offset=1")
         for cat in (
@@ -748,8 +760,7 @@ class TestPlayerStats:
 class TestGamePlayers:
     def test_returns_two_teams(self, client):
         with patch(
-            "routes.players.get_cached_boxscore_v3",
-            return_value=make_v3_game_boxscore(),
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
         ):
             r = client.get(f"/api/games/{GAME_ID}/players")
         assert r.status_code == 200
@@ -757,8 +768,7 @@ class TestGamePlayers:
 
     def test_player_stats_present(self, client):
         with patch(
-            "routes.players.get_cached_boxscore_v3",
-            return_value=make_v3_game_boxscore(),
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
         ):
             r = client.get(f"/api/games/{GAME_ID}/players")
         lal = next(t for t in r.json()["teams"] if t["tricode"] == "LAL")
@@ -766,8 +776,7 @@ class TestGamePlayers:
 
     def test_player_data_shape(self, client):
         with patch(
-            "routes.players.get_cached_boxscore_v3",
-            return_value=make_v3_game_boxscore(),
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
         ):
             r = client.get(f"/api/games/{GAME_ID}/players")
         p = r.json()["teams"][0]["players"][0]
@@ -787,10 +796,32 @@ class TestGamePlayers:
         r = client.get("/api/games/INVALID/players")
         assert r.status_code == 422
 
+    def test_periods_per_team(self, client):
+        with patch(
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
+        ):
+            r = client.get(f"/api/games/{GAME_ID}/players")
+        for team in r.json()["teams"]:
+            assert len(team["periods"]) == 4
+            assert team["periods"][0]["period"] == 1
+            assert sum(p["score"] for p in team["periods"]) == team["score"]
+
+    def test_game_info_fields(self, client):
+        with patch(
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
+        ):
+            r = client.get(f"/api/games/{GAME_ID}/players")
+        body = r.json()
+        assert body["arena"] == "Crypto.com Arena, Los Angeles"
+        assert body["attendance"] == 18997
+        assert [o["name"] for o in body["officials"]] == [
+            "Tony Brothers",
+            "Scott Foster",
+        ]
+
     def test_top_performers(self, client):
         with patch(
-            "routes.players.get_cached_boxscore_v3",
-            return_value=make_v3_game_boxscore(),
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
         ):
             r = client.get(f"/api/games/{GAME_ID}/players")
         tp = r.json()["topPerformers"]

@@ -54,7 +54,7 @@ from helpers.stats import (
     fetch_single_boxscore,
     find_category_leaders,
     fix_encoding,
-    get_cached_boxscore_v3,
+    get_cached_live_boxscore,
     get_cached_scoreboard,
     get_current_season,
     get_display_date,
@@ -322,35 +322,35 @@ async def get_daily_leaders(
 
         def fetch_leaders_boxscore(gid):
             try:
-                return get_cached_boxscore_v3(gid)
+                return get_cached_live_boxscore(gid)
             except Exception as ex:
                 log_exceptions(ex)
-                return None
+                return {}
 
         boxscore_results = [fetch_leaders_boxscore(gid) for gid in game_ids]
 
         for bs in boxscore_results:
-            if bs is None:
+            if not bs:
                 continue
             try:
-                ps = bs.player_stats.get_dict()
-                players = [dict(zip(ps["headers"], row)) for row in ps["data"]]
-                for p in players:
-                    if p["minutes"]:
-                        all_players.append(
-                            {
-                                "name": fix_encoding(
-                                    f"{p['firstName']} {p['familyName']}"
-                                ),
-                                "team": p["teamTricode"],
-                                "points": p["points"],
-                                "rebounds": p["reboundsTotal"],
-                                "assists": p["assists"],
-                                "blocks": p["blocks"],
-                                "steals": p["steals"],
-                                "threePointers": p["threePointersMade"],
-                            }
-                        )
+                for team_key in ["homeTeam", "awayTeam"]:
+                    team = bs["game"][team_key]
+                    tricode = team["teamTricode"]
+                    for player in team["players"]:
+                        if player["status"] == "ACTIVE":
+                            stats = player["statistics"]
+                            all_players.append(
+                                {
+                                    "name": fix_encoding(player["name"]),
+                                    "team": tricode,
+                                    "points": stats["points"],
+                                    "rebounds": stats["reboundsTotal"],
+                                    "assists": stats["assists"],
+                                    "blocks": stats["blocks"],
+                                    "steals": stats["steals"],
+                                    "threePointers": stats["threePointersMade"],
+                                }
+                            )
             except Exception as ex:
                 log_exceptions(ex, "leaders_boxscore_parse")
 
