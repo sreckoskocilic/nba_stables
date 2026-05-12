@@ -246,7 +246,7 @@ def load_players_file() -> list:  # pragma: no cover
         _players_cache_lower, \
         _players_cache_expires
     with _players_lock:
-        if _players_cache and time.time() < _players_cache_expires:
+        if _players_cache is not None and time.time() < _players_cache_expires:
             return _players_cache
 
         try:
