@@ -22,7 +22,7 @@ from conftest import (
     make_live_game,
     make_scoreboard_v3,
     make_standings_row,
-    make_v3_boxscore,
+    make_wnba_live_boxscore,
     make_wnba_standings_row,
 )
 from fastapi.testclient import TestClient
@@ -485,7 +485,7 @@ class TestBoxscores:
             bad_id: [["Jayson Tatum", 32, 9, 4, TEAM_ID_BOS]],
         }
 
-        def _fetch(game_id, leaders_data):
+        def _fetch(game_id, leaders_data, league_id="00"):
             if game_id == bad_id:
                 return None  # fetch_single_boxscore returns None on error
             return _BOXSCORE_RESULT
@@ -1280,103 +1280,28 @@ class TestWnbaCurrentSeason:
 
 
 class TestWnbaBoxscores:
-    def test_returns_wnba_boxscores(self, client):
+    def test_passes_league_id(self, client):
         leaders = {WNBA_GAME_ID: WNBA_LEADERS_DATA}
         with (
             patch("routes.scores.get_games_leaders_list", return_value=leaders),
-            patch(
-                "routes.scores.fetch_single_wnba_boxscore",
-                return_value={
-                    "gameId": WNBA_GAME_ID,
-                    "teams": [
-                        {"name": "New York Liberty", "score": 85},
-                        {"name": "Las Vegas Aces", "score": 80},
-                    ],
-                },
-            ),
+            patch("routes.scores.fetch_single_boxscore") as mock_fetch,
         ):
-            r = client.get("/api/boxscores?days_offset=1&league=wnba")
-        assert r.status_code == 200
-        assert len(r.json()["boxscores"]) == 1
-        assert r.json()["boxscores"][0]["teams"][0]["name"] == "New York Liberty"
-
-    def test_wnba_uses_fetch_single_wnba_boxscore(self, client):
-        leaders = {WNBA_GAME_ID: WNBA_LEADERS_DATA}
-        with (
-            patch("routes.scores.get_games_leaders_list", return_value=leaders),
-            patch(
-                "routes.scores.fetch_single_wnba_boxscore", return_value=None
-            ) as mock_wnba,
-            patch("routes.scores.fetch_single_boxscore") as mock_nba,
-        ):
+            mock_fetch.return_value = None
             client.get("/api/boxscores?days_offset=1&league=wnba")
-        mock_wnba.assert_called_once()
-        mock_nba.assert_not_called()
+        mock_fetch.assert_called_once_with(
+            WNBA_GAME_ID, WNBA_LEADERS_DATA, league_id="10"
+        )
 
 
 class TestWnbaLeaders:
-    def test_returns_wnba_leaders(self, client):
+    def test_passes_league_id(self, client):
         with (
             patch("routes.scores.get_games_list", return_value=[WNBA_GAME_ID]),
-            patch(
-                "routes.scores.get_cached_boxscore_v3",
-                return_value=make_v3_boxscore(),
-            ),
+            patch("routes.scores.get_cached_live_boxscore") as mock_bs,
         ):
-            r = client.get("/api/leaders?days_offset=1&league=wnba")
-        assert r.status_code == 200
-        leaders = r.json()["leaders"]
-        assert leaders["points"]["value"] == 30
-        assert leaders["points"]["players"][0]["name"] == "A'ja Wilson"
-
-    def test_all_categories_present(self, client):
-        with (
-            patch("routes.scores.get_games_list", return_value=[WNBA_GAME_ID]),
-            patch(
-                "routes.scores.get_cached_boxscore_v3",
-                return_value=make_v3_boxscore(),
-            ),
-        ):
-            r = client.get("/api/leaders?days_offset=1&league=wnba")
-        for cat in (
-            "points",
-            "rebounds",
-            "assists",
-            "blocks",
-            "steals",
-            "threePointers",
-        ):
-            assert cat in r.json()["leaders"]
-
-    def test_v3_parse_error_skipped(self, client):
-        with (
-            patch("routes.scores.get_games_list", return_value=[WNBA_GAME_ID]),
-            patch(
-                "routes.scores.get_cached_boxscore_v3",
-                side_effect=Exception("API down"),
-            ),
-            patch("helpers.decorators.log_exceptions"),
-        ):
-            r = client.get("/api/leaders?days_offset=1&league=wnba")
-        assert r.status_code == 200
-        assert r.json()["leaders"] == {}
-
-    def test_player_without_stats_skipped(self, client):
-        bs = make_v3_boxscore()
-        bst = bs.get_dict()["boxScoreTraditional"]
-        bst["homeTeam"]["players"].append(
-            {"personId": 999, "name": "Bench Player", "statistics": None}
-        )
-        with (
-            patch("routes.scores.get_games_list", return_value=[WNBA_GAME_ID]),
-            patch("routes.scores.get_cached_boxscore_v3", return_value=bs),
-        ):
-            r = client.get("/api/leaders?days_offset=1&league=wnba")
-        assert r.status_code == 200
-        names = [
-            p["name"] for cat in r.json()["leaders"].values() for p in cat["players"]
-        ]
-        assert "Bench Player" not in names
+            mock_bs.return_value = make_wnba_live_boxscore()
+            client.get("/api/leaders?days_offset=1&league=wnba")
+        mock_bs.assert_called_with(WNBA_GAME_ID, league_id="10")
 
 
 class TestWnbaStandings:
@@ -1472,167 +1397,14 @@ class TestWnbaStandings:
         assert r.json()["west"][0]["tricode"] == "ATL"
 
 
-class TestWnbaFetchSingleBoxscore:
-    def test_returns_boxscore_data(self, client):
-        leaders = {WNBA_GAME_ID: WNBA_LEADERS_DATA}
-        with (
-            patch("routes.scores.get_games_leaders_list", return_value=leaders),
-            patch(
-                "helpers.stats.get_cached_boxscore_v3",
-                return_value=make_v3_boxscore(),
-            ),
-        ):
-            r = client.get("/api/boxscores?days_offset=1&league=wnba")
-        assert r.status_code == 200
-        box = r.json()["boxscores"][0]
-        assert box["teams"][0]["name"] == "New York Liberty"
-        assert box["teams"][0]["score"] == 85
-        assert box["teams"][1]["name"] == "Las Vegas Aces"
-        assert box["teams"][1]["score"] == 80
-
-    def test_has_team_stats(self, client):
-        leaders = {WNBA_GAME_ID: WNBA_LEADERS_DATA}
-        with (
-            patch("routes.scores.get_games_leaders_list", return_value=leaders),
-            patch(
-                "helpers.stats.get_cached_boxscore_v3",
-                return_value=make_v3_boxscore(),
-            ),
-        ):
-            r = client.get("/api/boxscores?days_offset=1&league=wnba")
-        stats = r.json()["boxscores"][0]["teams"][0]["stats"]
-        for key in (
-            "fg",
-            "fgPct",
-            "threePt",
-            "threePtPct",
-            "ft",
-            "ftPct",
-            "rebounds",
-            "offRebounds",
-            "assists",
-            "steals",
-            "blocks",
-            "turnovers",
-            "fouls",
-        ):
-            assert key in stats
-
-    def test_has_leader_from_leaders_data(self, client):
-        leaders = {WNBA_GAME_ID: WNBA_LEADERS_DATA}
-        with (
-            patch("routes.scores.get_games_leaders_list", return_value=leaders),
-            patch(
-                "helpers.stats.get_cached_boxscore_v3",
-                return_value=make_v3_boxscore(),
-            ),
-        ):
-            r = client.get("/api/boxscores?days_offset=1&league=wnba")
-        home_leader = r.json()["boxscores"][0]["teams"][0]["leader"]
-        assert home_leader["name"] == "Sabrina Ionescu"
-        assert home_leader["points"] == 25
-
-    def test_exception_returns_none(self):
-        from helpers.stats import fetch_single_wnba_boxscore
-
-        with patch(
-            "helpers.stats.get_cached_boxscore_v3",
-            side_effect=Exception("fail"),
-        ):
-            result = fetch_single_wnba_boxscore(WNBA_GAME_ID, [])
-        assert result is None
-
-
 class TestWnbaGamePlayers:
-    def test_returns_two_teams(self, client):
+    def test_passes_league_id(self, client):
         with patch(
-            "routes.players.get_cached_boxscore_v3",
-            return_value=make_v3_boxscore(),
-        ):
-            r = client.get(f"/api/games/{WNBA_GAME_ID}/players")
-        assert r.status_code == 200
-        assert len(r.json()["teams"]) == 2
-
-    def test_player_uses_firstname_familyname(self, client):
-        with patch(
-            "routes.players.get_cached_boxscore_v3",
-            return_value=make_v3_boxscore(),
-        ):
-            r = client.get(f"/api/games/{WNBA_GAME_ID}/players")
-        nyl = next(t for t in r.json()["teams"] if t["tricode"] == "NYL")
-        assert nyl["players"][0]["name"] == "Sabrina Ionescu"
-
-    def test_team_score_from_statistics(self, client):
-        with patch(
-            "routes.players.get_cached_boxscore_v3",
-            return_value=make_v3_boxscore(),
-        ):
-            r = client.get(f"/api/games/{WNBA_GAME_ID}/players")
-        nyl = next(t for t in r.json()["teams"] if t["tricode"] == "NYL")
-        assert nyl["score"] == 85
-
-    def test_top_performers(self, client):
-        with patch(
-            "routes.players.get_cached_boxscore_v3",
-            return_value=make_v3_boxscore(),
-        ):
-            r = client.get(f"/api/games/{WNBA_GAME_ID}/players")
-        tp = r.json()["topPerformers"]
-        assert tp["points"]["value"] == 30
-        assert tp["points"]["players"][0]["name"] == "A'ja Wilson"
-
-    def test_player_stats_shape(self, client):
-        with patch(
-            "routes.players.get_cached_boxscore_v3",
-            return_value=make_v3_boxscore(),
-        ):
-            r = client.get(f"/api/games/{WNBA_GAME_ID}/players")
-        p = r.json()["teams"][0]["players"][0]
-        for key in (
-            "name",
-            "minutes",
-            "points",
-            "rebounds",
-            "assists",
-            "fg",
-            "threePt",
-            "ft",
-            "fgPct",
-            "ftPct",
-            "offRebounds",
-            "defRebounds",
-            "steals",
-            "blocks",
-            "turnovers",
-            "fouls",
-        ):
-            assert key in p
-
-    def test_player_without_stats_skipped(self, client):
-        bs = make_v3_boxscore()
-        bst = bs.get_dict()["boxScoreTraditional"]
-        bst["homeTeam"]["players"].append(
-            {"personId": 999, "name": "DNP Player", "statistics": None}
-        )
-        with patch(
-            "routes.players.get_cached_boxscore_v3",
-            return_value=bs,
-        ):
-            r = client.get(f"/api/games/{WNBA_GAME_ID}/players")
-        nyl = next(t for t in r.json()["teams"] if t["tricode"] == "NYL")
-        names = [p["name"] for p in nyl["players"]]
-        assert "DNP Player" not in names
-
-    def test_empty_arena_and_officials(self, client):
-        with patch(
-            "routes.players.get_cached_boxscore_v3",
-            return_value=make_v3_boxscore(),
-        ):
-            r = client.get(f"/api/games/{WNBA_GAME_ID}/players")
-        body = r.json()
-        assert body["arena"] == ""
-        assert body["officials"] == []
-        assert body["teams"][0]["periods"] == []
+            "routes.players.get_cached_live_boxscore",
+            return_value=make_wnba_live_boxscore(),
+        ) as mock_bs:
+            client.get(f"/api/games/{WNBA_GAME_ID}/players")
+        mock_bs.assert_called_once_with(WNBA_GAME_ID, league_id="10")
 
 
 class TestWnbaDates:

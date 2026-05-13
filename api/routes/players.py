@@ -216,10 +216,10 @@ async def get_game_players(
 
     is_wnba = game_id.startswith("10")
 
+    league_id = "10" if is_wnba else "00"
+
     def _sync():
-        if is_wnba:
-            return _game_players_from_v3(game_id)
-        return _game_players_from_live(game_id)
+        return _game_players_from_live(game_id, league_id=league_id)
 
     result = await asyncio.to_thread(_sync)
     ttl = (
@@ -231,8 +231,8 @@ async def get_game_players(
     return result
 
 
-def _game_players_from_live(game_id: str) -> dict:
-    bs = get_cached_live_boxscore(game_id)
+def _game_players_from_live(game_id: str, league_id: str = "00") -> dict:
+    bs = get_cached_live_boxscore(game_id, league_id=league_id)
     game = bs["game"]
 
     teams = []
@@ -352,118 +352,6 @@ def _game_players_from_live(game_id: str) -> dict:
         "arena": arena,
         "attendance": game.get("attendance") or 0,
         "officials": officials,
-        "topPerformers": top_performers,
-        "teams": teams,
-    }
-
-
-def _game_players_from_v3(game_id: str) -> dict:
-    bs = get_cached_boxscore_v3(game_id)
-    bst = bs.get_dict()["boxScoreTraditional"]
-
-    teams = []
-    all_active = []
-
-    for team_key in ["homeTeam", "awayTeam"]:
-        team = bst[team_key]
-        tricode = team["teamTricode"]
-        team_data = {
-            "name": f"{team['teamCity']} {team['teamName']}",
-            "tricode": tricode,
-            "score": team["statistics"]["points"],
-            "periods": [],
-            "players": [],
-        }
-
-        for player in team.get("players", []):
-            stats = player.get("statistics")
-            if not stats:
-                continue
-            minutes = stats.get("minutes", "0:00")
-
-            fgm = stats["fieldGoalsMade"]
-            fga = stats["fieldGoalsAttempted"]
-            tpm = stats["threePointersMade"]
-            ftm = stats["freeThrowsMade"]
-            fta = stats["freeThrowsAttempted"]
-            pts = stats["points"]
-            reb = stats["reboundsTotal"]
-            ast = stats["assists"]
-            stl = stats["steals"]
-            blk = stats["blocks"]
-            name = (
-                player.get("name")
-                or f"{player.get('firstName', '')} {player.get('familyName', '')}".strip()
-            )
-            name = fix_encoding(name)
-
-            team_data["players"].append(
-                {
-                    "id": player["personId"],
-                    "name": name,
-                    "minutes": minutes,
-                    "points": pts,
-                    "rebounds": reb,
-                    "offRebounds": stats["reboundsOffensive"],
-                    "defRebounds": stats["reboundsDefensive"],
-                    "assists": ast,
-                    "steals": stl,
-                    "blocks": blk,
-                    "turnovers": stats["turnovers"],
-                    "fouls": stats["foulsPersonal"],
-                    "fg": f"{fgm}/{fga}",
-                    "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
-                    "threePt": f"{tpm}/{stats['threePointersAttempted']}",
-                    "ft": f"{ftm}/{fta}",
-                    "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
-                }
-            )
-
-            all_active.append(
-                {
-                    "name": name,
-                    "team": tricode,
-                    "points": pts,
-                    "rebounds": reb,
-                    "assists": ast,
-                    "steals": stl,
-                    "blocks": blk,
-                    "threePointers": tpm,
-                }
-            )
-
-        team_data["players"].sort(
-            key=lambda x: parse_minutes(x["minutes"]),
-            reverse=True,
-        )
-        teams.append(team_data)
-
-    categories = [
-        ("points", "PTS"),
-        ("rebounds", "REB"),
-        ("assists", "AST"),
-        ("steals", "STL"),
-        ("blocks", "BLK"),
-        ("threePointers", "3 PT"),
-    ]
-    top_performers = {}
-    if all_active:
-        max_vals, max_entries = find_category_leaders(all_active, categories)
-        for key, label in categories:
-            top_performers[key] = {
-                "label": label,
-                "value": max_vals[key],
-                "players": [
-                    {"name": p["name"], "team": p["team"]} for p in max_entries[key]
-                ],
-            }
-
-    return {
-        "gameId": game_id,
-        "status": "Final",
-        "arena": "",
-        "attendance": 0,
-        "officials": [],
         "topPerformers": top_performers,
         "teams": teams,
     }

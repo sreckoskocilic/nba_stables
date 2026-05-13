@@ -52,10 +52,8 @@ from helpers.stats import (
     convert_et_to_cet,
     with_retry,
     fetch_single_boxscore,
-    fetch_single_wnba_boxscore,
     find_category_leaders,
     fix_encoding,
-    get_cached_boxscore_v3,
     get_cached_live_boxscore,
     get_cached_scoreboard,
     get_current_season,
@@ -132,12 +130,9 @@ async def get_boxscores(
 
     def _sync():
         leaders_by_game = get_games_leaders_list(days_offset, league_id=league_id)
-        fetch_fn = (
-            fetch_single_wnba_boxscore if league_id == "10" else fetch_single_boxscore
-        )
         boxscores_list = []
         for game_id, leaders_data in leaders_by_game.items():
-            result = fetch_fn(game_id, leaders_data)
+            result = fetch_single_boxscore(game_id, leaders_data, league_id=league_id)
             if result is not None:
                 boxscores_list.append(result)
         boxscores_list.sort(key=lambda x: x.get("gameId", ""))
@@ -335,25 +330,28 @@ async def get_daily_leaders(
         game_ids = get_games_list(days_offset, league_id=league_id)
         all_players = []
 
-        if league_id == "10":
-            for gid in game_ids:
-                try:
-                    bs = get_cached_boxscore_v3(gid)
-                    bst = bs.get_dict().get("boxScoreTraditional", {})
-                    for team_key in ["homeTeam", "awayTeam"]:
-                        team = bst[team_key]
-                        tricode = team["teamTricode"]
-                        for player in team.get("players", []):
-                            stats = player.get("statistics")
-                            if not stats:
-                                continue
-                            name = (
-                                player.get("name")
-                                or f"{player.get('firstName', '')} {player.get('familyName', '')}".strip()
-                            )
+        def fetch_leaders_boxscore(gid):
+            try:
+                return get_cached_live_boxscore(gid, league_id=league_id)
+            except Exception as ex:
+                log_exceptions(ex)
+                return {}
+
+        boxscore_results = [fetch_leaders_boxscore(gid) for gid in game_ids]
+
+        for bs in boxscore_results:
+            if not bs:
+                continue
+            try:
+                for team_key in ["homeTeam", "awayTeam"]:
+                    team = bs["game"][team_key]
+                    tricode = team["teamTricode"]
+                    for player in team["players"]:
+                        if player["status"] == "ACTIVE":
+                            stats = player["statistics"]
                             all_players.append(
                                 {
-                                    "name": fix_encoding(name),
+                                    "name": fix_encoding(player["name"]),
                                     "team": tricode,
                                     "points": stats["points"],
                                     "rebounds": stats["reboundsTotal"],
@@ -363,43 +361,8 @@ async def get_daily_leaders(
                                     "threePointers": stats["threePointersMade"],
                                 }
                             )
-                except Exception as ex:
-                    log_exceptions(ex, "wnba_leaders_boxscore_parse")
-        else:
-
-            def fetch_leaders_boxscore(gid):
-                try:
-                    return get_cached_live_boxscore(gid)
-                except Exception as ex:
-                    log_exceptions(ex)
-                    return {}
-
-            boxscore_results = [fetch_leaders_boxscore(gid) for gid in game_ids]
-
-            for bs in boxscore_results:
-                if not bs:
-                    continue
-                try:
-                    for team_key in ["homeTeam", "awayTeam"]:
-                        team = bs["game"][team_key]
-                        tricode = team["teamTricode"]
-                        for player in team["players"]:
-                            if player["status"] == "ACTIVE":
-                                stats = player["statistics"]
-                                all_players.append(
-                                    {
-                                        "name": fix_encoding(player["name"]),
-                                        "team": tricode,
-                                        "points": stats["points"],
-                                        "rebounds": stats["reboundsTotal"],
-                                        "assists": stats["assists"],
-                                        "blocks": stats["blocks"],
-                                        "steals": stats["steals"],
-                                        "threePointers": stats["threePointersMade"],
-                                    }
-                                )
-                except Exception as ex:
-                    log_exceptions(ex, "leaders_boxscore_parse")
+            except Exception as ex:
+                log_exceptions(ex, "leaders_boxscore_parse")
 
         categories = [
             ("points", "Points"),

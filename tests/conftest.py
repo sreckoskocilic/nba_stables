@@ -455,3 +455,86 @@ def make_v3_boxscore(game_id=WNBA_GAME_ID):
         }
     }
     return m
+
+
+def make_wnba_live_boxscore(game_id=WNBA_GAME_ID, status="Final"):
+    return {
+        "game": {
+            "gameStatusText": status,
+            "homeTeam": {
+                "teamCity": "New York",
+                "teamName": "Liberty",
+                "teamTricode": "NYL",
+                "teamId": WNBA_TEAM_ID_NYL,
+                "score": 85,
+                "statistics": {
+                    "fieldGoalsMade": 30,
+                    "fieldGoalsAttempted": 65,
+                    "fieldGoalsPercentage": 0.462,
+                    "threePointersMade": 8,
+                    "threePointersAttempted": 20,
+                    "threePointersPercentage": 0.4,
+                    "freeThrowsMade": 17,
+                    "freeThrowsAttempted": 20,
+                    "freeThrowsPercentage": 0.85,
+                    "reboundsTotal": 35,
+                    "reboundsOffensive": 8,
+                    "assists": 20,
+                    "steals": 7,
+                    "blocks": 4,
+                    "turnovers": 12,
+                    "foulsPersonal": 18,
+                },
+                "players": [
+                    {
+                        "personId": 100001,
+                        "name": "Sabrina Ionescu",
+                        "status": "ACTIVE",
+                        "statistics": make_live_player_stats(
+                            points=25,
+                            assists=8,
+                        ),
+                    },
+                ],
+            },
+            "awayTeam": {
+                "teamCity": "Las Vegas",
+                "teamName": "Aces",
+                "teamTricode": "LVA",
+                "teamId": WNBA_TEAM_ID_LVA,
+                "score": 80,
+                "statistics": {
+                    "fieldGoalsMade": 28,
+                    "fieldGoalsAttempted": 62,
+                    "fieldGoalsPercentage": 0.452,
+                    "threePointersMade": 6,
+                    "threePointersAttempted": 18,
+                    "threePointersPercentage": 0.333,
+                    "freeThrowsMade": 18,
+                    "freeThrowsAttempted": 22,
+                    "freeThrowsPercentage": 0.818,
+                    "reboundsTotal": 32,
+                    "reboundsOffensive": 6,
+                    "assists": 18,
+                    "steals": 5,
+                    "blocks": 3,
+                    "turnovers": 14,
+                    "foulsPersonal": 20,
+                },
+                "players": [
+                    {
+                        "personId": 100002,
+                        "name": "A'ja Wilson",
+                        "status": "ACTIVE",
+                        "statistics": make_live_player_stats(
+                            points=30,
+                            reboundsTotal=12,
+                            reboundsOffensive=3,
+                            reboundsDefensive=9,
+                            assists=3,
+                        ),
+                    },
+                ],
+            },
+        }
+    }

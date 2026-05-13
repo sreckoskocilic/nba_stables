@@ -308,18 +308,44 @@ def get_cached_scoreboard(league_id: str = "00") -> Any:  # pragma: no cover
     return data
 
 
-def get_cached_live_boxscore(game_id: str) -> dict | None:  # pragma: no cover
+_WNBA_LIVE_BASE = "https://cdn.wnba.com/static/json/liveData"
+_WNBA_LIVE_HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Referer": "https://www.wnba.com/",
+    "Accept": "application/json",
+}
+
+
+def _fetch_wnba_live_boxscore(game_id: str) -> dict:  # pragma: no cover
+    url = f"{_WNBA_LIVE_BASE}/boxscore/boxscore_{game_id}.json"
+    r = requests.get(
+        url,
+        headers=_WNBA_LIVE_HEADERS,
+        timeout=STATS_TIMEOUT,
+        proxies=({"https": STATS_PROXY} if STATS_PROXY else None),
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def get_cached_live_boxscore(
+    game_id: str,
+    league_id: str = "00",
+) -> dict | None:  # pragma: no cover
     """Return a cached live BoxScore response dict for the given game_id."""
     cache_key = f"raw_live_boxscore_{game_id}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
     try:
-        data = with_retry(
-            lambda: live_boxscore.BoxScore(
-                game_id=game_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
-            ).get_dict(),
-        )
+        if league_id == "10":
+            data = with_retry(lambda: _fetch_wnba_live_boxscore(game_id))
+        else:
+            data = with_retry(
+                lambda: live_boxscore.BoxScore(
+                    game_id=game_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+                ).get_dict(),
+            )
     finally:
         _reset_nba_stats_http_session()
     status = data.get("game", {}).get("gameStatusText", "")
@@ -463,11 +489,15 @@ def get_cached_boxscore_v3(game_id: str, historical: bool = True) -> Any:
         _reset_nba_stats_http_session()
 
 
-def fetch_single_boxscore(game_id: str, leaders_data: list) -> dict | None:
+def fetch_single_boxscore(
+    game_id: str,
+    leaders_data: list,
+    league_id: str = "00",
+) -> dict | None:
     """Fetch boxscore for a single game"""
     game_box = None
     try:
-        data = get_cached_live_boxscore(game_id)
+        data = get_cached_live_boxscore(game_id, league_id=league_id)
         game = data.get("game", {})
         game_box = {"gameId": game_id, "teams": []}
         leaders_by_team = {
@@ -493,61 +523,6 @@ def fetch_single_boxscore(game_id: str, leaders_data: list) -> dict | None:
                 {
                     "name": f"{team['teamCity']} {team['teamName']}",
                     "score": team["score"],
-                    "stats": {
-                        "fg": f"{s['fieldGoalsMade']}/{s['fieldGoalsAttempted']}",
-                        "fgPct": s["fieldGoalsPercentage"],
-                        "threePt": f"{s['threePointersMade']}/{s['threePointersAttempted']}",
-                        "threePtPct": s["threePointersPercentage"],
-                        "ft": f"{s['freeThrowsMade']}/{s['freeThrowsAttempted']}",
-                        "ftPct": s["freeThrowsPercentage"],
-                        "rebounds": s["reboundsTotal"],
-                        "offRebounds": s["reboundsOffensive"],
-                        "assists": s["assists"],
-                        "steals": s["steals"],
-                        "blocks": s["blocks"],
-                        "turnovers": s["turnovers"],
-                        "fouls": s["foulsPersonal"],
-                    },
-                    "leader": leader,
-                }
-            )
-
-        return game_box
-    except Exception as ex:
-        log_exceptions(ex)
-        return game_box
-
-
-def fetch_single_wnba_boxscore(game_id: str, leaders_data: list) -> dict | None:
-    """Fetch boxscore for a WNBA game via BoxScoreTraditionalV3."""
-    game_box = None
-    try:
-        bs = get_cached_boxscore_v3(game_id)
-        bst = bs.get_dict().get("boxScoreTraditional", {})
-        game_box = {"gameId": game_id, "teams": []}
-        leaders_by_team = {
-            ld[_CL_TEAM_ID]: ld for ld in leaders_data if len(ld) > _CL_TEAM_ID
-        }
-
-        for team_key in ["homeTeam", "awayTeam"]:
-            team = bst[team_key]
-            team_id = team["teamId"]
-            s = team["statistics"]
-
-            leader = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
-            ld = leaders_by_team.get(team_id)
-            if ld:
-                leader = {
-                    "name": ld[_CL_PLAYER_NAME],
-                    "points": ld[_CL_PTS],
-                    "rebounds": ld[_CL_REB],
-                    "assists": ld[_CL_AST],
-                }
-
-            game_box["teams"].append(
-                {
-                    "name": f"{team['teamCity']} {team['teamName']}",
-                    "score": s["points"],
                     "stats": {
                         "fg": f"{s['fieldGoalsMade']}/{s['fieldGoalsAttempted']}",
                         "fgPct": s["fieldGoalsPercentage"],
