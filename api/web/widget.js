@@ -4,6 +4,13 @@ function sc(t,v) { const s=TIERS[t]; return !s||v<=0?"":v>=s[0]?"stat-elite":v>=
 
 let tracked = JSON.parse(localStorage.getItem("widget_tracked") || "[]");
 let refreshTimer = null;
+const _pins = JSON.parse(localStorage.getItem("pinnedStats") || "{}");
+function _pinCls(pid, stat) { return _pins[pid + "_" + stat] ? " stat-pinned" : ""; }
+function _togglePin(pid, stat) {
+    const k = pid + "_" + stat;
+    if (_pins[k]) delete _pins[k]; else _pins[k] = 1;
+    localStorage.setItem("pinnedStats", JSON.stringify(_pins));
+}
 
 const $search = document.getElementById("search");
 const $results = document.getElementById("results");
@@ -96,17 +103,23 @@ async function loadStats() {
             <tbody>${data.players.map(p => `<tr>
                 <td><strong>${esc(p.name)}</strong></td>
                 <td>${esc(p.team)}</td>
-                <td>${p.minutes}</td>
-                <td class="${sc("points",p.points)}">${p.points}</td>
-                <td>${p.fg}</td>
-                <td>${p.threePointers}</td>
-                <td>${p.ft}</td>
-                <td class="${sc("rebounds",p.rebounds)}">${p.rebounds}</td>
-                <td class="${sc("assists",p.assists)}">${p.assists}</td>
-                <td class="${sc("blocks",p.blocks)}">${p.blocks}</td>
-                <td class="${sc("steals",p.steals)}">${p.steals}</td>
-                <td>${p.fouls}</td>
+                <td data-pid="${p.id}" data-stat="min" class="${_pinCls(p.id,"min")}">${p.minutes}</td>
+                <td data-pid="${p.id}" data-stat="pts" class="${sc("points",p.points)}${_pinCls(p.id,"pts")}">${p.points}</td>
+                <td data-pid="${p.id}" data-stat="fg" class="${_pinCls(p.id,"fg")}">${p.fg}</td>
+                <td data-pid="${p.id}" data-stat="3pt" class="${_pinCls(p.id,"3pt")}">${p.threePointers}</td>
+                <td data-pid="${p.id}" data-stat="ft" class="${_pinCls(p.id,"ft")}">${p.ft}</td>
+                <td data-pid="${p.id}" data-stat="reb" class="${sc("rebounds",p.rebounds)}${_pinCls(p.id,"reb")}">${p.rebounds}</td>
+                <td data-pid="${p.id}" data-stat="ast" class="${sc("assists",p.assists)}${_pinCls(p.id,"ast")}">${p.assists}</td>
+                <td data-pid="${p.id}" data-stat="blk" class="${sc("blocks",p.blocks)}${_pinCls(p.id,"blk")}">${p.blocks}</td>
+                <td data-pid="${p.id}" data-stat="stl" class="${sc("steals",p.steals)}${_pinCls(p.id,"stl")}">${p.steals}</td>
+                <td data-pid="${p.id}" data-stat="pf" class="${_pinCls(p.id,"pf")}">${p.fouls}</td>
             </tr>`).join("")}</tbody></table>`;
+        $content.querySelector("table").addEventListener("click", e => {
+            const td = e.target.closest("td[data-stat]");
+            if (!td) return;
+            _togglePin(td.dataset.pid, td.dataset.stat);
+            td.classList.toggle("stat-pinned");
+        });
         const now = new Date().toLocaleTimeString("en-US", { hour:"2-digit", minute:"2-digit", second:"2-digit" });
         $status.textContent = `Updated ${now}`;
         $status.className = "status live";
