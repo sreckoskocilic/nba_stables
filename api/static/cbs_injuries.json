@@ -32,9 +32,9 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Noah Clowney",
+          "name": "Ziaire Williams",
           "updated": "Sat, Apr 11",
-          "injury": "Ankle",
+          "injury": "Foot",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -44,21 +44,21 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Ziaire Williams",
+          "name": "Noah Clowney",
           "updated": "Sat, Apr 11",
-          "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Terance Mann",
-          "updated": "Sat, Apr 11",
-          "injury": "Knee",
+          "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         },
         {
           "name": "Nicolas Claxton",
           "updated": "Sat, Apr 11",
           "injury": "Finger",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Terance Mann",
+          "updated": "Sat, Apr 11",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -114,15 +114,21 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
+          "name": "Matas Buzelis",
+          "updated": "Sat, Apr 11",
+          "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Isaac Okoro",
           "updated": "Sat, Apr 11",
           "injury": "Quadriceps",
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Matas Buzelis",
-          "updated": "Sat, Apr 11",
-          "injury": "Ankle",
+          "name": "Josh Giddey",
+          "updated": "Fri, Apr 10",
+          "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -141,12 +147,6 @@
           "name": "Anfernee Simons",
           "updated": "Fri, Apr 10",
           "injury": "Wrist",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Josh Giddey",
-          "updated": "Fri, Apr 10",
-          "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -179,18 +179,6 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Brandon Williams",
-          "updated": "Sun, Apr 12",
-          "injury": "Illness",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Marvin Bagley III",
-          "updated": "Sun, Apr 12",
-          "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Naji Marshall",
           "updated": "Sun, Apr 12",
           "injury": "Hip",
@@ -200,6 +188,18 @@
           "name": "PJ Washington",
           "updated": "Sun, Apr 12",
           "injury": "Elbow",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Marvin Bagley III",
+          "updated": "Sun, Apr 12",
+          "injury": "Shoulder",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Brandon Williams",
+          "updated": "Sun, Apr 12",
+          "injury": "Illness",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -226,15 +226,15 @@
       "team": "Denver",
       "players": [
         {
-          "name": "Peyton Watson",
-          "updated": "Fri, May 1",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Aaron Gordon",
           "updated": "Fri, May 1",
           "injury": "Calf",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Peyton Watson",
+          "updated": "Fri, May 1",
+          "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -243,16 +243,28 @@
       "team": "Detroit",
       "players": [
         {
+          "name": "Charles Bediako",
+          "updated": "Wed, May 13",
+          "injury": "Not Injury Related",
+          "status": "—"
+        },
+        {
+          "name": "Caris LeVert",
+          "updated": "Tue, May 12",
+          "injury": "Heel",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Kevin Huerter",
           "updated": "Tue, May 12",
           "injury": "Thigh",
           "status": "Game Time Decision"
         },
         {
-          "name": "Charles Bediako",
+          "name": "Duncan Robinson",
           "updated": "Tue, May 12",
-          "injury": "Not Injury Related",
-          "status": "—"
+          "injury": "Back",
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -289,15 +301,15 @@
       "team": "Houston",
       "players": [
         {
-          "name": "Fred VanVleet",
-          "updated": "Sat, May 2",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Kevin Durant",
           "updated": "Sat, May 2",
           "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Fred VanVleet",
+          "updated": "Sat, May 2",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -411,18 +423,6 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Taylor Hendricks",
-          "updated": "Sat, Apr 11",
-          "injury": "Thumb",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Gregory Jackson",
-          "updated": "Sat, Apr 11",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Cam Spencer",
           "updated": "Sat, Apr 11",
           "injury": "Back",
@@ -432,6 +432,18 @@
           "name": "Cedric Coward",
           "updated": "Sat, Apr 11",
           "injury": "Back",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Taylor Hendricks",
+          "updated": "Sat, Apr 11",
+          "injury": "Thumb",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Gregory Jackson",
+          "updated": "Sat, Apr 11",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -450,12 +462,6 @@
           "name": "Ja Morant",
           "updated": "Tue, Mar 24",
           "injury": "Elbow",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Brandon Clarke",
-          "updated": "Tue, Mar 24",
-          "injury": "Calf",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -494,15 +500,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Bam Adebayo",
-          "updated": "Tue, Apr 14",
-          "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Nikola Jovic",
           "updated": "Tue, Apr 14",
           "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Bam Adebayo",
+          "updated": "Tue, Apr 14",
+          "injury": "Back",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -587,12 +593,6 @@
       "team": "New Orleans",
       "players": [
         {
-          "name": "Zion Williamson",
-          "updated": "Sat, Apr 11",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Bryce McGowens",
           "updated": "Sat, Apr 11",
           "injury": "Toe",
@@ -608,6 +608,12 @@
           "name": "Karlo Matkovic",
           "updated": "Sat, Apr 11",
           "injury": "Back",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Zion Williamson",
+          "updated": "Sat, Apr 11",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -673,15 +679,15 @@
       "team": "Phoenix",
       "players": [
         {
-          "name": "Mark Williams",
-          "updated": "Tue, Apr 28",
-          "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Jordan Goodwin",
           "updated": "Tue, Apr 28",
           "injury": "Calf",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Mark Williams",
+          "updated": "Tue, Apr 28",
+          "injury": "Foot",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -760,12 +766,6 @@
       "team": "San Antonio",
       "players": [
         {
-          "name": "De'Aaron Fox",
-          "updated": "Mon, May 11",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "David Jones",
           "updated": "Wed, Feb 4",
           "injury": "Ankle",
@@ -777,15 +777,15 @@
       "team": "Toronto",
       "players": [
         {
-          "name": "Brandon Ingram",
-          "updated": "Sun, May 3",
-          "injury": "Heel",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Immanuel Quickley",
           "updated": "Sun, May 3",
           "injury": "Hamstring",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Brandon Ingram",
+          "updated": "Sun, May 3",
+          "injury": "Heel",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -800,9 +800,9 @@
       "team": "Utah",
       "players": [
         {
-          "name": "Kyle Filipowski",
+          "name": "Isaiah Collier",
           "updated": "Sat, Apr 11",
-          "injury": "Back",
+          "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -812,9 +812,9 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Isaiah Collier",
+          "name": "Kyle Filipowski",
           "updated": "Sat, Apr 11",
-          "injury": "Hamstring",
+          "injury": "Back",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -853,15 +853,15 @@
       "team": "Washington",
       "players": [
         {
-          "name": "Bilal Coulibaly",
-          "updated": "Sat, Apr 11",
-          "injury": "Heel",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Tre Johnson",
           "updated": "Sat, Apr 11",
           "injury": "Foot",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Alex Sarr",
+          "updated": "Sat, Apr 11",
+          "injury": "Toe",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -871,9 +871,9 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Alex Sarr",
+          "name": "Bilal Coulibaly",
           "updated": "Sat, Apr 11",
-          "injury": "Toe",
+          "injury": "Heel",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -910,5 +910,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "May 12, 2026 11:48 UTC"
+  "lastUpdated": "May 13, 2026 11:58 UTC"
 }
