@@ -67,14 +67,14 @@ def test_players_search_http_exception_passthrough(client, monkeypatch):
 
     monkeypatch.setattr(
         "routes.players.load_players_with_lower",
-        lambda: (_ for _ in ()).throw(HTTPException(status_code=418)),
+        lambda league_id="00": (_ for _ in ()).throw(HTTPException(status_code=418)),
     )
     r = client.get("/api/players/search?q=LeBron")
     assert r.status_code == 418
 
 
 def test_last_n_games_cached_branch(client):
-    cache_key = f"last_n_games_{PLAYER_ID}_5_{get_current_season()}"
+    cache_key = f"last_n_games_00_{PLAYER_ID}_5_{get_current_season()}"
     cached_val = {"playerId": PLAYER_ID, "games": [{"gameId": "cached"}]}
     cache.set(cache_key, cached_val, 60)
     r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
@@ -85,7 +85,7 @@ def test_last_n_games_playergamelog_path_with_dates(monkeypatch, client):
     # Force team_id=None to trigger gamelog fallback and provide a date to hit matchup_display else branch
     monkeypatch.setattr(
         "routes.players.load_players_dict",
-        lambda: {PLAYER_ID: [PLAYER_ID, "Test Player", None]},
+        lambda league_id="00": {PLAYER_ID: [PLAYER_ID, "Test Player", None]},
     )
     mock_pgl = MagicMock()
     mock_pgl.player_game_log.get_dict.return_value = {
@@ -141,12 +141,12 @@ def test_player_stats_timeout_branch(monkeypatch, client):
             raise TimeoutError()
 
     monkeypatch.setattr(
-        "routes.players.load_players_dict", lambda: {1: [1, "P1", None]}
+        "routes.players.load_players_dict", lambda league_id="00": {1: [1, "P1", None]}
     )
     monkeypatch.setattr(
         "routes.players.executor.submit", lambda fn, *a, **k: SlowFuture()
     )
-    monkeypatch.setattr("routes.players.get_cached_scoreboard", lambda: [])
+    monkeypatch.setattr("routes.players.get_cached_scoreboard", lambda lid="00": [])
     r = client.get("/api/players/stats?ids=1")
     # should ignore timeouts and still return an empty list gracefully
     assert r.status_code == 200
@@ -200,12 +200,12 @@ def _make_stats_row(pid):
 def test_last_n_games_game_summary_date_path(monkeypatch, client):
     """Cover lines 32, 332-343: row has no date, game_summary provides it."""
     fake_pid = 9991
-    cache._cache.pop(f"last_n_games_{fake_pid}_1", None)
-    cache._cache.pop(f"player_games_raw_{fake_pid}", None)
+    cache._cache.pop(f"last_n_games_00_{fake_pid}_1", None)
+    cache._cache.pop(f"player_games_raw_00_{fake_pid}", None)
 
     monkeypatch.setattr(
         "routes.players.load_players_dict",
-        lambda: {fake_pid: [fake_pid, "Test Player C", None]},
+        lambda league_id="00": {fake_pid: [fake_pid, "Test Player C", None]},
     )
     mock_pgl = MagicMock()
     mock_pgl.player_game_log.get_dict.return_value = {
@@ -231,12 +231,12 @@ def test_last_n_games_game_summary_date_path(monkeypatch, client):
 def test_last_n_games_matchup_date_prefix_path(monkeypatch, client):
     """Cover lines 354-355: no date from row or summary, matchup has YYYY-MM-DD prefix."""
     fake_pid = 9992
-    cache._cache.pop(f"last_n_games_{fake_pid}_1", None)
-    cache._cache.pop(f"player_games_raw_{fake_pid}", None)
+    cache._cache.pop(f"last_n_games_00_{fake_pid}_1", None)
+    cache._cache.pop(f"player_games_raw_00_{fake_pid}", None)
 
     monkeypatch.setattr(
         "routes.players.load_players_dict",
-        lambda: {fake_pid: [fake_pid, "Test Player D", None]},
+        lambda league_id="00": {fake_pid: [fake_pid, "Test Player D", None]},
     )
     mock_pgl = MagicMock()
     mock_pgl.player_game_log.get_dict.return_value = {
@@ -333,7 +333,7 @@ def test_calc_age_handles_empty_and_invalid():
 
 
 def test_player_profile_cached_branch(client):
-    cache_key = f"player_profile_{PLAYER_ID}"
+    cache_key = f"player_profile_00_{PLAYER_ID}"
     payload = {"playerId": PLAYER_ID, "bio": {}, "career": []}
     cache.set(cache_key, payload, 60)
     r = client.get(f"/api/players/{PLAYER_ID}/profile")

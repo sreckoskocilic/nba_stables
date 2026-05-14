@@ -328,7 +328,7 @@ function initPlayerSearch(t, e, s, a) {
             try {
               const s = await _fetchWithAbort(
                 "search_" + t,
-                `/api/players/search?q=${encodeURIComponent(e)}`,
+                `/api/players/search?q=${encodeURIComponent(e)}${leagueParam()}`,
               );
               if (!s.ok) throw new Error("Search failed");
               const a = await s.json();
@@ -384,7 +384,7 @@ async function loadTrackedStats() {
     '<div class="loading"><div class="spinner"></div> Loading player stats...</div>';
   try {
     const e = trackedPlayerIds.map((t) => t.id).join(","),
-      s = await _fetchWithAbort("trackedStats", `/api/players/stats?ids=${e}`),
+      s = await _fetchWithAbort("trackedStats", `/api/players/stats?ids=${e}${leagueParam()}`),
       a = await s.json();
     if (0 === a.players.length)
       return void (t.innerHTML =
@@ -723,15 +723,15 @@ async function loadPlayerProfile() {
     const [e, s, p] = await Promise.all([
         _fetchWithAbort(
           "lastNGames",
-          `/api/players/${lastNSelectedPlayer.id}/last-n-games?n=${PROFILE_RECENT_N}`,
+          `/api/players/${lastNSelectedPlayer.id}/last-n-games?n=${PROFILE_RECENT_N}${leagueParam()}`,
         ),
         _fetchWithAbort(
           "lastNSeasonAvg",
-          `/api/players/${lastNSelectedPlayer.id}/season-avg`,
+          `/api/players/${lastNSelectedPlayer.id}/season-avg${leagueQuery()}`,
         ),
         _fetchWithAbort(
           "playerProfile",
-          `/api/players/${lastNSelectedPlayer.id}/profile`,
+          `/api/players/${lastNSelectedPlayer.id}/profile${leagueQuery()}`,
         ),
       ]),
       a = await e.json(),
@@ -2440,7 +2440,7 @@ document.addEventListener("click", (e) => {
 });
 
 // === NBA / WNBA league toggle ===
-const _NBA_ONLY_TABS = ["injuries", "playoffs", "trades", "tracker", "lastngames", "seasonDoubles", "seasonHighs"];
+const _NBA_ONLY_TABS = ["injuries", "playoffs", "trades", "seasonDoubles", "seasonHighs"];
 function _applyLeagueToggle() {
   const btns = document.querySelectorAll("#leagueToggle [data-league]");
   btns.forEach((b) =>
@@ -2458,6 +2458,15 @@ document.querySelectorAll("#leagueToggle [data-league]").forEach((btn) => {
     currentLeague = btn.dataset.league;
     localStorage.setItem("league", currentLeague);
     _applyLeagueToggle();
+    ["playerSearch", "lastNSearch"].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
+    ["searchResults", "lastNSearchResults"].forEach((id) => { const el = document.getElementById(id); if (el) { el.innerHTML = ""; el.classList.remove("show"); } });
+    trackedPlayerIds = [];
+    updateTrackedPlayersUI();
+    document.getElementById("trackerContent").innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#127942;</div><div class="empty-state-title">Track Your Favorite Players</div><p>Search and select players above to see their live game stats</p></div>';
+    lastNSelectedPlayer = null;
+    document.getElementById("lastNPlayerChip").innerHTML = "";
+    document.getElementById("lastNBtn").disabled = true;
+    document.getElementById("lastNContent").innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#128100;</div><div class="empty-state-title">Player Profile</div><p>Search and select a player above</p></div>';
     _standingsData = null;
     _boxscoreDateBtns.forEach((b) => (b.hidden = false));
     _leaderDateBtns.forEach((b) => (b.hidden = false));
@@ -2479,6 +2488,12 @@ document.querySelectorAll("#leagueToggle [data-league]").forEach((btn) => {
           break;
         case "standings":
           loadStandings(true);
+          break;
+        case "tracker":
+          loadTrackedStats();
+          break;
+        case "lastngames":
+          if (lastNSelectedPlayer) loadPlayerProfile();
           break;
       }
     }

@@ -36,6 +36,7 @@ from helpers.stats import (
     get_cached_live_boxscore,
     get_cached_scoreboard,
     get_current_season,
+    get_wnba_current_season,
     load_players_dict,
     load_players_with_lower,
     parse_iso_minutes,
@@ -66,6 +67,7 @@ async def search_players(
     q: str = Query(..., min_length=2, max_length=100),
     limit: int = Query(default=20, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
+    league: str = Query(default="nba"),
 ):
     """Search for players by name with pagination"""
     cleaned = " ".join(q.split())
@@ -74,8 +76,10 @@ async def search_players(
     if not re.match(r"^[\w\s.'-]+$", cleaned):
         raise HTTPException(status_code=400, detail="Invalid characters in query")
 
+    league_id = "10" if league == "wnba" else "00"
+
     def _sync():
-        players = load_players_with_lower()
+        players = load_players_with_lower(league_id)
         results = []
         query = cleaned.lower()
 
@@ -98,6 +102,7 @@ async def search_players(
 @route_error_handler("Failed to fetch player stats")
 async def get_player_stats(
     ids: str = Query(...),
+    league: str = Query(default="nba"),
 ):
     """Get live stats for specific players"""
     players_ids = {
@@ -110,8 +115,9 @@ async def get_player_stats(
     if len(players_ids) > 25:
         raise HTTPException(status_code=400, detail="Too many player IDs (max 25)")
 
+    league_id = "10" if league == "wnba" else "00"
     ids_normalized = ",".join(str(x) for x in sorted(players_ids))
-    cache_key = f"player_stats_{ids_normalized}"
+    cache_key = f"player_stats_{league_id}_{ids_normalized}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -121,14 +127,16 @@ async def get_player_stats(
         # Use all games on the scoreboard to avoid missing players with stale team IDs.
         # Cost is low (max ~15 games) and keeps traded/free-agent players visible.
         try:
-            relevant_game_ids = [game["gameId"] for game in get_cached_scoreboard()]
+            relevant_game_ids = [
+                game["gameId"] for game in get_cached_scoreboard(league_id)
+            ]
         except Exception as ex:
             log_exceptions(ex, "player_tracker_scoreboard")
             relevant_game_ids = []
 
         def fetch_player_boxscore(game_id):  # pragma: no cover
             try:
-                return get_cached_live_boxscore(game_id)
+                return get_cached_live_boxscore(game_id, league_id=league_id)
             except json.JSONDecodeError:
                 return None
             except Exception as ex:
@@ -362,9 +370,12 @@ def _game_players_from_live(game_id: str, league_id: str = "00") -> dict:
 async def get_last_n_games_stats(
     player_id: int = Path(..., gt=0),
     n: int = Query(default=5, ge=1, le=15),
+    league: str = Query(default="nba"),
 ):
     """Get last N games stats for a specific player"""
-    cache_key = f"last_n_games_{player_id}_{n}_{get_current_season()}"
+    league_id = "10" if league == "wnba" else "00"
+    season_fn = get_wnba_current_season if league_id == "10" else get_current_season
+    cache_key = f"last_n_games_{league_id}_{player_id}_{n}_{season_fn()}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -373,16 +384,15 @@ async def get_last_n_games_stats(
     _unavailable = object()
 
     def _sync():
-        players_dict = load_players_dict()
+        players_dict = load_players_dict(league_id)
         player = players_dict.get(player_id)
         if not player:
             return _not_found
 
         player_name = fix_encoding(player[1])
 
-        # Load player game log (works for all players including traded/free agents)
-        season = get_current_season()
-        raw_cache_key = f"player_games_raw_{player_id}_{season}"
+        season = season_fn()
+        raw_cache_key = f"player_games_raw_{league_id}_{player_id}_{season}"
         cached = cache.get(raw_cache_key)
         if cached is None:
             try:
@@ -391,6 +401,7 @@ async def get_last_n_games_stats(
                         player_id=player_id,
                         season=season,
                         season_type_all_star="Regular Season",
+                        league_id_nullable=league_id,
                         proxy=STATS_PROXY,
                         timeout=STATS_TIMEOUT,
                     )
@@ -400,6 +411,7 @@ async def get_last_n_games_stats(
                         player_id=player_id,
                         season=season,
                         season_type_all_star="Playoffs",
+                        league_id_nullable=league_id,
                         proxy=STATS_PROXY,
                         timeout=STATS_TIMEOUT,
                     )
@@ -519,9 +531,14 @@ async def get_last_n_games_stats(
 
 @router.get("/api/players/{player_id}/season-avg")
 @route_error_handler("Failed to fetch season averages")
-async def get_player_season_avg(player_id: int = Path(..., gt=0)):
+async def get_player_season_avg(
+    player_id: int = Path(..., gt=0),
+    league: str = Query(default="nba"),
+):
     """Get current season averages for a player"""
-    cache_key = f"season_avg_{player_id}_{get_current_season()}"
+    league_id = "10" if league == "wnba" else "00"
+    season_fn = get_wnba_current_season if league_id == "10" else get_current_season
+    cache_key = f"season_avg_{league_id}_{player_id}_{season_fn()}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -532,7 +549,10 @@ async def get_player_season_avg(player_id: int = Path(..., gt=0)):
         try:
             career = with_retry(
                 lambda: playercareerstats.PlayerCareerStats(
-                    player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+                    player_id=player_id,
+                    league_id_nullable=league_id,
+                    proxy=STATS_PROXY,
+                    timeout=STATS_TIMEOUT,
                 )
             )
         finally:
@@ -600,9 +620,13 @@ def _calc_age(birthdate_str: str | None) -> int | None:
 
 @router.get("/api/players/{player_id}/profile")
 @route_error_handler("Failed to fetch player profile")
-async def get_player_profile(player_id: int = Path(..., gt=0)):
+async def get_player_profile(
+    player_id: int = Path(..., gt=0),
+    league: str = Query(default="nba"),
+):
     """Get player profile: bio + career season-by-season."""
-    cache_key = f"player_profile_{player_id}"
+    league_id = "10" if league == "wnba" else "00"
+    cache_key = f"player_profile_{league_id}_{player_id}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -613,7 +637,10 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
         try:
             info = with_retry(
                 lambda: commonplayerinfo.CommonPlayerInfo(
-                    player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+                    player_id=player_id,
+                    league_id_nullable=league_id,
+                    proxy=STATS_PROXY,
+                    timeout=STATS_TIMEOUT,
                 )
             )
         finally:
@@ -647,7 +674,10 @@ async def get_player_profile(player_id: int = Path(..., gt=0)):
         try:
             career = with_retry(
                 lambda: playercareerstats.PlayerCareerStats(
-                    player_id=player_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+                    player_id=player_id,
+                    league_id_nullable=league_id,
+                    proxy=STATS_PROXY,
+                    timeout=STATS_TIMEOUT,
                 )
             )
         finally:

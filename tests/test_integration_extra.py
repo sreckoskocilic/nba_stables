@@ -1052,7 +1052,7 @@ class TestExecutorTimeouts:
             patch("routes.players.log_exceptions"),
         ):
             cache.set(
-                f"player_games_raw_{PLAYER_ID}_2025-26",
+                f"player_games_raw_00_{PLAYER_ID}_2025-26",
                 ([["LAL @ BOS", GAME_ID, "2026-03-01"]], 0),
                 60,
             )

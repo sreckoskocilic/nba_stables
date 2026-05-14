@@ -675,12 +675,12 @@ class TestLoadPlayersFile:
     def test_uses_stale_cache_on_error(self):
         import helpers.stats as hs
 
-        hs._players_cache = None
-        hs._players_cache_expires = 0
+        hs._players_cache = {}
+        hs._players_cache_expires = {}
         with patch("helpers.stats._fetch_players") as fetch_mock:
             fetch_mock.side_effect = [[[1, "Player One", 1]], RuntimeError("boom")]
             first = hs.load_players_file()
-            hs._players_cache_expires = 0  # expire cache to force second fetch
+            hs._players_cache_expires["00"] = 0  # expire cache to force second fetch
             second = hs.load_players_file()
         assert fetch_mock.call_count == 2
         assert first == [[1, "Player One", 1]]

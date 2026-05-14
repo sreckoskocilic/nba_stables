@@ -207,25 +207,31 @@ def with_retry(fn, attempts: int = 3, delay: float = 0.2):
         raise last_err
 
 
-_players_cache = None
-_players_dict_cache = None
-_players_cache_lower = None
-_players_cache_expires = 0
+_players_cache: dict[str, list] = {}
+_players_dict_cache: dict[str, dict] = {}
+_players_cache_lower: dict[str, list] = {}
+_players_cache_expires: dict[str, float] = {}
 _players_lock = threading.Lock()
 
 
-def _fetch_players() -> list:
+def _fetch_players(league_id: str = "00") -> list:
     """Fetch active players with their current team IDs from the NBA stats API."""
     try:
+        is_current = 0 if league_id == "10" else 1
         cap = with_retry(
             lambda: commonallplayers.CommonAllPlayers(
-                is_only_current_season=1, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
+                is_only_current_season=is_current,
+                league_id=league_id,
+                proxy=STATS_PROXY,
+                timeout=STATS_TIMEOUT,
             )
         )
         data = cap.common_all_players.get_dict()
         players = []
 
         for row in data.get("data", []):
+            if is_current == 0 and row[3] != 1:
+                continue
             person_id = row[CAP_PERSON_ID]
             name_raw = row[CAP_DISPLAY_LAST_COMMA_FIRST]
 
@@ -244,45 +250,46 @@ def _fetch_players() -> list:
         _reset_nba_stats_http_session()
 
 
-def load_players_file() -> list:  # pragma: no cover
+def load_players_file(league_id: str = "00") -> list:  # pragma: no cover
     """Return cached list of active players fetched from the NBA stats API."""
-    global \
-        _players_cache, \
-        _players_dict_cache, \
-        _players_cache_lower, \
-        _players_cache_expires
     with _players_lock:
-        if _players_cache is not None and time.time() < _players_cache_expires:
-            return _players_cache
+        if league_id in _players_cache and time.time() < _players_cache_expires.get(
+            league_id, 0
+        ):
+            return _players_cache[league_id]
 
         try:
-            _players_cache = _fetch_players()
-            _players_dict_cache = {p[0]: p for p in _players_cache}
-            _players_cache_lower = [(p, p[1].lower()) for p in _players_cache]
-            _players_cache_expires = time.time() + CACHE_TTL["players"]
+            _players_cache[league_id] = _fetch_players(league_id)
+            _players_dict_cache[league_id] = {
+                p[0]: p for p in _players_cache[league_id]
+            }
+            _players_cache_lower[league_id] = [
+                (p, p[1].lower()) for p in _players_cache[league_id]
+            ]
+            _players_cache_expires[league_id] = time.time() + CACHE_TTL["players"]
         except Exception as ex:
             log_exceptions(ex)
-            if _players_cache:
-                _players_cache_expires = time.time() + 300
-                return _players_cache
-            _players_cache = []
-            _players_dict_cache = {}
-            _players_cache_lower = []
-            _players_cache_expires = time.time() + 300
+            if _players_cache.get(league_id):
+                _players_cache_expires[league_id] = time.time() + 300
+                return _players_cache[league_id]
+            _players_cache[league_id] = []
+            _players_dict_cache[league_id] = {}
+            _players_cache_lower[league_id] = []
+            _players_cache_expires[league_id] = time.time() + 300
 
-        return _players_cache
+        return _players_cache[league_id]
 
 
-def load_players_dict() -> dict:  # pragma: no cover
+def load_players_dict(league_id: str = "00") -> dict:  # pragma: no cover
     """Return {player_id: player_row} dict for O(1) lookups."""
-    load_players_file()
-    return _players_dict_cache
+    load_players_file(league_id)
+    return _players_dict_cache.get(league_id, {})
 
 
-def load_players_with_lower() -> list:  # pragma: no cover
+def load_players_with_lower(league_id: str = "00") -> list:  # pragma: no cover
     """Return cached list of (player_row, lowercase_name) tuples."""
-    load_players_file()
-    return _players_cache_lower
+    load_players_file(league_id)
+    return _players_cache_lower.get(league_id, [])
 
 
 def get_cached_scoreboard(league_id: str = "00") -> Any:  # pragma: no cover
