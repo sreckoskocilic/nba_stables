@@ -36,16 +36,19 @@ async def get_trades():
 
     def _sync():
         proxies = {"https": STATS_PROXY} if STATS_PROXY else None
-        try:
-            resp = with_retry(
-                lambda: requests.get(
-                    NBA_PLAYER_MOVEMENT_URL,
-                    headers=_NBA_HEADERS,
-                    timeout=STATS_TIMEOUT,
-                    proxies=proxies,
-                )
+
+        def _fetch():
+            r = requests.get(
+                NBA_PLAYER_MOVEMENT_URL,
+                headers=_NBA_HEADERS,
+                timeout=STATS_TIMEOUT,
+                proxies=proxies,
             )
-            resp.raise_for_status()
+            r.raise_for_status()
+            return r
+
+        try:
+            resp = with_retry(_fetch)
         except requests.RequestException as e:
             log_exceptions(e)
             return _unavailable

@@ -51,6 +51,19 @@ def test_fetch_players_parses_name_and_team(monkeypatch):
     assert players == [[123, "John Doe", 456], [999, "SingleName", None]]
 
 
+def test_fetch_players_wnba_filters_inactive(monkeypatch):
+    mock_cap = MagicMock()
+    mock_cap.common_all_players.get_dict.return_value = {
+        "data": [
+            [101, "Active, Player", None, 1, None, None, None, 200],
+            [102, "Inactive, Player", None, 0, None, None, None, 300],
+        ]
+    }
+    monkeypatch.setattr(hs.commonallplayers, "CommonAllPlayers", lambda **_: mock_cap)
+    players = hs._fetch_players(league_id="10")
+    assert players == [[101, "Player Active", 200]]
+
+
 def test_players_search_invalid_chars(client):
     r = client.get("/api/players/search?q=LeBron!")
     assert r.status_code == 400

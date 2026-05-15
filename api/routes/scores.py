@@ -97,20 +97,20 @@ async def get_date_labels(league: str = "nba"):
     if cached is not None:  # pragma: no cover
         return cached
 
-    async def _check_games(i):
-        try:
-            return bool(await asyncio.to_thread(get_games_list, i, league_id=league_id))
-        except Exception as ex:
-            log_exceptions(ex)
-            return False
+    def _sync():
+        has_games = []
+        for i in range(DAYS_OFFSET_MAX + 1):
+            try:
+                has_games.append(bool(get_games_list(i, league_id=league_id)))
+            except Exception as ex:
+                log_exceptions(ex)
+                has_games.append(False)
+        return {
+            "dates": [get_display_date(i) for i in range(DAYS_OFFSET_MAX + 1)],
+            "hasGames": has_games,
+        }
 
-    has_games = list(
-        await asyncio.gather(*[_check_games(i) for i in range(DAYS_OFFSET_MAX + 1)])
-    )
-    result = {
-        "dates": [get_display_date(i) for i in range(DAYS_OFFSET_MAX + 1)],
-        "hasGames": has_games,
-    }
+    result = await asyncio.to_thread(_sync)
     cache.set(cache_key, result, CACHE_TTL["leaders"])
     return result
 

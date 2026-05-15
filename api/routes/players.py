@@ -342,7 +342,11 @@ def _game_players_from_live(game_id: str, league_id: str = "00") -> dict:
     arena_data = game.get("arena") or {}
     arena_name = arena_data.get("arenaName") or ""
     arena_city = arena_data.get("arenaCity") or ""
-    arena = f"{arena_name}, {arena_city}".rstrip(", ") if arena_name else arena_city
+    arena = (
+        f"{arena_name}, {arena_city}"
+        if arena_name and arena_city
+        else arena_name or arena_city
+    )
 
     officials = []
     for o in game.get("officials") or []:
