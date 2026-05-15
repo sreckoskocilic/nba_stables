@@ -244,15 +244,27 @@
       "players": [
         {
           "name": "Charles Bediako",
-          "updated": "Thu, May 14",
+          "updated": "Fri, May 15",
           "injury": "Not Injury Related",
           "status": "—"
         },
         {
+          "name": "Caris LeVert",
+          "updated": "Thu, May 14",
+          "injury": "Heel",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Duncan Robinson",
-          "updated": "Wed, May 13",
+          "updated": "Thu, May 14",
           "injury": "Back",
-          "status": "Expected to be out until at least May 15"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Kevin Huerter",
+          "updated": "Thu, May 14",
+          "injury": "Thigh",
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -898,5 +910,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "May 14, 2026 11:46 UTC"
+  "lastUpdated": "May 15, 2026 11:50 UTC"
 }
