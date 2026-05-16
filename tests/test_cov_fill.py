@@ -364,3 +364,29 @@ def test_player_profile_404_when_bio_and_career_both_fail(client, monkeypatch):
     r = client.get(f"/api/players/{PLAYER_ID}/profile")
     assert r.status_code == 404
     cache.clear()
+
+
+def test_scoreboard_skips_phantom_scheduled_games(client, monkeypatch):
+    from conftest import make_live_game, make_scoreboard_v3
+    from datetime import date
+    from unittest.mock import patch
+
+    real_game = make_live_game(gameStatusText="Final")
+    phantom = make_live_game(
+        gameId="0042600105",
+        gameStatusText="TBD",
+        gameEt="2026-05-16T00:00:00Z",
+    )
+    sb_v3 = make_scoreboard_v3([real_game, phantom])
+    with (
+        patch("routes.scores.get_scoreboard_v3_by_date", return_value=sb_v3),
+        patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7)),
+        patch("routes.scores.get_cached_scoreboard", return_value=[]),
+    ):
+        cache.clear()
+        r = client.get("/api/scoreboard")
+    assert r.status_code == 200
+    games = r.json()["games"]
+    assert len(games) == 1
+    assert games[0]["gameId"] == real_game["gameId"]
+    cache.clear()

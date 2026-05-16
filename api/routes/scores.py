@@ -6,7 +6,9 @@ from constants import (
     GH_GAME_CODE,
     GH_GAME_ET,
     GH_GAME_ID,
+    GH_GAME_STATUS,
     GH_STATUS_TEXT,
+    STATUS_SCHEDULED,
     GL_AST,
     GL_GAME_ID,
     GL_PLAYER_NAME,
@@ -286,6 +288,8 @@ def _scoreboard_from_v3(sb) -> list[dict]:
 
     games = []
     for g in header["data"]:
+        if g[GH_GAME_STATUS] == STATUS_SCHEDULED and g[GH_STATUS_TEXT] == "TBD":
+            continue
         game_id = g[GH_GAME_ID]
         game_code = g[GH_GAME_CODE]  # e.g. "20260307/ORLMIN"
         status_text = g[GH_STATUS_TEXT]
