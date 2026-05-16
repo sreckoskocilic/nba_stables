@@ -170,6 +170,17 @@
       ]
     },
     {
+      "team": "Cleveland",
+      "players": [
+        {
+          "name": "Larry Nance Jr.",
+          "updated": "Fri, May 15",
+          "injury": "Illness",
+          "status": "Game Time Decision"
+        }
+      ]
+    },
+    {
       "team": "Dallas",
       "players": [
         {
@@ -226,15 +237,15 @@
       "team": "Denver",
       "players": [
         {
-          "name": "Aaron Gordon",
-          "updated": "Fri, May 1",
-          "injury": "Calf",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Peyton Watson",
           "updated": "Fri, May 1",
           "injury": "Hamstring",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Aaron Gordon",
+          "updated": "Fri, May 1",
+          "injury": "Calf",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -244,27 +255,9 @@
       "players": [
         {
           "name": "Charles Bediako",
-          "updated": "Fri, May 15",
+          "updated": "Sat, May 16",
           "injury": "Not Injury Related",
           "status": "—"
-        },
-        {
-          "name": "Caris LeVert",
-          "updated": "Thu, May 14",
-          "injury": "Heel",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Duncan Robinson",
-          "updated": "Thu, May 14",
-          "injury": "Back",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Kevin Huerter",
-          "updated": "Thu, May 14",
-          "injury": "Thigh",
-          "status": "Game Time Decision"
         }
       ]
     },
@@ -301,15 +294,15 @@
       "team": "Houston",
       "players": [
         {
-          "name": "Fred VanVleet",
-          "updated": "Sat, May 2",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Kevin Durant",
           "updated": "Sat, May 2",
           "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Fred VanVleet",
+          "updated": "Sat, May 2",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -646,7 +639,7 @@
       "players": [
         {
           "name": "Jalen Williams",
-          "updated": "Tue, May 12",
+          "updated": "Sat, May 16",
           "injury": "Hamstring",
           "status": "Game Time Decision"
         },
@@ -662,15 +655,15 @@
       "team": "Orlando",
       "players": [
         {
-          "name": "Jonathan Isaac",
-          "updated": "Sun, May 3",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Franz Wagner",
           "updated": "Sun, May 3",
           "injury": "Calf",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Jonathan Isaac",
+          "updated": "Sun, May 3",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -910,5 +903,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "May 15, 2026 11:50 UTC"
+  "lastUpdated": "May 16, 2026 10:57 UTC"
 }
