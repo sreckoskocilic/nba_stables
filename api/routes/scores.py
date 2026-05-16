@@ -495,14 +495,18 @@ async def get_standings(league: str = Query(default="nba")):
     def _sync():
         if league_id == "10":
             teams = _fetch_wnba_standings_teams()
-            east, west = [], []
-            for team in teams:
-                team_data = _parse_wnba_team_row(team)
-                if team[_WS_CONF] == "East":
-                    east.append(team_data)
-                else:
-                    west.append(team_data)
-            return {"east": _sort_by_rank(east), "west": _sort_by_rank(west)}
+            all_teams = sorted(
+                [_parse_wnba_team_row(t) for t in teams],
+                key=lambda t: (t["rank"], -t["winPct"], -t["wins"]),
+            )
+            if all_teams:
+                top = all_teams[0]
+                for t in all_teams:
+                    diff = (
+                        (top["wins"] - t["wins"]) + (t["losses"] - top["losses"])
+                    ) / 2
+                    t["gamesBack"] = "-" if diff == 0 else diff
+            return {"all": all_teams}
 
         teams = _fetch_standings_teams()
         east, west = [], []

@@ -1312,7 +1312,7 @@ class TestWnbaStandings:
         }
         return m
 
-    def test_east_west_split(self, client):
+    def test_unified_standings(self, client):
         rows = [
             make_wnba_standings_row(1, "New York", "Liberty", "East", 2, 0),
             make_wnba_standings_row(1, "Las Vegas", "Aces", "West", 2, 0),
@@ -1323,10 +1323,12 @@ class TestWnbaStandings:
         ):
             r = client.get("/api/standings?league=wnba")
         body = r.json()
-        assert len(body["east"]) == 1
-        assert len(body["west"]) == 1
-        assert body["east"][0]["name"] == "New York Liberty"
-        assert body["west"][0]["name"] == "Las Vegas Aces"
+        assert "all" in body
+        assert "east" not in body
+        assert len(body["all"]) == 2
+        names = {t["name"] for t in body["all"]}
+        assert "New York Liberty" in names
+        assert "Las Vegas Aces" in names
 
     def test_sorted_by_rank(self, client):
         rows = [
@@ -1343,7 +1345,7 @@ class TestWnbaStandings:
             patch("routes.scores._reset_nba_stats_http_session"),
         ):
             r = client.get("/api/standings?league=wnba")
-        ranks = [t["rank"] for t in r.json()["east"]]
+        ranks = [t["rank"] for t in r.json()["all"]]
         assert ranks == [1, 2, 3]
 
     def test_team_data_shape(self, client):
@@ -1355,7 +1357,7 @@ class TestWnbaStandings:
             patch("routes.scores._reset_nba_stats_http_session"),
         ):
             r = client.get("/api/standings?league=wnba")
-        team = r.json()["east"][0]
+        team = r.json()["all"][0]
         for key in (
             "rank",
             "name",
@@ -1381,7 +1383,7 @@ class TestWnbaStandings:
             patch("routes.scores._reset_nba_stats_http_session"),
         ):
             r = client.get("/api/standings?league=wnba")
-        assert r.json()["east"][0]["tricode"] == "NYL"
+        assert r.json()["all"][0]["tricode"] == "NYL"
 
     def test_unknown_team_falls_back_to_city(self, client):
         rows = [
@@ -1394,7 +1396,7 @@ class TestWnbaStandings:
             patch("routes.scores._reset_nba_stats_http_session"),
         ):
             r = client.get("/api/standings?league=wnba")
-        assert r.json()["west"][0]["tricode"] == "ATL"
+        assert r.json()["all"][0]["tricode"] == "ATL"
 
 
 class TestWnbaGamePlayers:
