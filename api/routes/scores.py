@@ -614,18 +614,18 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
     return result
 
 
-def _get_playoff_series_cached(season: str) -> dict:
+def _get_playoff_series_cached(season: str, league_id: str = "00") -> dict:
     """Cached wrapper around _fetch_playoff_series_data.
 
     Series counts only update when a playoff game ends, so we cache longer
     than the scoreboard (which refreshes every 30s). Outside the playoffs the
     fetch returns {} and we cache that to avoid hammering the NBA API.
     """
-    cache_key = f"playoff_series_{season}"
+    cache_key = f"playoff_series_{league_id}_{season}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    result = _fetch_playoff_series_data(season)
+    result = _fetch_playoff_series_data(season, league_id)
     cache.set(cache_key, result, _PLAYOFF_SERIES_TTL)
     return result
 
@@ -655,7 +655,7 @@ def _attach_series_to_games(games: list[dict], series_data: dict) -> None:
         }
 
 
-def _fetch_playoff_series_data(season: str) -> dict:
+def _fetch_playoff_series_data(season: str, league_id: str = "00") -> dict:
     """Return current playoff series win counts keyed by sorted team-ID pair.
 
     Uses only LeagueGameFinder (same as play-in). Infers series matchups by
@@ -667,7 +667,7 @@ def _fetch_playoff_series_data(season: str) -> dict:
         data = LeagueGameFinder(
             season_nullable=season,
             season_type_nullable="Playoffs",
-            league_id_nullable="00",
+            league_id_nullable=league_id,
             proxy=STATS_PROXY,
             timeout=STATS_TIMEOUT,
         ).get_dict()["resultSets"][0]
@@ -704,14 +704,28 @@ def _fetch_playoff_series_data(season: str) -> dict:
 
 @router.get("/api/playoffs")
 @route_error_handler("Failed to fetch playoff picture")
-async def get_playoff_picture():
+async def get_playoff_picture(league: str = Query(default="nba")):
     """Get current playoff picture with projected final records"""
-    cache_key = "playoffs"
+    league_id = "10" if league == "wnba" else "00"
+    cache_key = f"{league_id}:playoffs"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
     def _sync():
+        if league_id == "10":
+            teams = _fetch_wnba_standings_teams()
+            all_teams = sorted(
+                [_parse_wnba_team_row(t) for t in teams],
+                key=lambda t: (t["rank"], -t["winPct"], -t["wins"]),
+            )
+            for t in all_teams:
+                t["status"] = "in" if 1 <= t["rank"] <= 8 else "out"
+            series_results = _get_playoff_series_cached(
+                get_wnba_current_season(), league_id="10"
+            )
+            return {"all": all_teams, "seriesResults": series_results}
+
         teams = _fetch_standings_teams()
 
         east = []

@@ -1399,6 +1399,81 @@ class TestWnbaStandings:
         assert r.json()["all"][0]["tricode"] == "ATL"
 
 
+class TestWnbaPlayoffs:
+    def _mock_http(self, rows):
+        m = MagicMock()
+        m.return_value.send_api_request.return_value.get_dict.return_value = {
+            "resultSets": [{"rowSet": rows}]
+        }
+        return m
+
+    def test_unified_bracket(self, client):
+        rows = [
+            make_wnba_standings_row(1, "New York", "Liberty", "East", 10, 2),
+            make_wnba_standings_row(1, "Las Vegas", "Aces", "West", 9, 3),
+        ]
+        with (
+            patch("routes.scores.NBAStatsHTTP", self._mock_http(rows)),
+            patch("routes.scores._reset_nba_stats_http_session"),
+        ):
+            r = client.get("/api/playoffs?league=wnba")
+        body = r.json()
+        assert "all" in body
+        assert "east" not in body
+        assert len(body["all"]) == 2
+
+    def test_sorted_by_rank(self, client):
+        rows = [
+            make_wnba_standings_row(3, "Connecticut", "Sun", "East", 7, 5),
+            make_wnba_standings_row(
+                1, "New York", "Liberty", "East", 10, 2, team_id=WNBA_TEAM_ID_NYL
+            ),
+            make_wnba_standings_row(
+                2, "Indiana", "Fever", "East", 8, 4, team_id=1611661325
+            ),
+        ]
+        with (
+            patch("routes.scores.NBAStatsHTTP", self._mock_http(rows)),
+            patch("routes.scores._reset_nba_stats_http_session"),
+        ):
+            r = client.get("/api/playoffs?league=wnba")
+        ranks = [t["rank"] for t in r.json()["all"]]
+        assert ranks == [1, 2, 3]
+
+    def test_status_in(self, client):
+        rows = [
+            make_wnba_standings_row(5, "New York", "Liberty", "East", 8, 4),
+        ]
+        with (
+            patch("routes.scores.NBAStatsHTTP", self._mock_http(rows)),
+            patch("routes.scores._reset_nba_stats_http_session"),
+        ):
+            r = client.get("/api/playoffs?league=wnba")
+        assert r.json()["all"][0]["status"] == "in"
+
+    def test_status_out(self, client):
+        rows = [
+            make_wnba_standings_row(10, "Atlanta", "Dream", "East", 3, 9),
+        ]
+        with (
+            patch("routes.scores.NBAStatsHTTP", self._mock_http(rows)),
+            patch("routes.scores._reset_nba_stats_http_session"),
+        ):
+            r = client.get("/api/playoffs?league=wnba")
+        assert r.json()["all"][0]["status"] == "out"
+
+    def test_series_results_key_present(self, client):
+        rows = [
+            make_wnba_standings_row(1, "New York", "Liberty", "East", 10, 2),
+        ]
+        with (
+            patch("routes.scores.NBAStatsHTTP", self._mock_http(rows)),
+            patch("routes.scores._reset_nba_stats_http_session"),
+        ):
+            r = client.get("/api/playoffs?league=wnba")
+        assert "seriesResults" in r.json()
+
+
 class TestWnbaGamePlayers:
     def test_passes_league_id(self, client):
         with patch(

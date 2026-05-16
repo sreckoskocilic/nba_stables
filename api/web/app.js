@@ -957,7 +957,7 @@ async function loadPlayoffs(force = false) {
   t.innerHTML =
     '<div class="loading"><div class="spinner"></div> Loading bracket...</div>';
   try {
-    const t = await _fetchWithAbort("playoffs", "/api/playoffs");
+    const t = await _fetchWithAbort("playoffs", `/api/playoffs${leagueQuery()}`);
     ((playoffsData = await t.json()), showConference(activeConference));
   } catch (e) {
     t.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#9888;</div><div class="empty-state-title">Error Loading Bracket</div><p>${esc(e.message)}</p></div>`;
@@ -965,6 +965,14 @@ async function loadPlayoffs(force = false) {
 }
 function showConference(t) {
   if (!playoffsData) return;
+  const e = document.getElementById("playoffsContent");
+  e.innerHTML = "";
+  if (playoffsData.all) {
+    document.getElementById("playoffEastBtn").parentElement.style.display = "none";
+    drawBracket(playoffsData.all, "Playoff Bracket", e, {}, playoffsData.seriesResults || {}, {wnba: true});
+    return;
+  }
+  document.getElementById("playoffEastBtn").parentElement.style.display = "";
   ((activeConference = t),
     document
       .getElementById("playoffEastBtn")
@@ -972,8 +980,6 @@ function showConference(t) {
     document
       .getElementById("playoffWestBtn")
       .classList.toggle("active", "west" === t));
-  const e = document.getElementById("playoffsContent");
-  e.innerHTML = "";
   const piA =
     "east" === t
       ? (playoffsData.playinActual && playoffsData.playinActual.east) || {}
@@ -986,7 +992,7 @@ function showConference(t) {
     playoffsData.seriesResults || {},
   );
 }
-function drawBracket(t, e, s, piActual, seriesResults) {
+function drawBracket(t, e, s, piActual, seriesResults, opts) {
   const a = 220,
     n = 38,
     i = 20,
@@ -995,10 +1001,11 @@ function drawBracket(t, e, s, piActual, seriesResults) {
     seed7 = piA.seed7TeamId,
     g3w = piA.g3WinnerTeamId;
   const ts = [...t].sort((a, b) => a.rank - b.rank);
-  const s7 = seed7
+  const wnba = opts && opts.wnba, _wR1 = wnba ? 2 : 4, _wSF = wnba ? 3 : 4;
+  const s7 = wnba ? ts[6] : seed7
     ? t.find((x) => x.teamId === seed7)
     : { rank: 7, name: "Game 1 Winner", wins: "", losses: "", teamId: null };
-  const s8 = g3w
+  const s8 = wnba ? ts[7] : g3w
     ? t.find((x) => x.teamId === g3w)
     : { rank: 8, name: "Game 3 Winner", wins: "", losses: "", teamId: null };
   let r = [ts[0], s8, ts[3], ts[4], ts[2], ts[5], ts[1], s7];
@@ -1008,11 +1015,12 @@ function drawBracket(t, e, s, piActual, seriesResults) {
     m = window.devicePixelRatio || 1,
     p = document.createElement("canvas");
   ((p.width = 1134.72 * m),
-    (p.height = 778 * m),
+    (p.height = (wnba ? 593 : 778) * m),
     (p.style.cssText =
       "max-width:100%; display:block; margin-bottom:24px; width:100%;"));
   const v = p.getContext("2d");
   v.scale(c * m, c * m);
+  if (wnba) { v.fillStyle = "#12121a"; v.fillRect(0, 0, d, 412); v.translate(0, 12); }
   const h = "#1a1a24",
     y = "#2a2a3a",
     f = "#ffffff",
@@ -1054,9 +1062,9 @@ function drawBracket(t, e, s, piActual, seriesResults) {
       tB = r[bi];
     if (!tA || !tB || !tA.teamId || !tB.teamId) return null;
     const sA = serMap[tA.teamId];
-    if (sA && sA.w >= 4) return tA;
+    if (sA && sA.w >= _wR1) return tA;
     const sB = serMap[tB.teamId];
-    if (sB && sB.w >= 4) return tB;
+    if (sB && sB.w >= _wR1) return tB;
     return null;
   });
   function _getSeries(tA, tB) {
@@ -1077,8 +1085,8 @@ function drawBracket(t, e, s, piActual, seriesResults) {
   }
   function _findWinner(tA, tB, sr) {
     if (!sr) return null;
-    if (tA && sr[tA.teamId] && sr[tA.teamId].w >= 4) return tA;
-    if (tB && sr[tB.teamId] && sr[tB.teamId].w >= 4) return tB;
+    if (tA && sr[tA.teamId] && sr[tA.teamId].w >= _wSF) return tA;
+    if (tB && sr[tB.teamId] && sr[tB.teamId].w >= _wSF) return tB;
     return null;
   }
   const _semiSr = [
@@ -1104,7 +1112,7 @@ function drawBracket(t, e, s, piActual, seriesResults) {
       x(v, t, e, a, n, 5),
       v.stroke());
     const dispRank = s.rank;
-    const rankColor = dispRank <= 6 ? "#4ade80" : b;
+    const rankColor = dispRank <= (wnba ? 8 : 6) ? "#4ade80" : b;
     ((v.fillStyle = rankColor + "22"),
       x(v, t + 6, e + 8, 22, 22, 3),
       v.fill(),
@@ -1151,7 +1159,7 @@ function drawBracket(t, e, s, piActual, seriesResults) {
   function L(t) {
     return i + 46 * t;
   }
-  ((v.fillStyle = "#12121a"), v.fillRect(0, 0, d, 540));
+  ((v.fillStyle = "#12121a"), v.fillRect(0, 0, d, wnba ? 400 : 540));
   for (let t = 0; t < 8; t++) {
     const e = r[t];
     if (!e) continue;
@@ -1253,7 +1261,7 @@ function drawBracket(t, e, s, piActual, seriesResults) {
           (v.font = "bold 10px Inter, sans-serif"),
           (v.fillStyle = u),
           (v.textAlign = "center"),
-          v.fillText("Conf. Finals", 662, t + 19 + 4));
+          v.fillText(wnba ? "Finals" : "Conf. Finals", 662, t + 19 + 4));
       }
     }),
     (v.font = "bold 10px Inter, sans-serif"),
@@ -1261,7 +1269,8 @@ function drawBracket(t, e, s, piActual, seriesResults) {
     (v.textAlign = "center"),
     v.fillText("FIRST ROUND", 126, 8),
     v.fillText("SEMIFINALS", 394, 8),
-    v.fillText("CONF. FINALS", 662, 8));
+    v.fillText(wnba ? "FINALS" : "CONF. FINALS", 662, 8));
+  if (!wnba) {
   ((v.font = "bold 10px Inter, sans-serif"),
     (v.fillStyle = b),
     (v.textAlign = "left"),
@@ -1427,8 +1436,9 @@ function drawBracket(t, e, s, piActual, seriesResults) {
       "→ Winner clinches 8th seed · Loser eliminated",
       g3WTop,
       g3WBot,
-    ),
-    s.appendChild(p));
+    ));
+  }
+  s.appendChild(p);
 }
 let _tradesData = null,
   _tradesMonth = "";
@@ -2440,7 +2450,7 @@ document.addEventListener("click", (e) => {
 });
 
 // === NBA / WNBA league toggle ===
-const _NBA_ONLY_TABS = ["injuries", "playoffs", "trades", "seasonDoubles", "seasonHighs"];
+const _NBA_ONLY_TABS = ["injuries", "trades", "seasonDoubles", "seasonHighs"];
 function _applyLeagueToggle() {
   const btns = document.querySelectorAll("#leagueToggle [data-league]");
   btns.forEach((b) =>
@@ -2468,6 +2478,7 @@ document.querySelectorAll("#leagueToggle [data-league]").forEach((btn) => {
     document.getElementById("lastNBtn").disabled = true;
     document.getElementById("lastNContent").innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#128100;</div><div class="empty-state-title">Player Profile</div><p>Search and select a player above</p></div>';
     _standingsData = null;
+    playoffsData = null;
     _boxscoreDateBtns.forEach((b) => (b.hidden = false));
     _leaderDateBtns.forEach((b) => (b.hidden = false));
     _loadDateLabels();
@@ -2494,6 +2505,9 @@ document.querySelectorAll("#leagueToggle [data-league]").forEach((btn) => {
           break;
         case "lastngames":
           if (lastNSelectedPlayer) loadPlayerProfile();
+          break;
+        case "playoffs":
+          loadPlayoffs(true);
           break;
       }
     }
