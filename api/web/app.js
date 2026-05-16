@@ -1538,7 +1538,7 @@ function renderSeasonDoubles() {
   if (!d) return;
   const tbl = (title, list, isTd) => {
     if (!list || list.length === 0)
-      return `<div class="card" style="overflow-x:auto;"><h3 style="padding:15px 20px;background:var(--bg-secondary);margin:0;border-bottom:1px solid var(--border);">${title}</h3><table class="doubles-table"><thead><tr><th>Rank</th><th style="text-align:left;">Player</th><th>Team</th><th>Count</th>${isTd ? "<th>Details</th>" : ""}</tr></thead><tbody><tr><td></td><td style="text-align:left;color:var(--text-secondary);">No triple-doubles yet</td><td></td><td></td>${isTd ? "<td></td>" : ""}</tr></tbody></table></div>`;
+      return `<div class="card" style="overflow-x:auto;"><h3 style="padding:15px 20px;background:var(--bg-secondary);margin:0;border-bottom:1px solid var(--border);">${title}</h3><table class="doubles-table"><thead><tr><th>Rank</th><th style="text-align:left;">Player</th><th>Team</th><th>Count</th>${isTd ? "<th>Details</th>" : ""}</tr></thead><tbody><tr><td></td><td style="text-align:left;color:var(--text-secondary);">No ${isTd ? "triple" : "double"}-doubles yet</td><td></td><td></td>${isTd ? "<td></td>" : ""}</tr></tbody></table></div>`;
     return `<div class="card" style="overflow-x:auto;"><h3 style="padding:15px 20px;background:var(--bg-secondary);margin:0;border-bottom:1px solid var(--border);">${title}</h3><table class="doubles-table"><thead><tr><th>Rank</th><th style="text-align:left;">Player</th><th>Team</th><th>Count</th>${isTd ? "<th>Details</th>" : ""}</tr></thead><tbody>${list.map((p) => `<tr id="td-row-${p.playerId}"><td>${p.rank}</td><td style="text-align:left;font-weight:500;">${esc(p.name)}</td><td>${esc(p.team)}</td><td class="highlight">${p.playoff ? `${p.count}/${p.playoff}` : p.count}</td>${isTd ? `<td><button class="refresh-btn" style="font-size:0.75rem;padding:2px 8px;" data-action="toggleTdGames" data-player-id="${p.playerId}">Details</button></td>` : ""}</tr>${isTd ? `<tr id="td-details-${p.playerId}" style="display:none;"><td colspan="5"><div id="td-games-${p.playerId}" style="padding:8px;"></div></td></tr>` : ""}`).join("")}</tbody></table></div>`;
   };
   const hasPlayoff = [...(d.doubleDoubles || []), ...(d.tripleDoubles || [])].some((p) => p.playoff);
@@ -1572,8 +1572,6 @@ async function toggleTdGames(playerId, btn) {
     container.innerHTML = '<p style="color:#ef4444;">Error loading games</p>';
   }
 }
-let _seasonHighsData = null;
-
 // === Consolidated views (formerly api/web/overrides.js) ===
 
 async function loadScoreboard() {

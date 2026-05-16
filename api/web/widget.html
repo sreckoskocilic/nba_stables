@@ -51,6 +51,32 @@
             -webkit-app-region: no-drag;
         }
         .status.live { color: #4ade80; }
+        .league-toggle {
+            display: flex;
+            gap: 4px;
+            padding: 6px 12px;
+            background: #12121a;
+            border-bottom: 1px solid #1e2e40;
+            flex-shrink: 0;
+        }
+        .league-btn {
+            flex: 1;
+            padding: 4px 10px;
+            background: #1a1a2e;
+            border: 1px solid #2a3a4a;
+            border-radius: 6px;
+            color: #8aaccc;
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .league-btn:hover { border-color: #ff6b35; color: #e0e8f0; }
+        .league-btn.active {
+            background: #ff6b35;
+            border-color: #ff6b35;
+            color: #fff;
+        }
         .search-area {
             padding: 8px 12px;
             display: flex;
@@ -204,6 +230,10 @@
             <h1>Player Tracker</h1>
         </div>
         <span class="status" id="status"></span>
+    </div>
+    <div class="league-toggle" id="leagueToggle">
+        <button class="league-btn active" data-league="nba">NBA</button>
+        <button class="league-btn" data-league="wnba">WNBA</button>
     </div>
     <div class="search-area">
         <div class="search-wrap">

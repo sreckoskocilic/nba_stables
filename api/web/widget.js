@@ -2,7 +2,12 @@ const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").repl
 const TIERS = { points:[30,20,15], rebounds:[15,10,7], assists:[15,10,7], steals:[4,3,2], blocks:[4,3,2] };
 function sc(t,v) { const s=TIERS[t]; return !s||v<=0?"":v>=s[0]?"stat-elite":v>=s[1]?"stat-great":v>=s[2]?"stat-good":""; }
 
-let tracked = JSON.parse(localStorage.getItem("widget_tracked") || "[]");
+let _league = localStorage.getItem("widget_league") || "nba";
+if (localStorage.getItem("widget_tracked") && !localStorage.getItem("widget_tracked_nba")) {
+    localStorage.setItem("widget_tracked_nba", localStorage.getItem("widget_tracked"));
+    localStorage.removeItem("widget_tracked");
+}
+let tracked = JSON.parse(localStorage.getItem("widget_tracked_" + _league) || "[]");
 let refreshTimer = null;
 const _pins = JSON.parse(localStorage.getItem("pinnedStats") || "{}");
 function _pinCls(pid, stat) { return _pins[pid + "_" + stat] ? " stat-pinned" : ""; }
@@ -11,6 +16,8 @@ function _togglePin(pid, stat) {
     if (_pins[k]) delete _pins[k]; else _pins[k] = 1;
     localStorage.setItem("pinnedStats", JSON.stringify(_pins));
 }
+function _leagueQ() { return _league === "wnba" ? "?league=wnba" : ""; }
+function _leagueP() { return _league === "wnba" ? "&league=wnba" : ""; }
 
 const $search = document.getElementById("search");
 const $results = document.getElementById("results");
@@ -20,7 +27,7 @@ const $loadBtn = document.getElementById("loadBtn");
 const $status = document.getElementById("status");
 const $autoRefresh = document.getElementById("autoRefresh");
 
-function save() { localStorage.setItem("widget_tracked", JSON.stringify(tracked)); }
+function save() { localStorage.setItem("widget_tracked_" + _league, JSON.stringify(tracked)); }
 
 function renderChips() {
     $chips.innerHTML = tracked.map(p =>
@@ -44,7 +51,7 @@ $search.addEventListener("input", () => {
     if (q.length < 2) { $results.classList.remove("open"); return; }
     searchTimeout = setTimeout(async () => {
         try {
-            const r = await fetch(`/api/players/search?q=${encodeURIComponent(q)}`);
+            const r = await fetch(`/api/players/search?q=${encodeURIComponent(q)}${_leagueP()}`);
             if (!r.ok) throw new Error();
             const data = await r.json();
             const matches = data.players.filter(p => !tracked.some(t => t.id === p.id));
@@ -85,7 +92,7 @@ async function loadStats() {
     $status.className = "status";
     try {
         const ids = tracked.map(p => p.id).join(",");
-        const r = await fetch(`/api/players/stats?ids=${ids}`);
+        const r = await fetch(`/api/players/stats?ids=${ids}${_leagueP()}`);
         const data = await r.json();
         if (!data.players.length) {
             $content.innerHTML = `<div class="empty"><div class="empty-icon">&#128564;</div><div class="empty-title">No Active Games</div><p>Selected players don't have games in progress</p></div>`;
@@ -144,6 +151,25 @@ $autoRefresh.addEventListener("change", () => {
     if ($autoRefresh.checked) scheduleRefresh();
     else stopRefresh();
 });
+
+document.getElementById("leagueToggle").addEventListener("click", e => {
+    const btn = e.target.closest(".league-btn");
+    if (!btn || btn.dataset.league === _league) return;
+    _league = btn.dataset.league;
+    localStorage.setItem("widget_league", _league);
+    document.querySelectorAll(".league-btn").forEach(b => b.classList.toggle("active", b === btn));
+    stopRefresh();
+    tracked = JSON.parse(localStorage.getItem("widget_tracked_" + _league) || "[]");
+    $search.value = "";
+    $results.classList.remove("open");
+    renderChips();
+    if (tracked.length) loadStats();
+    else $content.innerHTML = `<div class="empty"><div class="empty-icon">&#127942;</div><div class="empty-title">Track Players</div><p>Search and select players to see live stats</p></div>`;
+});
+
+(function initLeagueToggle() {
+    document.querySelectorAll(".league-btn").forEach(b => b.classList.toggle("active", b.dataset.league === _league));
+})();
 
 renderChips();
 if (tracked.length) loadStats();

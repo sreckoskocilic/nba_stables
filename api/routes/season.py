@@ -178,7 +178,7 @@ async def get_season_doubles(
             pid = row[h["PLAYER_ID"]]
             if pid not in combined:
                 combined[pid] = {
-                    "name": row[h["PLAYER_NAME"]],
+                    "name": fix_encoding(row[h["PLAYER_NAME"]]),
                     "team": row[h["TEAM_ABBREVIATION"]],
                     "dd2": 0,
                     "td3": 0,
@@ -191,7 +191,7 @@ async def get_season_doubles(
             pid = row[h["PLAYER_ID"]]
             if pid not in combined:
                 combined[pid] = {
-                    "name": row[h["PLAYER_NAME"]],
+                    "name": fix_encoding(row[h["PLAYER_NAME"]]),
                     "team": row[h["TEAM_ABBREVIATION"]],
                     "dd2": 0,
                     "td3": 0,
