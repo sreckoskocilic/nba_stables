@@ -229,8 +229,10 @@ def _fetch_players(league_id: str = "00") -> list:
         data = cap.common_all_players.get_dict()
         players = []
 
+        current_year = str(get_wnba_current_season()[:4]) if league_id == "10" else None
+
         for row in data.get("data", []):
-            if is_current == 0 and row[3] != 1:
+            if is_current == 0 and row[3] != 1 and row[5] != current_year:
                 continue
             person_id = row[CAP_PERSON_ID]
             name_raw = row[CAP_DISPLAY_LAST_COMMA_FIRST]
@@ -292,6 +294,26 @@ def load_players_with_lower(league_id: str = "00") -> list:  # pragma: no cover
     return _players_cache_lower.get(league_id, [])
 
 
+_WNBA_LIVE_BASE = "https://cdn.wnba.com/static/json/liveData"
+_WNBA_LIVE_HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Referer": "https://www.wnba.com/",
+    "Accept": "application/json",
+}
+
+
+def _fetch_wnba_live_scoreboard() -> list:  # pragma: no cover
+    url = f"{_WNBA_LIVE_BASE}/scoreboard/todaysScoreboard_10.json"
+    r = requests.get(
+        url,
+        headers=_WNBA_LIVE_HEADERS,
+        timeout=STATS_TIMEOUT,
+        proxies=({"https": STATS_PROXY} if STATS_PROXY else None),
+    )
+    r.raise_for_status()
+    return r.json()["scoreboard"]["games"]
+
+
 def get_cached_scoreboard(league_id: str = "00") -> Any:  # pragma: no cover
     """Return cached live ScoreBoard().games.data."""
     sb_key = f"raw_scoreboard_{league_id}_{scoreboard_date().isoformat()}"
@@ -299,28 +321,23 @@ def get_cached_scoreboard(league_id: str = "00") -> Any:  # pragma: no cover
     if cached is not None:  # pragma: no cover
         return cached
     try:
+        if league_id == "10":
+            data = with_retry(_fetch_wnba_live_scoreboard)
+        else:
 
-        def _fetch():
-            sb = live_scoreboard.ScoreBoard(
-                proxy=STATS_PROXY, timeout=STATS_TIMEOUT, get_request=False
-            )
-            sb.endpoint_url = f"scoreboard/todaysScoreboard_{league_id}.json"
-            sb.get_request()
-            return sb.games.data
+            def _fetch():
+                sb = live_scoreboard.ScoreBoard(
+                    proxy=STATS_PROXY, timeout=STATS_TIMEOUT, get_request=False
+                )
+                sb.endpoint_url = f"scoreboard/todaysScoreboard_{league_id}.json"
+                sb.get_request()
+                return sb.games.data
 
-        data = with_retry(_fetch)
+            data = with_retry(_fetch)
     finally:
         _reset_nba_stats_http_session()
     cache.set(sb_key, data, CACHE_TTL["scoreboard"])
     return data
-
-
-_WNBA_LIVE_BASE = "https://cdn.wnba.com/static/json/liveData"
-_WNBA_LIVE_HEADERS = {
-    "User-Agent": "Mozilla/5.0",
-    "Referer": "https://www.wnba.com/",
-    "Accept": "application/json",
-}
 
 
 def _fetch_wnba_live_boxscore(game_id: str) -> dict:  # pragma: no cover
