@@ -11,6 +11,7 @@ from helpers.stats import (
     find_category_leaders,
     fix_encoding,
     get_current_season,
+    get_wnba_current_season,
     load_players_dict,
 )
 from nba_api.stats.endpoints import leaguedashplayerstats, leaguegamelog, playergamelog
@@ -38,11 +39,15 @@ SEASON_HIGH_CATEGORIES = [
 @route_error_handler("Failed to fetch season highs")
 async def get_season_highs(
     season: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    league: str = Query(default="nba"),
 ):
     """Get season single-game highs for each statistical category"""
-    current_season = get_current_season()
+    league_id = "10" if league == "wnba" else "00"
+    current_season = (
+        get_wnba_current_season() if league_id == "10" else get_current_season()
+    )
     resolved_season = season or current_season
-    cache_key = f"season_highs_{resolved_season}"
+    cache_key = f"{league_id}:season_highs_{resolved_season}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -54,6 +59,7 @@ async def get_season_highs(
                     season=resolved_season,
                     season_type_all_star="Regular Season",
                     player_or_team_abbreviation="P",
+                    league_id=league_id,
                     proxy=STATS_PROXY,
                     timeout=STATS_TIMEOUT,
                 )
@@ -63,6 +69,7 @@ async def get_season_highs(
                     season=resolved_season,
                     season_type_all_star="Playoffs",
                     player_or_team_abbreviation="P",
+                    league_id=league_id,
                     proxy=STATS_PROXY,
                     timeout=STATS_TIMEOUT,
                 )
@@ -121,11 +128,15 @@ async def get_season_highs(
 @route_error_handler("Failed to fetch season doubles")
 async def get_season_doubles(
     season: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    league: str = Query(default="nba"),
 ):
     """Get top 10 players by double-doubles and triple-doubles this season"""
-    current_season = get_current_season()
+    league_id = "10" if league == "wnba" else "00"
+    current_season = (
+        get_wnba_current_season() if league_id == "10" else get_current_season()
+    )
     resolved_season = season or current_season
-    cache_key = f"season_doubles_{resolved_season}"
+    cache_key = f"{league_id}:season_doubles_{resolved_season}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -137,6 +148,7 @@ async def get_season_doubles(
                     per_mode_detailed="Totals",
                     season=resolved_season,
                     season_type_all_star="Regular Season",
+                    league_id_nullable=league_id,
                     proxy=STATS_PROXY,
                     timeout=STATS_TIMEOUT,
                 )
@@ -146,6 +158,7 @@ async def get_season_doubles(
                     per_mode_detailed="Totals",
                     season=resolved_season,
                     season_type_all_star="Playoffs",
+                    league_id_nullable=league_id,
                     proxy=STATS_PROXY,
                     timeout=STATS_TIMEOUT,
                 )
@@ -241,11 +254,15 @@ async def get_season_doubles(
 async def get_triple_double_games(
     player_id: int = Path(..., gt=0),
     season: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    league: str = Query(default="nba"),
 ):
     """Get individual triple-double games for a player this season"""
-    current_season = get_current_season()
+    league_id = "10" if league == "wnba" else "00"
+    current_season = (
+        get_wnba_current_season() if league_id == "10" else get_current_season()
+    )
     resolved_season = season or current_season
-    cache_key = f"td_games_{player_id}_{resolved_season}"
+    cache_key = f"{league_id}:td_games_{player_id}_{resolved_season}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -253,7 +270,7 @@ async def get_triple_double_games(
     _not_found = object()
 
     def _sync():
-        players_dict = load_players_dict()
+        players_dict = load_players_dict(league_id)
         player_row = players_dict.get(player_id) if players_dict else None
         if not player_row:
             return _not_found
@@ -265,6 +282,7 @@ async def get_triple_double_games(
                     player_id=player_id,
                     season=resolved_season,
                     season_type_all_star="Regular Season",
+                    league_id_nullable=league_id,
                     proxy=STATS_PROXY,
                     timeout=STATS_TIMEOUT,
                 )
@@ -274,6 +292,7 @@ async def get_triple_double_games(
                     player_id=player_id,
                     season=resolved_season,
                     season_type_all_star="Playoffs",
+                    league_id_nullable=league_id,
                     proxy=STATS_PROXY,
                     timeout=STATS_TIMEOUT,
                 )

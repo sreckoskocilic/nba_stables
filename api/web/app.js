@@ -1523,7 +1523,7 @@ async function loadSeasonDoubles(force = false) {
   el.innerHTML =
     '<div class="loading"><div class="spinner"></div> Loading season leaders...</div>';
   try {
-    const r = await _fetchWithAbort("seasonDoubles", "/api/season/doubles"),
+    const r = await _fetchWithAbort("seasonDoubles", "/api/season/doubles" + leagueQuery()),
       d = await r.json();
     if (!r.ok) throw new Error(d.detail || "Failed to load");
     _seasonDoublesData = d;
@@ -1538,7 +1538,7 @@ function renderSeasonDoubles() {
   if (!d) return;
   const tbl = (title, list, isTd) => {
     if (!list || list.length === 0)
-      return `<div class="card" style="padding:20px;"><h3 style="margin-bottom:10px;color:var(--accent);">${title}</h3><p style="color:var(--text-secondary);">No data available</p></div>`;
+      return `<div class="card" style="overflow-x:auto;"><h3 style="padding:15px 20px;background:var(--bg-secondary);margin:0;border-bottom:1px solid var(--border);">${title}</h3><table class="doubles-table"><thead><tr><th>Rank</th><th style="text-align:left;">Player</th><th>Team</th><th>Count</th>${isTd ? "<th>Details</th>" : ""}</tr></thead><tbody><tr><td></td><td style="text-align:left;color:var(--text-secondary);">No triple-doubles yet</td><td></td><td></td>${isTd ? "<td></td>" : ""}</tr></tbody></table></div>`;
     return `<div class="card" style="overflow-x:auto;"><h3 style="padding:15px 20px;background:var(--bg-secondary);margin:0;border-bottom:1px solid var(--border);">${title}</h3><table class="doubles-table"><thead><tr><th>Rank</th><th style="text-align:left;">Player</th><th>Team</th><th>Count</th>${isTd ? "<th>Details</th>" : ""}</tr></thead><tbody>${list.map((p) => `<tr id="td-row-${p.playerId}"><td>${p.rank}</td><td style="text-align:left;font-weight:500;">${esc(p.name)}</td><td>${esc(p.team)}</td><td class="highlight">${p.playoff ? `${p.count}/${p.playoff}` : p.count}</td>${isTd ? `<td><button class="refresh-btn" style="font-size:0.75rem;padding:2px 8px;" data-action="toggleTdGames" data-player-id="${p.playerId}">Details</button></td>` : ""}</tr>${isTd ? `<tr id="td-details-${p.playerId}" style="display:none;"><td colspan="5"><div id="td-games-${p.playerId}" style="padding:8px;"></div></td></tr>` : ""}`).join("")}</tbody></table></div>`;
   };
   const hasPlayoff = [...(d.doubleDoubles || []), ...(d.tripleDoubles || [])].some((p) => p.playoff);
@@ -1559,7 +1559,7 @@ async function toggleTdGames(playerId, btn) {
   try {
     const r = await _fetchWithAbort(
         "tdGames_" + playerId,
-        `/api/season/triple-double-games/${playerId}`,
+        `/api/season/triple-double-games/${playerId}` + leagueQuery(),
       ),
       d = await r.json();
     if (!d.games || d.games.length === 0) {
@@ -1803,7 +1803,7 @@ async function loadSeasonHighs(force = false) {
   content.innerHTML =
     '<div class="loading"><div class="spinner"></div> Loading season highs...</div>';
   try {
-    const response = await _fetchWithAbort("seasonHighs", "/api/season/highs");
+    const response = await _fetchWithAbort("seasonHighs", "/api/season/highs" + leagueQuery());
     const data = await response.json();
     if (!response.ok)
       throw new Error(data.detail || "Failed to load season highs");
@@ -2450,7 +2450,7 @@ document.addEventListener("click", (e) => {
 });
 
 // === NBA / WNBA league toggle ===
-const _NBA_ONLY_TABS = ["injuries", "trades", "seasonDoubles", "seasonHighs"];
+const _NBA_ONLY_TABS = ["injuries", "trades"];
 function _applyLeagueToggle() {
   const btns = document.querySelectorAll("#leagueToggle [data-league]");
   btns.forEach((b) =>
@@ -2479,6 +2479,8 @@ document.querySelectorAll("#leagueToggle [data-league]").forEach((btn) => {
     document.getElementById("lastNContent").innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#128100;</div><div class="empty-state-title">Player Profile</div><p>Search and select a player above</p></div>';
     _standingsData = null;
     playoffsData = null;
+    _seasonDoublesData = null;
+    window._seasonHighsData = null;
     _boxscoreDateBtns.forEach((b) => (b.hidden = false));
     _leaderDateBtns.forEach((b) => (b.hidden = false));
     _loadDateLabels();
@@ -2508,6 +2510,12 @@ document.querySelectorAll("#leagueToggle [data-league]").forEach((btn) => {
           break;
         case "playoffs":
           loadPlayoffs(true);
+          break;
+        case "seasonDoubles":
+          loadSeasonDoubles(true);
+          break;
+        case "seasonHighs":
+          loadSeasonHighs(true);
           break;
       }
     }

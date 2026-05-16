@@ -602,3 +602,79 @@ class TestGetTripleDoubleGames:
         resp = self._call(client, [row])
         assert resp.status_code == 200
         assert resp.json()["games"] == []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tests: WNBA routing (league_id="10" passes through)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestWnbaSeasonHighs:
+    def test_wnba_passes_league_id(self, client):
+        full, empty = _mock_gamelog([_highs_row(pts=20)])
+        with (
+            patch("routes.season.get_wnba_current_season", return_value="2025-26"),
+            patch(
+                "routes.season.leaguegamelog.LeagueGameLog", side_effect=[full, empty]
+            ) as api_mock,
+        ):
+            resp = client.get("/api/season/highs?league=wnba")
+        assert resp.status_code == 200
+        assert api_mock.call_args_list[0][1]["league_id"] == "10"
+
+    def test_wnba_uses_wnba_season(self, client):
+        full, empty = _mock_gamelog([])
+        with (
+            patch("routes.season.get_wnba_current_season", return_value="2025-26"),
+            patch(
+                "routes.season.leaguegamelog.LeagueGameLog", side_effect=[full, empty]
+            ),
+        ):
+            resp = client.get("/api/season/highs?league=wnba")
+        assert resp.json()["season"] == "2025-26"
+
+
+class TestWnbaSeasonDoubles:
+    def test_wnba_passes_league_id(self, client):
+        full, empty = _mock_dash_stats([])
+        with (
+            patch("routes.season.get_wnba_current_season", return_value="2025-26"),
+            patch(
+                "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+                side_effect=[full, empty],
+            ) as api_mock,
+        ):
+            resp = client.get("/api/season/doubles?league=wnba")
+        assert resp.status_code == 200
+        assert api_mock.call_args_list[0][1]["league_id_nullable"] == "10"
+
+
+class TestWnbaTripleDoubleGames:
+    def test_wnba_passes_league_id(self, client):
+        full, empty = _mock_player_gamelog([])
+        with (
+            patch("routes.season.get_wnba_current_season", return_value="2025-26"),
+            patch("routes.season.load_players_dict", return_value=_FAKE_PLAYER),
+            patch(
+                "routes.season.playergamelog.PlayerGameLog", side_effect=[full, empty]
+            ) as api_mock,
+        ):
+            resp = client.get(
+                f"/api/season/triple-double-games/{PLAYER_ID}?league=wnba"
+            )
+        assert resp.status_code == 200
+        assert api_mock.call_args_list[0][1]["league_id_nullable"] == "10"
+
+    def test_wnba_loads_wnba_players(self, client):
+        full, empty = _mock_player_gamelog([])
+        with (
+            patch("routes.season.get_wnba_current_season", return_value="2025-26"),
+            patch(
+                "routes.season.load_players_dict", return_value=_FAKE_PLAYER
+            ) as players_mock,
+            patch(
+                "routes.season.playergamelog.PlayerGameLog", side_effect=[full, empty]
+            ),
+        ):
+            client.get(f"/api/season/triple-double-games/{PLAYER_ID}?league=wnba")
+        players_mock.assert_called_once_with("10")
