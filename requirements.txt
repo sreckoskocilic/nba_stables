@@ -4,6 +4,6 @@ fastapi==0.136.1
 uvicorn[standard]==0.47.0
 beautifulsoup4==4.14.3
 requests[socks]==2.34.2
-lxml==6.1.0
+lxml==6.1.1
 PyYAML==6.0.3
 tzdata==2026.2

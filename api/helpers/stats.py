@@ -334,8 +334,10 @@ def get_cached_scoreboard(league_id: str = "00") -> Any:  # pragma: no cover
                 return sb.games.data
 
             data = with_retry(_fetch)
-    finally:
+    except Exception:
         _reset_nba_stats_http_session()
+        raise
+    _reset_nba_stats_http_session()
     cache.set(sb_key, data, CACHE_TTL["scoreboard"])
     return data
 
@@ -370,8 +372,10 @@ def get_cached_live_boxscore(
                     game_id=game_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
                 ).get_dict(),
             )
-    finally:
+    except Exception:
         _reset_nba_stats_http_session()
+        raise
+    _reset_nba_stats_http_session()
     status = data.get("game", {}).get("gameStatusText", "")
     ttl = (
         CACHE_TTL["historical"]
@@ -386,7 +390,7 @@ def get_cached_scoreboard_v3(days_offset: int = 1, league_id: str = "00") -> Any
     """Return a cached ScoreboardV3 object for the given days_offset."""
     target_date = _today_et() - timedelta(days=days_offset)
     return get_scoreboard_v3_by_date(
-        target_date, historical=days_offset >= 2, league_id=league_id
+        target_date, historical=days_offset >= 1, league_id=league_id
     )
 
 
@@ -569,4 +573,4 @@ def fetch_single_boxscore(
         return game_box
     except Exception as ex:
         log_exceptions(ex)
-        return game_box
+        return None

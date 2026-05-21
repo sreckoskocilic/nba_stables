@@ -15,7 +15,7 @@ import helpers.stats as _stats
 import uvicorn
 import yaml
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from middleware.security import SecurityHeadersMiddleware
 from routes.injuries import CBS_INJURIES_FILE
@@ -112,7 +112,7 @@ async def health_check():
         return {"status": "ok"}
     except Exception as e:
         logger.warning("Health check failed: %s", e)
-        return {"status": "degraded"}
+        return JSONResponse({"status": "degraded"}, status_code=503)
 
 
 # Serve web files

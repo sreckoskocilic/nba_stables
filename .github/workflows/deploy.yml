@@ -3,6 +3,10 @@ name: CI/CD Pipeline
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 on:
   push:
     paths-ignore:

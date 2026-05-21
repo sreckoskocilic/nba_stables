@@ -255,7 +255,7 @@ def _build_team(row, team_id, game_id, leaders_by) -> dict:
             "assists": ld[GL_AST] or 0,
         }
     else:
-        leader = _EMPTY_LEADER
+        leader = {**_EMPTY_LEADER}
     if not row:
         return {
             "name": "",
