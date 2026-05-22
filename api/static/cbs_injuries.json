@@ -244,7 +244,7 @@
       "players": [
         {
           "name": "Charles Bediako",
-          "updated": "Thu, May 21",
+          "updated": "Fri, May 22",
           "injury": "Not Injury Related",
           "status": "—"
         }
@@ -737,15 +737,15 @@
       "team": "San Antonio",
       "players": [
         {
-          "name": "De'Aaron Fox",
+          "name": "Dylan Harper",
           "updated": "Thu, May 21",
-          "injury": "Ankle",
+          "injury": "Hip",
           "status": "Game Time Decision"
         },
         {
-          "name": "Dylan Harper",
-          "updated": "Wed, May 20",
-          "injury": "Leg",
+          "name": "De'Aaron Fox",
+          "updated": "Thu, May 21",
+          "injury": "Ankle",
           "status": "Game Time Decision"
         },
         {
@@ -893,5 +893,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "May 21, 2026 12:39 UTC"
+  "lastUpdated": "May 22, 2026 12:13 UTC"
 }
