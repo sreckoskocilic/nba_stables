@@ -409,7 +409,7 @@ def _fetch_standings_teams() -> list:
     finally:
         _reset_nba_stats_http_session()
     teams = standings["resultSets"][0]["rowSet"]
-    cache.set("raw_standings", teams, CACHE_TTL["standings"] // 2)
+    cache.set("raw_standings", teams, CACHE_TTL["standings"])
     return teams
 
 
@@ -463,7 +463,7 @@ def _fetch_wnba_standings_teams() -> list:
         teams = resp.get_dict()["resultSets"][0]["rowSet"]
     finally:
         _reset_nba_stats_http_session()
-    cache.set("raw_standings_wnba", teams, CACHE_TTL["standings"] // 2)
+    cache.set("raw_standings_wnba", teams, CACHE_TTL["standings"])
     return teams
 
 

@@ -81,17 +81,17 @@ async def get_season_highs(
         headers = data_regular["resultSets"][0]["headers"]
         rows_regular = data_regular["resultSets"][0]["rowSet"]
         rows_playoffs = data_playoffs["resultSets"][0]["rowSet"]
-        playoff_set = set(id(r) for r in rows_playoffs)
+        n_regular = len(rows_regular)
         h = {k: i for i, k in enumerate(headers)}
 
         players = []
-        for row in rows_regular + rows_playoffs:
+        for idx, row in enumerate(rows_regular + rows_playoffs):
             entry = {
                 "name": fix_encoding(row[h["PLAYER_NAME"]]),
                 "team": row[h["TEAM_ABBREVIATION"]],
                 "date": row[h["GAME_DATE"]],
                 "matchup": row[h["MATCHUP"]],
-                "playoff": id(row) in playoff_set,
+                "playoff": idx >= n_regular,
             }
             for col, key, _ in SEASON_HIGH_CATEGORIES:
                 entry[key] = row[h[col]] or 0

@@ -28,6 +28,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Choose CSP based on route type
         if request.url.path.startswith("/api/"):
             csp = DEFAULT_CSP
+            response.headers["Cache-Control"] = "no-store"
         else:
             csp = PAGE_CSP
         response.headers["Content-Security-Policy"] = csp

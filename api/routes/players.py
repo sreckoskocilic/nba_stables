@@ -503,23 +503,23 @@ async def get_last_n_games_stats(
                 log_exceptions(ex, f"player_id={player_id} game_id={gg[1]}")
                 return None
 
+        playoff_in_slice = min(playoff_count, len(game_rows))
         try:
-            games = [
-                r
-                for r in executor.map(
-                    fetch_game_stats, game_rows, timeout=STATS_TIMEOUT
-                )
-                if r is not None
-            ]
+            results = list(
+                executor.map(fetch_game_stats, game_rows, timeout=STATS_TIMEOUT)
+            )
         except TimeoutError as ex:
             log_exceptions(ex, f"player_games_timeout player_id={player_id}")
-            games = []
+            results = []
+
+        games = [r for r in results if r is not None]
+        actual_playoff = sum(1 for r in results[:playoff_in_slice] if r is not None)
 
         return {
             "playerId": player_id,
             "playerName": player_name,
             "games": games,
-            "playoffGames": min(playoff_count, n),
+            "playoffGames": actual_playoff,
         }
 
     result = await asyncio.to_thread(_sync)
