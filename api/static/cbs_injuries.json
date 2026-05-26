@@ -170,6 +170,17 @@
       ]
     },
     {
+      "team": "Cleveland",
+      "players": [
+        {
+          "name": "Dennis Schroder",
+          "updated": "Mon, May 25",
+          "injury": "Illness",
+          "status": "Expected to be out until at least Oct 1"
+        }
+      ]
+    },
+    {
       "team": "Dallas",
       "players": [
         {
@@ -244,7 +255,7 @@
       "players": [
         {
           "name": "Charles Bediako",
-          "updated": "Mon, May 25",
+          "updated": "Tue, May 26",
           "injury": "Not Injury Related",
           "status": "—"
         }
@@ -616,15 +627,15 @@
       "team": "Oklahoma City",
       "players": [
         {
+          "name": "Ajay Mitchell",
+          "updated": "Mon, May 25",
+          "injury": "Calf",
+          "status": "Expected to be out until at least May 28"
+        },
+        {
           "name": "Jalen Williams",
           "updated": "Sun, May 24",
           "injury": "Hamstring",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Ajay Mitchell",
-          "updated": "Sun, May 24",
-          "injury": "Calf",
           "status": "Game Time Decision"
         },
         {
@@ -887,5 +898,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "May 25, 2026 12:57 UTC"
+  "lastUpdated": "May 26, 2026 12:35 UTC"
 }
