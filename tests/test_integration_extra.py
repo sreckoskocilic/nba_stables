@@ -446,7 +446,17 @@ class TestPlayoffs:
         m = MagicMock()
         m.return_value.get_dict.return_value = {
             "resultSets": [
-                {"headers": ["GAME_ID", "TEAM_ID", "WL", "PTS"], "rowSet": rowset}
+                {
+                    "headers": [
+                        "GAME_ID",
+                        "TEAM_ID",
+                        "WL",
+                        "PTS",
+                        "GAME_DATE",
+                        "MATCHUP",
+                    ],
+                    "rowSet": rowset,
+                }
             ]
         }
         return m
@@ -454,10 +464,10 @@ class TestPlayoffs:
     def test_series_results_populated(self, client):
         rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
         lgf_rows = [
-            ["PG01", 100, "W", 110],
-            ["PG01", 200, "L", 100],
-            ["PG02", 100, "W", 105],
-            ["PG02", 200, "L", 98],
+            ["PG01", 100, "W", 110, "2026-05-20", "TEA vs. TEB"],
+            ["PG01", 200, "L", 100, "2026-05-20", "TEB @ TEA"],
+            ["PG02", 100, "W", 105, "2026-05-22", "TEA vs. TEB"],
+            ["PG02", 200, "L", 98, "2026-05-22", "TEB @ TEA"],
         ]
         with (
             patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
@@ -472,7 +482,7 @@ class TestPlayoffs:
     def test_series_results_skips_incomplete_game(self, client):
         rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
         # Game PG01 only has one team row → skipped (len(teams) != 2)
-        lgf_rows = [["PG01", 100, "W", 110]]
+        lgf_rows = [["PG01", 100, "W", 110, "2026-05-20", "TEA vs. TEB"]]
         with (
             patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
             patch("routes.scores.LeagueGameFinder", self._lgf_playoffs_mock(lgf_rows)),
@@ -489,6 +499,90 @@ class TestPlayoffs:
             r = client.get("/api/playoffs")
         assert r.status_code == 200
         assert r.json()["seriesResults"] == {}
+
+    def test_finals_data_cross_conference_pair(self):
+        from routes.scores import _build_finals_data
+
+        east = [{"teamId": 1610612752, "name": "New York Knicks", "tricode": "NYK"}]
+        west = [
+            {"teamId": 1610612760, "name": "Oklahoma City Thunder", "tricode": "OKC"}
+        ]
+        pair_key = "1610612752_1610612760"
+        pair_wins = {pair_key: {"1610612752": 2, "1610612760": 1}}
+        pair_games = {
+            pair_key: [
+                {
+                    "gameId": "FIN01",
+                    "date": "2026-06-05",
+                    "teams": {
+                        1610612752: {"pts": 108, "wl": "W", "matchup": "NYK vs. OKC"},
+                        1610612760: {"pts": 102, "wl": "L", "matchup": "OKC @ NYK"},
+                    },
+                }
+            ]
+        }
+        result = _build_finals_data(east, west, pair_wins, pair_games)
+        assert result["east"]["tricode"] == "NYK"
+        assert result["west"]["tricode"] == "OKC"
+        assert result["seriesScore"] == {"1610612752": 2, "1610612760": 1}
+        assert len(result["games"]) == 1
+        g = result["games"][0]
+        assert g["gameId"] == "FIN01"
+        assert g["home"]["tricode"] == "NYK"
+        assert g["home"]["score"] == 108
+        assert g["away"]["tricode"] == "OKC"
+        assert g["away"]["score"] == 102
+
+    def test_finals_data_conference_champion_no_finals(self):
+        from routes.scores import _build_finals_data
+
+        tid = 1610612752
+        east = [
+            {"teamId": tid, "name": "New York Knicks", "tricode": "NYK"},
+            {"teamId": 201, "name": "R1 Opp", "tricode": "R1O"},
+            {"teamId": 202, "name": "SF Opp", "tricode": "SFO"},
+            {"teamId": 203, "name": "CF Opp", "tricode": "CFO"},
+        ]
+        west = [
+            {"teamId": 1610612760, "name": "Oklahoma City Thunder", "tricode": "OKC"}
+        ]
+        pair_wins = {
+            f"{tid}_201": {str(tid): 4, "201": 2},
+            f"{tid}_202": {str(tid): 4, "202": 3},
+            f"{tid}_203": {str(tid): 4, "203": 1},
+        }
+        result = _build_finals_data(east, west, pair_wins, {})
+        assert result["east"]["name"] == "New York Knicks"
+        assert result["west"] is None
+        assert result["games"] == []
+
+    def test_finals_data_skips_incomplete_game(self):
+        from routes.scores import _build_finals_data
+
+        east = [{"teamId": 100, "name": "East Team", "tricode": "EST"}]
+        west = [{"teamId": 200, "name": "West Team", "tricode": "WST"}]
+        pair_wins = {"100_200": {"100": 1, "200": 0}}
+        pair_games = {
+            "100_200": [
+                {
+                    "gameId": "FIN01",
+                    "date": "2026-06-05",
+                    "teams": {100: {"pts": 108, "wl": "W", "matchup": "EST vs. WST"}},
+                }
+            ]
+        }
+        result = _build_finals_data(east, west, pair_wins, pair_games)
+        assert result["games"] == []
+
+    def test_finals_data_empty_when_no_champions(self):
+        from routes.scores import _build_finals_data
+
+        east = [{"teamId": 100, "name": "Team A", "tricode": "TMA"}]
+        west = [{"teamId": 200, "name": "Team B", "tricode": "TMB"}]
+        result = _build_finals_data(east, west, {}, {})
+        assert result["east"] is None
+        assert result["west"] is None
+        assert result["games"] == []
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1070,7 +1164,7 @@ class TestExecutorTimeouts:
         playin_future = MagicMock()
         playin_future.result.side_effect = TimeoutError("playin timed out")
         series_future = MagicMock()
-        series_future.result.return_value = {}
+        series_future.result.return_value = ({}, {})
         with (
             patch("routes.scores.leaguestandings.LeagueStandings", standings_mock),
             patch("routes.scores.executor") as mock_exec,
@@ -1118,7 +1212,17 @@ class TestScoreboardSeries:
         m = MagicMock()
         m.return_value.get_dict.return_value = {
             "resultSets": [
-                {"headers": ["GAME_ID", "TEAM_ID", "WL", "PTS"], "rowSet": rowset}
+                {
+                    "headers": [
+                        "GAME_ID",
+                        "TEAM_ID",
+                        "WL",
+                        "PTS",
+                        "GAME_DATE",
+                        "MATCHUP",
+                    ],
+                    "rowSet": rowset,
+                }
             ]
         }
         return m
@@ -1184,10 +1288,10 @@ class TestScoreboardSeries:
     def test_scoreboard_includes_series(self, client):
         # LeagueGameFinder rows: LAL beats BOS twice -> LAL leads 2-0
         lgf_rows = [
-            ["PG01", TEAM_ID_LAL, "W", 110],
-            ["PG01", TEAM_ID_BOS, "L", 100],
-            ["PG02", TEAM_ID_LAL, "W", 105],
-            ["PG02", TEAM_ID_BOS, "L", 98],
+            ["PG01", TEAM_ID_LAL, "W", 110, "2026-05-20", "LAL vs. BOS"],
+            ["PG01", TEAM_ID_BOS, "L", 100, "2026-05-20", "BOS @ LAL"],
+            ["PG02", TEAM_ID_LAL, "W", 105, "2026-05-22", "LAL vs. BOS"],
+            ["PG02", TEAM_ID_BOS, "L", 98, "2026-05-22", "BOS @ LAL"],
         ]
         with (
             self._patch_sb([make_live_game(gameStatusText="Final")]),
@@ -1209,10 +1313,12 @@ class TestScoreboardSeries:
         """_get_playoff_series_cached returns the cached value on the second call."""
         from routes.scores import _get_playoff_series_cached
 
+        val = ({"k": {"v": 1}}, {"k": [{"gameId": "G1"}]})
         with patch(
-            "routes.scores._fetch_playoff_series_data", return_value={"k": {"v": 1}}
+            "routes.scores._fetch_playoff_series_data",
+            return_value=val,
         ) as fetch_mock:
             first = _get_playoff_series_cached("2025-26")
             second = _get_playoff_series_cached("2025-26")
-        assert first == second == {"k": {"v": 1}}
+        assert first == second == val
         fetch_mock.assert_called_once()

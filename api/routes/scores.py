@@ -182,9 +182,10 @@ async def get_scoreboard(league: str = Query(default="nba")):
             ]
         if league_id == "00":
             try:
-                _attach_series_to_games(
-                    games, _get_playoff_series_cached(get_current_season())
+                series_wins, _ = _get_playoff_series_cached(
+                    get_current_season(),
                 )
+                _attach_series_to_games(games, series_wins)
             except Exception as ex:  # pragma: no cover
                 log_exceptions(ex, "scoreboard_series_attach")
         display_date = sb_date.strftime("%B %d, %Y")
@@ -618,12 +619,14 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
     return result
 
 
-def _get_playoff_series_cached(season: str, league_id: str = "00") -> dict:
+def _get_playoff_series_cached(
+    season: str,
+    league_id: str = "00",
+) -> tuple[dict, dict]:
     """Cached wrapper around _fetch_playoff_series_data.
 
-    Series counts only update when a playoff game ends, so we cache longer
-    than the scoreboard (which refreshes every 30s). Outside the playoffs the
-    fetch returns {} and we cache that to avoid hammering the NBA API.
+    Returns (pair_wins, pair_games). Series counts only update when a playoff
+    game ends, so we cache longer than the scoreboard.
     """
     cache_key = f"playoff_series_{league_id}_{season}"
     cached = cache.get(cache_key)
@@ -659,13 +662,17 @@ def _attach_series_to_games(games: list[dict], series_data: dict) -> None:
         }
 
 
-def _fetch_playoff_series_data(season: str, league_id: str = "00") -> dict:
-    """Return current playoff series win counts keyed by sorted team-ID pair.
+def _fetch_playoff_series_data(
+    season: str,
+    league_id: str = "00",
+) -> tuple[dict, dict]:
+    """Return playoff series win counts and per-game details.
 
-    Uses only LeagueGameFinder (same as play-in). Infers series matchups by
-    grouping team pairs that have played each other in the playoffs.
-    Returns dict mapping "<lower_id>_<higher_id>" → {"<id1>": wins, "<id2>": wins}.
-    Falls back to {} on any error or before playoffs start.
+    Returns (pair_wins, pair_games) where both are keyed by sorted team-ID
+    pair "<lower_id>_<higher_id>".
+    pair_wins: {"<id1>": wins, "<id2>": wins}
+    pair_games: [{"gameId", "date", "teams": {tid: {"pts", "wl", "matchup"}}}]
+    Falls back to ({}, {}) on any error or before playoffs start.
     """
     try:
         data = LeagueGameFinder(
@@ -679,31 +686,154 @@ def _fetch_playoff_series_data(season: str, league_id: str = "00") -> dict:
         gid_idx = headers.index("GAME_ID")
         tid_idx = headers.index("TEAM_ID")
         wl_idx = headers.index("WL")
+        pts_idx = headers.index("PTS")
+        date_idx = headers.index("GAME_DATE")
+        matchup_idx = headers.index("MATCHUP")
 
         game_teams: dict = {}
         for row in data["rowSet"]:
             gid = row[gid_idx]
             game_teams.setdefault(gid, set()).add(row[tid_idx])
 
-        pair_wins: dict = {}
+        game_rows: dict = {}
         for row in data["rowSet"]:
-            if row[wl_idx] != "W":
-                continue
+            gid = row[gid_idx]
+            game_rows.setdefault(gid, []).append(row)
+
+        pair_wins: dict = {}
+        pair_games: dict = {}
+        seen_games: set = set()
+
+        for row in data["rowSet"]:
             gid = row[gid_idx]
             teams = game_teams.get(gid, set())
             if len(teams) != 2:
                 continue
             pair = tuple(sorted(teams))
             key = f"{pair[0]}_{pair[1]}"
-            entry = pair_wins.setdefault(key, {str(pair[0]): 0, str(pair[1]): 0})
-            entry[str(row[tid_idx])] = entry.get(str(row[tid_idx]), 0) + 1
 
-        return pair_wins
+            if row[wl_idx] == "W":
+                entry = pair_wins.setdefault(
+                    key,
+                    {str(pair[0]): 0, str(pair[1]): 0},
+                )
+                entry[str(row[tid_idx])] = entry.get(str(row[tid_idx]), 0) + 1
+
+            if gid not in seen_games:
+                seen_games.add(gid)
+                game_detail: dict = {"gameId": gid, "date": row[date_idx], "teams": {}}
+                for r in game_rows[gid]:
+                    game_detail["teams"][r[tid_idx]] = {
+                        "pts": r[pts_idx],
+                        "wl": r[wl_idx],
+                        "matchup": r[matchup_idx],
+                    }
+                pair_games.setdefault(key, []).append(game_detail)
+
+        for games in pair_games.values():
+            games.sort(key=lambda g: g["date"])
+
+        return pair_wins, pair_games
     except Exception as ex:
         log_exceptions(ex, f"playoff_series_fetch season={season}")
-        return {}
+        return {}, {}
     finally:
         _reset_nba_stats_http_session()
+
+
+def _build_finals_data(
+    east: list,
+    west: list,
+    pair_wins: dict,
+    pair_games: dict,
+) -> dict:
+    """Build Finals section from playoff series data.
+
+    Identifies the cross-conference pair (Finals) or conference champions
+    if the Finals haven't started yet.
+    """
+    east_ids = {t["teamId"] for t in east}
+    west_ids = {t["teamId"] for t in west}
+    teams_by_id = {t["teamId"]: t for t in east + west}
+
+    def _team_summary(team: dict) -> dict:
+        return {
+            "teamId": team["teamId"],
+            "name": team["name"],
+            "tricode": team.get("tricode", ""),
+        }
+
+    def _find_conf_champion(conf_ids: set) -> dict | None:
+        wins_count: dict = {}
+        for key, wins in pair_wins.items():
+            t1, t2 = (int(x) for x in key.split("_"))
+            if t1 not in conf_ids or t2 not in conf_ids:
+                continue
+            for tid in (t1, t2):
+                if wins.get(str(tid), 0) >= 4:
+                    wins_count[tid] = wins_count.get(tid, 0) + 1
+        for tid, count in wins_count.items():
+            if count >= 3:
+                return teams_by_id.get(tid)
+        return None
+
+    finals_key = None
+    for key in pair_wins:
+        t1, t2 = (int(x) for x in key.split("_"))
+        if (t1 in east_ids) != (t2 in east_ids):
+            finals_key = key
+            break
+
+    if finals_key:
+        t1, t2 = (int(x) for x in finals_key.split("_"))
+        east_tid = t1 if t1 in east_ids else t2
+        west_tid = t1 if t1 in west_ids else t2
+        east_team = teams_by_id.get(east_tid)
+        west_team = teams_by_id.get(west_tid)
+        wins = pair_wins[finals_key]
+        games_raw = pair_games.get(finals_key, [])
+        games = []
+        for g in games_raw:
+            gt = g["teams"]
+            tids = list(gt.keys())
+            if len(tids) != 2:
+                continue
+            t_a, t_b = tids
+            mu_a = gt[t_a].get("matchup", "")
+            is_home_a = " vs. " in mu_a
+            home_tid = t_a if is_home_a else t_b
+            away_tid = t_b if is_home_a else t_a
+            home_info = TEAMS.get(home_tid, ("???", "Unknown"))
+            away_info = TEAMS.get(away_tid, ("???", "Unknown"))
+            games.append(
+                {
+                    "gameId": g["gameId"],
+                    "date": g["date"],
+                    "home": {
+                        "tricode": home_info[0],
+                        "score": gt[home_tid]["pts"],
+                    },
+                    "away": {
+                        "tricode": away_info[0],
+                        "score": gt[away_tid]["pts"],
+                    },
+                }
+            )
+        return {
+            "east": _team_summary(east_team) if east_team else None,
+            "west": _team_summary(west_team) if west_team else None,
+            "seriesScore": wins,
+            "games": games,
+        }
+
+    east_champ = _find_conf_champion(east_ids)
+    west_champ = _find_conf_champion(west_ids)
+    return {
+        "east": _team_summary(east_champ) if east_champ else None,
+        "west": _team_summary(west_champ) if west_champ else None,
+        "seriesScore": {},
+        "games": [],
+    }
 
 
 @router.get("/api/playoffs")
@@ -725,8 +855,9 @@ async def get_playoff_picture(league: str = Query(default="nba")):
             )
             for t in all_teams:
                 t["status"] = "in" if 1 <= t["rank"] <= 8 else "out"
-            series_results = _get_playoff_series_cached(
-                get_wnba_current_season(), league_id="10"
+            series_results, _ = _get_playoff_series_cached(
+                get_wnba_current_season(),
+                league_id="10",
             )
             return {"all": all_teams, "seriesResults": series_results}
 
@@ -783,16 +914,26 @@ async def get_playoff_picture(league: str = Query(default="nba")):
             log_exceptions(ex, "playin_data_timeout")
             playin_actual = {"east": {"gameScores": {}}, "west": {"gameScores": {}}}
         try:
-            series_results = series_future.result(timeout=STATS_TIMEOUT)
+            series_results, series_games = series_future.result(
+                timeout=STATS_TIMEOUT,
+            )
         except TimeoutError as ex:
             log_exceptions(ex, "playoff_series_timeout")
-            series_results = {}
+            series_results, series_games = {}, {}
+
+        finals = _build_finals_data(
+            east_sorted,
+            west_sorted,
+            series_results,
+            series_games,
+        )
 
         return {
             "east": east_sorted,
             "west": west_sorted,
             "playinActual": playin_actual,
             "seriesResults": series_results,
+            "finals": finals,
         }
 
     result = await asyncio.to_thread(_sync)

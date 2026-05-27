@@ -979,7 +979,10 @@ function showConference(t) {
       .classList.toggle("active", "east" === t),
     document
       .getElementById("playoffWestBtn")
-      .classList.toggle("active", "west" === t));
+      .classList.toggle("active", "west" === t),
+    document
+      .getElementById("playoffFinalsBtn")
+      .classList.remove("active"));
   const piA =
     "east" === t
       ? (playoffsData.playinActual && playoffsData.playinActual.east) || {}
@@ -991,6 +994,61 @@ function showConference(t) {
     piA,
     playoffsData.seriesResults || {},
   );
+}
+function showFinals() {
+  if (!playoffsData) return;
+  const e = document.getElementById("playoffsContent");
+  e.innerHTML = "";
+  document.getElementById("playoffEastBtn").classList.remove("active");
+  document.getElementById("playoffWestBtn").classList.remove("active");
+  document.getElementById("playoffFinalsBtn").classList.add("active");
+  const f = playoffsData.finals;
+  if (!f || (!f.east && !f.west)) {
+    e.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#127942;</div><div class="empty-state-title">NBA Finals</div><p>Conference Finals still in progress</p></div>';
+    return;
+  }
+  const eastName = f.east ? esc(f.east.name) : "TBD";
+  const westName = f.west ? esc(f.west.name) : "TBD";
+  const eastTri = f.east ? esc(f.east.tricode) : "—";
+  const westTri = f.west ? esc(f.west.tricode) : "—";
+  const eastW = f.east && f.seriesScore ? (f.seriesScore[String(f.east.teamId)] || 0) : 0;
+  const westW = f.west && f.seriesScore ? (f.seriesScore[String(f.west.teamId)] || 0) : 0;
+  const hasGames = f.games && f.games.length > 0;
+  const header = `
+    <div class="card" style="margin-bottom: 20px; max-width: 720px;">
+      <div style="display: flex; justify-content: center; align-items: flex-end; padding: 16px; gap: 16px;">
+        <div style="text-align: center; min-width: 120px;">
+          <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">East</div>
+          <div style="font-size: 1rem; font-weight: 700; margin-top: 2px;">${eastName}</div>
+        </div>
+        <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent); letter-spacing: 2px; align-self: flex-end;">${eastW} - ${westW}</div>
+        <div style="text-align: center; min-width: 120px;">
+          <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">West</div>
+          <div style="font-size: 1rem; font-weight: 700; margin-top: 2px;">${westName}</div>
+        </div>
+      </div>
+    </div>`;
+  if (!hasGames) {
+    e.innerHTML = header + '<div class="empty-state"><p>No games played yet</p></div>';
+    return;
+  }
+  const gameRows = f.games.map((g, i) => {
+    const gid = escAttr(g.gameId);
+    const d = g.date ? new Date(g.date).toLocaleDateString("en-US", {month: "short", day: "numeric"}) : "";
+    const hTri = esc(g.home?.tricode || "—");
+    const aTri = esc(g.away?.tricode || "—");
+    const hScore = g.home?.score ?? "—";
+    const aScore = g.away?.score ?? "—";
+    return `
+      <div class="card" style="margin-bottom: 8px; cursor: pointer;" data-action="toggleGameDetails" data-game-id="${gid}">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;">
+          <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary);">Game ${i + 1}<span style="margin-left: 8px; font-weight: 400; font-size: 0.75rem;">${esc(d)}</span></div>
+          <div style="font-size: 0.9rem; font-weight: 600;">${hTri} <span style="color: var(--accent);">${hScore}</span> - <span style="color: var(--accent);">${aScore}</span> ${aTri}</div>
+        </div>
+        <div class="game-details" id="details-${gid}" style="display: none;"></div>
+      </div>`;
+  }).join("");
+  e.innerHTML = header + gameRows;
 }
 function drawBracket(t, e, s, piActual, seriesResults, opts) {
   const a = 220,
@@ -1098,6 +1156,7 @@ function drawBracket(t, e, s, piActual, seriesResults, opts) {
     _findWinner(_r1Winners[2], _r1Winners[3], _semiSr[1]),
   ];
   const _cfSr = _getSeries(_semiWinners[0], _semiWinners[1]);
+  const _cfWinner = _findWinner(_semiWinners[0], _semiWinners[1], _cfSr);
   function _recStr(sr, team) {
     if (!sr || !team || !sr[team.teamId]) return "";
     const e = sr[team.teamId];
@@ -1249,7 +1308,8 @@ function drawBracket(t, e, s, piActual, seriesResults, opts) {
     S.forEach((t, e) => {
       const _cfTeam = _semiWinners[e];
       if (_cfTeam) {
-        $(A, t, _cfTeam, true, _recStr(_cfSr, _cfTeam));
+        const _cfHighlight = _cfWinner && _cfTeam === _cfWinner;
+        $(A, t, _cfTeam, _cfHighlight, _recStr(_cfSr, _cfTeam));
       } else {
         ((v.fillStyle = h),
           x(v, A, t, a, n, 5),
@@ -2431,6 +2491,7 @@ const _ACTIONS = {
   loadSeasonHighs: () => loadSeasonHighs(true),
   setInjuriesView: (t) => setInjuriesView(t.dataset.view),
   showConference: (t) => showConference(t.dataset.conference),
+  showFinals: () => showFinals(),
   removeTracked: (t) => removeTrackedPlayer(parseInt(t.dataset.playerId, 10)),
   toggleTdGames: (t) => toggleTdGames(parseInt(t.dataset.playerId, 10), t),
   toggleGameDetails: (t) => toggleGameDetails(t.dataset.gameId, t),
