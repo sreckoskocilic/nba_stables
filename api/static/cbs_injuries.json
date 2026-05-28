@@ -255,7 +255,7 @@
       "players": [
         {
           "name": "Charles Bediako",
-          "updated": "Wed, May 27",
+          "updated": "Thu, May 28",
           "injury": "Not Injury Related",
           "status": "—"
         }
@@ -627,15 +627,15 @@
       "team": "Oklahoma City",
       "players": [
         {
+          "name": "Ajay Mitchell",
+          "updated": "Wed, May 27",
+          "injury": "Calf",
+          "status": "Expected to be out until at least May 30"
+        },
+        {
           "name": "Jalen Williams",
           "updated": "Tue, May 26",
           "injury": "Hamstring",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Ajay Mitchell",
-          "updated": "Tue, May 26",
-          "injury": "Calf",
           "status": "Game Time Decision"
         },
         {
@@ -898,5 +898,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "May 27, 2026 12:48 UTC"
+  "lastUpdated": "May 28, 2026 13:42 UTC"
 }
