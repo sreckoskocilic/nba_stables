@@ -255,7 +255,7 @@
       "players": [
         {
           "name": "Charles Bediako",
-          "updated": "Sat, May 30",
+          "updated": "Sun, May 31",
           "injury": "Not Injury Related",
           "status": "—"
         }
@@ -578,7 +578,7 @@
           "name": "Donte DiVincenzo",
           "updated": "Sun, Apr 26",
           "injury": "Achilles",
-          "status": "Expected to be out until at least Apr 1"
+          "status": "Out for the season"
         }
       ]
     },
@@ -630,7 +630,7 @@
           "name": "Mitchell Robinson",
           "updated": "Fri, May 29",
           "injury": "Finger",
-          "status": "Expected to be out until at least Jun 3"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -639,15 +639,15 @@
       "players": [
         {
           "name": "Ajay Mitchell",
-          "updated": "Fri, May 29",
+          "updated": "Sat, May 30",
           "injury": "Calf",
-          "status": "Expected to be out until at least Jun 3"
+          "status": "Expected to be out until at least Oct 1"
         },
         {
           "name": "Jalen Williams",
-          "updated": "Fri, May 29",
+          "updated": "Sat, May 30",
           "injury": "Hamstring",
-          "status": "Expected to be out until at least Jun 3"
+          "status": "Expected to be out until at least Oct 1"
         },
         {
           "name": "Thomas Sorber",
@@ -768,7 +768,7 @@
           "name": "David Jones",
           "updated": "Wed, Feb 4",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Jul 2"
+          "status": "Out for the season"
         }
       ]
     },
@@ -909,5 +909,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "May 30, 2026 11:15 UTC"
+  "lastUpdated": "May 31, 2026 11:39 UTC"
 }
