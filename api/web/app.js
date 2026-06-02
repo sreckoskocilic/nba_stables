@@ -485,7 +485,7 @@ function _fmtPct(v) {
 }
 
 async function toggleGameDetails(t, e) {
-  const s = document.getElementById(`details-${t}`);
+  const s = (e && e.querySelector(".game-details")) || document.getElementById(`details-${t}`);
   if ("block" !== s.style.display) {
     ((s.innerHTML =
       '<div class="loading" style="padding: 20px;"><div class="spinner"></div> Loading player stats...</div>'),
@@ -1021,7 +1021,7 @@ function showFinals() {
           <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">East</div>
           <div style="font-size: 1rem; font-weight: 700; margin-top: 2px;">${eastName}</div>
         </div>
-        <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent); letter-spacing: 2px; align-self: flex-end;">${eastW} - ${westW}</div>
+        <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent); letter-spacing: 2px; align-self: flex-end; position: relative; top: 4px;">${eastW} - ${westW}</div>
         <div style="text-align: center; min-width: 120px;">
           <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">West</div>
           <div style="font-size: 1rem; font-weight: 700; margin-top: 2px;">${westName}</div>
@@ -1040,7 +1040,7 @@ function showFinals() {
     const hScore = g.home?.score ?? "—";
     const aScore = g.away?.score ?? "—";
     return `
-      <div class="card" style="margin-bottom: 8px; cursor: pointer;" data-action="toggleGameDetails" data-game-id="${gid}">
+      <div class="card" style="margin-bottom: 8px; max-width: 720px; cursor: pointer;" data-action="toggleGameDetails" data-game-id="${gid}">
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;">
           <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary);">Game ${i + 1}<span style="margin-left: 8px; font-weight: 400; font-size: 0.75rem;">${esc(d)}</span></div>
           <div style="font-size: 0.9rem; font-weight: 600;">${hTri} <span style="color: var(--accent);">${hScore}</span> - <span style="color: var(--accent);">${aScore}</span> ${aTri}</div>
