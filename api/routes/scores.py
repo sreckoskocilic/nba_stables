@@ -702,33 +702,37 @@ def _fetch_playoff_series_data(
 
         pair_wins: dict = {}
         pair_games: dict = {}
-        seen_games: set = set()
 
-        for row in data["rowSet"]:
-            gid = row[gid_idx]
+        for gid, rows in game_rows.items():
             teams = game_teams.get(gid, set())
             if len(teams) != 2:
                 continue
             pair = tuple(sorted(teams))
             key = f"{pair[0]}_{pair[1]}"
+            entry = pair_wins.setdefault(
+                key,
+                {str(pair[0]): 0, str(pair[1]): 0},
+            )
 
-            if row[wl_idx] == "W":
-                entry = pair_wins.setdefault(
-                    key,
-                    {str(pair[0]): 0, str(pair[1]): 0},
-                )
-                entry[str(row[tid_idx])] = entry.get(str(row[tid_idx]), 0) + 1
+            # Prefer WL, fall back to higher PTS. LeagueGameFinder lags on
+            # setting WL for a just-finished game while scores are already in.
+            winner_tid = next((r[tid_idx] for r in rows if r[wl_idx] == "W"), None)
+            if winner_tid is None and len(rows) == 2:
+                a, b = rows
+                pa, pb = a[pts_idx], b[pts_idx]
+                if isinstance(pa, (int, float)) and isinstance(pb, (int, float)) and pa != pb:
+                    winner_tid = a[tid_idx] if pa > pb else b[tid_idx]
+            if winner_tid is not None:
+                entry[str(winner_tid)] = entry.get(str(winner_tid), 0) + 1
 
-            if gid not in seen_games:
-                seen_games.add(gid)
-                game_detail: dict = {"gameId": gid, "date": row[date_idx], "teams": {}}
-                for r in game_rows[gid]:
-                    game_detail["teams"][r[tid_idx]] = {
-                        "pts": r[pts_idx],
-                        "wl": r[wl_idx],
-                        "matchup": r[matchup_idx],
-                    }
-                pair_games.setdefault(key, []).append(game_detail)
+            game_detail: dict = {"gameId": gid, "date": rows[0][date_idx], "teams": {}}
+            for r in rows:
+                game_detail["teams"][r[tid_idx]] = {
+                    "pts": r[pts_idx],
+                    "wl": r[wl_idx],
+                    "matchup": r[matchup_idx],
+                }
+            pair_games.setdefault(key, []).append(game_detail)
 
         for games in pair_games.values():
             games.sort(key=lambda g: g["date"])

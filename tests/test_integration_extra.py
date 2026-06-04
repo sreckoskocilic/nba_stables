@@ -1322,3 +1322,35 @@ class TestScoreboardSeries:
             second = _get_playoff_series_cached("2025-26")
         assert first == second == val
         fetch_mock.assert_called_once()
+
+    def test_series_infers_winner_from_pts_when_wl_missing(self):
+        """WL=None on a just-finished game -> winner inferred from higher PTS.
+
+        LeagueGameFinder lags on setting WL while scores are already in;
+        the series count must still update so the game shows in Finals.
+        """
+        from routes.scores import _fetch_playoff_series_data
+
+        lgf_rows = [
+            ["PG01", TEAM_ID_LAL, None, 90, "2026-06-03", "LAL vs. BOS"],
+            ["PG01", TEAM_ID_BOS, None, 94, "2026-06-03", "BOS @ LAL"],
+        ]
+        with patch("routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)):
+            pair_wins, pair_games = _fetch_playoff_series_data("2025-26")
+        lo, hi = sorted((TEAM_ID_LAL, TEAM_ID_BOS))
+        key = f"{lo}_{hi}"
+        assert pair_wins[key] == {str(TEAM_ID_BOS): 1, str(TEAM_ID_LAL): 0}
+        assert len(pair_games[key]) == 1
+
+    def test_series_no_win_when_pts_tied_and_wl_missing(self):
+        """WL=None and equal PTS -> no winner inferred (entry stays 0-0)."""
+        from routes.scores import _fetch_playoff_series_data
+
+        lgf_rows = [
+            ["PG01", TEAM_ID_LAL, None, 90, "2026-06-03", "LAL vs. BOS"],
+            ["PG01", TEAM_ID_BOS, None, 90, "2026-06-03", "BOS @ LAL"],
+        ]
+        with patch("routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)):
+            pair_wins, _ = _fetch_playoff_series_data("2025-26")
+        lo, hi = sorted((TEAM_ID_LAL, TEAM_ID_BOS))
+        assert pair_wins[f"{lo}_{hi}"] == {str(lo): 0, str(hi): 0}
