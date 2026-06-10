@@ -2,12 +2,11 @@ import asyncio
 import heapq
 
 from fastapi import APIRouter, HTTPException, Path, Query
-from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache
+from helpers.common import CACHE_TTL, cache
 from helpers.decorators import route_error_handler
 from helpers.stats import (
-    _reset_nba_stats_http_session,
-    with_retry,
     count_double_digits,
+    fetch_regular_and_playoffs,
     find_category_leaders,
     fix_encoding,
     get_current_season,
@@ -53,29 +52,12 @@ async def get_season_highs(
         return cached
 
     def _sync():
-        try:
-            log_regular = with_retry(
-                lambda: leaguegamelog.LeagueGameLog(
-                    season=resolved_season,
-                    season_type_all_star="Regular Season",
-                    player_or_team_abbreviation="P",
-                    league_id=league_id,
-                    proxy=STATS_PROXY,
-                    timeout=STATS_TIMEOUT,
-                )
-            )
-            log_playoffs = with_retry(
-                lambda: leaguegamelog.LeagueGameLog(
-                    season=resolved_season,
-                    season_type_all_star="Playoffs",
-                    player_or_team_abbreviation="P",
-                    league_id=league_id,
-                    proxy=STATS_PROXY,
-                    timeout=STATS_TIMEOUT,
-                )
-            )
-        finally:
-            _reset_nba_stats_http_session()
+        log_regular, log_playoffs = fetch_regular_and_playoffs(
+            leaguegamelog.LeagueGameLog,
+            season=resolved_season,
+            player_or_team_abbreviation="P",
+            league_id=league_id,
+        )
         data_regular = log_regular.get_dict()
         data_playoffs = log_playoffs.get_dict()
         headers = data_regular["resultSets"][0]["headers"]
@@ -142,29 +124,12 @@ async def get_season_doubles(
         return cached
 
     def _sync():
-        try:
-            stats_regular = with_retry(
-                lambda: leaguedashplayerstats.LeagueDashPlayerStats(
-                    per_mode_detailed="Totals",
-                    season=resolved_season,
-                    season_type_all_star="Regular Season",
-                    league_id_nullable=league_id,
-                    proxy=STATS_PROXY,
-                    timeout=STATS_TIMEOUT,
-                )
-            )
-            stats_playoffs = with_retry(
-                lambda: leaguedashplayerstats.LeagueDashPlayerStats(
-                    per_mode_detailed="Totals",
-                    season=resolved_season,
-                    season_type_all_star="Playoffs",
-                    league_id_nullable=league_id,
-                    proxy=STATS_PROXY,
-                    timeout=STATS_TIMEOUT,
-                )
-            )
-        finally:
-            _reset_nba_stats_http_session()
+        stats_regular, stats_playoffs = fetch_regular_and_playoffs(
+            leaguedashplayerstats.LeagueDashPlayerStats,
+            per_mode_detailed="Totals",
+            season=resolved_season,
+            league_id_nullable=league_id,
+        )
         data_regular = stats_regular.get_dict()
         data_playoffs = stats_playoffs.get_dict()
         headers = data_regular["resultSets"][0]["headers"]
@@ -276,29 +241,12 @@ async def get_triple_double_games(
             return _not_found
         player_name = fix_encoding(player_row[1])
 
-        try:
-            log_regular = with_retry(
-                lambda: playergamelog.PlayerGameLog(
-                    player_id=player_id,
-                    season=resolved_season,
-                    season_type_all_star="Regular Season",
-                    league_id_nullable=league_id,
-                    proxy=STATS_PROXY,
-                    timeout=STATS_TIMEOUT,
-                )
-            )
-            log_playoffs = with_retry(
-                lambda: playergamelog.PlayerGameLog(
-                    player_id=player_id,
-                    season=resolved_season,
-                    season_type_all_star="Playoffs",
-                    league_id_nullable=league_id,
-                    proxy=STATS_PROXY,
-                    timeout=STATS_TIMEOUT,
-                )
-            )
-        finally:
-            _reset_nba_stats_http_session()
+        log_regular, log_playoffs = fetch_regular_and_playoffs(
+            playergamelog.PlayerGameLog,
+            player_id=player_id,
+            season=resolved_season,
+            league_id_nullable=league_id,
+        )
         data_regular = log_regular.get_dict()
         data_playoffs = log_playoffs.get_dict()
         headers = data_regular["resultSets"][0]["headers"]

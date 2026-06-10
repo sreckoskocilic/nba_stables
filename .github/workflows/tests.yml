@@ -39,8 +39,11 @@ jobs:
           python -m venv .venv
           .venv/bin/pip install -r requirements-dev.txt
 
+      - name: Lint
+        run: .venv/bin/ruff check api/ tests/
+
       - name: Run tests with coverage
-        run: .venv/bin/pytest tests/ --cov=api --cov-report=xml -n auto --dist=loadfile
+        run: .venv/bin/pytest tests/ --cov=api --cov-report=xml --cov-fail-under=100 -n auto --dist=loadfile
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6

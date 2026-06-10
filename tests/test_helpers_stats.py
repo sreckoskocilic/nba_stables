@@ -5,8 +5,6 @@ from datetime import datetime as real_datetime
 from zoneinfo import ZoneInfo
 from unittest.mock import MagicMock, patch
 
-import pytest
-from helpers.common import cache
 from helpers.stats import (
     convert_et_to_cet,
     fetch_single_boxscore,
@@ -17,13 +15,6 @@ from helpers.stats import (
     get_games_list,
     reformat_player_minutes,
 )
-
-
-@pytest.fixture(autouse=True)
-def clear_cache():
-    cache.clear()
-    yield
-    cache.clear()
 
 
 # ---------------------------------------------------------------------------

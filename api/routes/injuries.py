@@ -21,19 +21,21 @@ async def get_injuries():
     if cached is not None:
         return cached
 
-    if not os.path.exists(CBS_INJURIES_FILE):
-        raise HTTPException(status_code=503, detail="CBS injuries data not available")
-
+    _missing = object()
     _corrupt = object()
 
     def _sync():
-        with open(CBS_INJURIES_FILE, "r", encoding="utf-8") as f:
-            try:
+        try:
+            with open(CBS_INJURIES_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
-            except json.JSONDecodeError:
-                return _corrupt
+        except FileNotFoundError:
+            return _missing
+        except json.JSONDecodeError:
+            return _corrupt
 
     result = await asyncio.to_thread(_sync)
+    if result is _missing:
+        raise HTTPException(status_code=503, detail="CBS injuries data not available")
     if result is _corrupt:
         raise HTTPException(status_code=503, detail="CBS injuries data is corrupt")
     cache.set("injuries", result, CACHE_TTL["injuries"])

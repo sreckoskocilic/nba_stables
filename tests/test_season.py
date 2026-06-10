@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from conftest import PLAYER_ID
 from fastapi.testclient import TestClient
-from helpers.common import cache
 from main import app
 
 
@@ -14,13 +13,6 @@ from main import app
 def client():
     with TestClient(app) as c:
         yield c
-
-
-@pytest.fixture(autouse=True)
-def clear_cache():
-    cache.clear()
-    yield
-    cache.clear()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

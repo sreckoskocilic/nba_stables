@@ -51,8 +51,8 @@ from helpers.logger import log_exceptions
 from helpers.stats import (
     _reset_nba_stats_http_session,
     _today_et,
+    call_stats,
     convert_et_to_cet,
-    with_retry,
     fetch_single_boxscore,
     find_category_leaders,
     fix_encoding,
@@ -196,6 +196,16 @@ async def get_scoreboard(league: str = Query(default="nba")):
     return result
 
 
+def _live_leader(ld: dict) -> dict:
+    """Build a scoreboard leader dict from a live-API leaders entry."""
+    return {
+        "name": fix_encoding(ld["name"]) if ld["name"] else "",
+        "points": ld["points"],
+        "rebounds": ld["rebounds"],
+        "assists": ld["assists"],
+    }
+
+
 def _scoreboard_from_live(raw_games) -> list[dict]:
     """Build scoreboard game list from the live API (in-progress / finished games)."""
     games = []
@@ -218,27 +228,13 @@ def _scoreboard_from_live(raw_games) -> list[dict]:
                     "name": f"{home_team['teamCity']} {home_team['teamName']}",
                     "tricode": home_team["teamTricode"],
                     "score": home_team["score"],
-                    "leader": {
-                        "name": fix_encoding(home_leaders["name"])
-                        if home_leaders["name"]
-                        else "",
-                        "points": home_leaders["points"],
-                        "rebounds": home_leaders["rebounds"],
-                        "assists": home_leaders["assists"],
-                    },
+                    "leader": _live_leader(home_leaders),
                 },
                 "awayTeam": {
                     "name": f"{away_team['teamCity']} {away_team['teamName']}",
                     "tricode": away_team["teamTricode"],
                     "score": away_team["score"],
-                    "leader": {
-                        "name": fix_encoding(away_leaders["name"])
-                        if away_leaders["name"]
-                        else "",
-                        "points": away_leaders["points"],
-                        "rebounds": away_leaders["rebounds"],
-                        "assists": away_leaders["assists"],
-                    },
+                    "leader": _live_leader(away_leaders),
                 },
             }
         )
@@ -401,14 +397,7 @@ def _fetch_standings_teams() -> list:
     cached = cache.get("raw_standings")
     if cached is not None:  # pragma: no cover
         return cached
-    try:
-        standings = with_retry(
-            lambda: leaguestandings.LeagueStandings(
-                proxy=STATS_PROXY, timeout=STATS_TIMEOUT
-            ).get_dict()
-        )
-    finally:
-        _reset_nba_stats_http_session()
+    standings = call_stats(leaguestandings.LeagueStandings).get_dict()
     teams = standings["resultSets"][0]["rowSet"]
     cache.set("raw_standings", teams, CACHE_TTL["standings"])
     return teams
@@ -487,6 +476,15 @@ def _parse_wnba_team_row(team) -> dict:
     }
 
 
+def _wnba_sorted_teams() -> list:
+    """Return WNBA standings rows parsed and sorted by rank, then winPct, wins."""
+    teams = _fetch_wnba_standings_teams()
+    return sorted(
+        [_parse_wnba_team_row(t) for t in teams],
+        key=lambda t: (t["rank"], -t["winPct"], -t["wins"]),
+    )
+
+
 @router.get("/api/standings")
 @route_error_handler("Failed to fetch standings")
 async def get_standings(league: str = Query(default="nba")):
@@ -499,11 +497,7 @@ async def get_standings(league: str = Query(default="nba")):
 
     def _sync():
         if league_id == "10":
-            teams = _fetch_wnba_standings_teams()
-            all_teams = sorted(
-                [_parse_wnba_team_row(t) for t in teams],
-                key=lambda t: (t["rank"], -t["winPct"], -t["wins"]),
-            )
+            all_teams = _wnba_sorted_teams()
             if all_teams:
                 top = all_teams[0]
                 for t in all_teams:
@@ -720,7 +714,11 @@ def _fetch_playoff_series_data(
             if winner_tid is None and len(rows) == 2:
                 a, b = rows
                 pa, pb = a[pts_idx], b[pts_idx]
-                if isinstance(pa, (int, float)) and isinstance(pb, (int, float)) and pa != pb:
+                if (
+                    isinstance(pa, (int, float))
+                    and isinstance(pb, (int, float))
+                    and pa != pb
+                ):
                     winner_tid = a[tid_idx] if pa > pb else b[tid_idx]
             if winner_tid is not None:
                 entry[str(winner_tid)] = entry.get(str(winner_tid), 0) + 1
@@ -852,11 +850,7 @@ async def get_playoff_picture(league: str = Query(default="nba")):
 
     def _sync():
         if league_id == "10":
-            teams = _fetch_wnba_standings_teams()
-            all_teams = sorted(
-                [_parse_wnba_team_row(t) for t in teams],
-                key=lambda t: (t["rank"], -t["winPct"], -t["wins"]),
-            )
+            all_teams = _wnba_sorted_teams()
             for t in all_teams:
                 t["status"] = "in" if 1 <= t["rank"] <= 8 else "out"
             series_results, _ = _get_playoff_series_cached(

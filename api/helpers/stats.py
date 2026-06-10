@@ -207,6 +207,32 @@ def with_retry(fn, attempts: int = 3, delay: float = 0.2):
         raise last_err
 
 
+def call_stats(endpoint_cls, **params):
+    """Construct an nba_api endpoint with shared proxy/timeout, retried, and
+    reset the cached HTTP session afterward. Returns the endpoint object.
+
+    Collapses the repeated `with_retry(lambda: Endpoint(..., proxy, timeout))`
+    + `finally: _reset_nba_stats_http_session()` envelope used across routes.
+    """
+    try:
+        return with_retry(
+            lambda: endpoint_cls(proxy=STATS_PROXY, timeout=STATS_TIMEOUT, **params)
+        )
+    finally:
+        _reset_nba_stats_http_session()
+
+
+def fetch_regular_and_playoffs(endpoint_cls, **params):
+    """Fetch the same stats endpoint for Regular Season and Playoffs.
+
+    Returns (regular_endpoint, playoffs_endpoint). Each call injects
+    proxy/timeout, retries, and resets the session via call_stats().
+    """
+    regular = call_stats(endpoint_cls, season_type_all_star="Regular Season", **params)
+    playoffs = call_stats(endpoint_cls, season_type_all_star="Playoffs", **params)
+    return regular, playoffs
+
+
 _players_cache: dict[str, list] = {}
 _players_dict_cache: dict[str, dict] = {}
 _players_cache_lower: dict[str, list] = {}
@@ -218,13 +244,10 @@ def _fetch_players(league_id: str = "00") -> list:
     """Fetch active players with their current team IDs from the NBA stats API."""
     try:
         is_current = 0 if league_id == "10" else 1
-        cap = with_retry(
-            lambda: commonallplayers.CommonAllPlayers(
-                is_only_current_season=is_current,
-                league_id=league_id,
-                proxy=STATS_PROXY,
-                timeout=STATS_TIMEOUT,
-            )
+        cap = call_stats(
+            commonallplayers.CommonAllPlayers,
+            is_only_current_season=is_current,
+            league_id=league_id,
         )
         data = cap.common_all_players.get_dict()
         players = []
@@ -403,20 +426,10 @@ def get_scoreboard_v3_by_date(
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
-    try:
-        sb = with_retry(
-            lambda: scoreboardv3.ScoreboardV3(
-                game_date=date_str,
-                league_id=league_id,
-                proxy=STATS_PROXY,
-                timeout=STATS_TIMEOUT,
-            ),
-        )
-        ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["scoreboard"]
-        cache.set(cache_key, sb, ttl)
-        return sb
-    finally:
-        _reset_nba_stats_http_session()
+    sb = call_stats(scoreboardv3.ScoreboardV3, game_date=date_str, league_id=league_id)
+    ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["scoreboard"]
+    cache.set(cache_key, sb, ttl)
+    return sb
 
 
 # Compact leaders list indices (from get_games_leaders_list: [name, pts, reb, ast, team_id])
@@ -502,19 +515,10 @@ def get_cached_boxscore_v3(game_id: str, historical: bool = True) -> Any:
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
-    try:
-        bs_stats = with_retry(
-            lambda: boxscoretraditionalv3.BoxScoreTraditionalV3(
-                game_id=game_id,
-                proxy=STATS_PROXY,
-                timeout=STATS_TIMEOUT,
-            ),
-        )
-        ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["boxscores"]
-        cache.set(cache_key, bs_stats, ttl)
-        return bs_stats
-    finally:
-        _reset_nba_stats_http_session()
+    bs_stats = call_stats(boxscoretraditionalv3.BoxScoreTraditionalV3, game_id=game_id)
+    ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["boxscores"]
+    cache.set(cache_key, bs_stats, ttl)
+    return bs_stats
 
 
 def fetch_single_boxscore(

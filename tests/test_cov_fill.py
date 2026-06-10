@@ -211,7 +211,7 @@ def _make_stats_row(pid):
 
 
 def test_last_n_games_game_summary_date_path(monkeypatch, client):
-    """Cover lines 32, 332-343: row has no date, game_summary provides it."""
+    """Game date falls back to game_summary when the gamelog row has none."""
     fake_pid = 9991
     cache._cache.pop(f"last_n_games_00_{fake_pid}_1", None)
     cache._cache.pop(f"player_games_raw_00_{fake_pid}", None)
@@ -242,7 +242,7 @@ def test_last_n_games_game_summary_date_path(monkeypatch, client):
 
 
 def test_last_n_games_matchup_date_prefix_path(monkeypatch, client):
-    """Cover lines 354-355: no date from row or summary, matchup has YYYY-MM-DD prefix."""
+    """Game date is parsed from the matchup YYYY-MM-DD prefix when row and summary lack it."""
     fake_pid = 9992
     cache._cache.pop(f"last_n_games_00_{fake_pid}_1", None)
     cache._cache.pop(f"player_games_raw_00_{fake_pid}", None)
@@ -272,7 +272,7 @@ def test_last_n_games_matchup_date_prefix_path(monkeypatch, client):
 
 
 def test_get_cached_boxscore_v3_cache_miss(monkeypatch):
-    """Cover stats.py 331-346: get_cached_boxscore_v3 body on cache miss."""
+    """get_cached_boxscore_v3 fetches and returns the boxscore on a cache miss."""
     from helpers.stats import get_cached_boxscore_v3
 
     fake_game_id = "TESTGAME001"
@@ -288,7 +288,7 @@ def test_get_cached_boxscore_v3_cache_miss(monkeypatch):
 
 
 def test_lifespan_warns_invalid_workers(monkeypatch, caplog):
-    """Cover main.py 56: warning when EXECUTOR_WORKERS is out of range."""
+    """Lifespan warns when EXECUTOR_WORKERS is out of range."""
     import logging
 
     import helpers.common as _common
@@ -302,7 +302,7 @@ def test_lifespan_warns_invalid_workers(monkeypatch, caplog):
 
 
 def test_lifespan_warns_invalid_timeout(monkeypatch, caplog):
-    """Cover main.py 59: warning when STATS_TIMEOUT is less than 1."""
+    """Lifespan warns when STATS_TIMEOUT is less than 1."""
     import logging
 
     import helpers.common as _common
@@ -316,7 +316,7 @@ def test_lifespan_warns_invalid_timeout(monkeypatch, caplog):
 
 
 def test_lifespan_warns_missing_injuries_file(monkeypatch, caplog):
-    """Cover main.py 62: warning when CBS injuries file is absent at startup."""
+    """Lifespan warns when the CBS injuries file is absent at startup."""
     import logging
 
     monkeypatch.setattr("main.os.path.exists", lambda _: False)
@@ -351,7 +351,6 @@ def test_player_profile_cached_branch(client):
     cache.set(cache_key, payload, 60)
     r = client.get(f"/api/players/{PLAYER_ID}/profile")
     assert r.json() == payload
-    cache.clear()
 
 
 def test_player_profile_404_when_bio_and_career_both_fail(client, monkeypatch):
@@ -360,10 +359,8 @@ def test_player_profile_404_when_bio_and_career_both_fail(client, monkeypatch):
     pcs_fail = MagicMock(side_effect=ValueError("boom career"))
     monkeypatch.setattr("routes.players.commonplayerinfo.CommonPlayerInfo", cpi_fail)
     monkeypatch.setattr("routes.players.playercareerstats.PlayerCareerStats", pcs_fail)
-    cache.clear()
     r = client.get(f"/api/players/{PLAYER_ID}/profile")
     assert r.status_code == 404
-    cache.clear()
 
 
 def test_scoreboard_skips_phantom_scheduled_games(client, monkeypatch):
@@ -383,10 +380,8 @@ def test_scoreboard_skips_phantom_scheduled_games(client, monkeypatch):
         patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7)),
         patch("routes.scores.get_cached_scoreboard", return_value=[]),
     ):
-        cache.clear()
         r = client.get("/api/scoreboard")
     assert r.status_code == 200
     games = r.json()["games"]
     assert len(games) == 1
     assert games[0]["gameId"] == real_game["gameId"]
-    cache.clear()

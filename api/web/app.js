@@ -11,7 +11,14 @@ let trackedPlayerIds = [],
   currentBoxscoreOffset = 0,
   currentLeadersOffset = 0,
   currentLeague = localStorage.getItem("league") || "nba";
-const _pinnedStats = JSON.parse(localStorage.getItem("pinnedStats") || "{}");
+function safeParse(raw, fallback) {
+  try {
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+const _pinnedStats = safeParse(localStorage.getItem("pinnedStats"), {});
 function _isPinned(pid, stat) {
   return !!_pinnedStats[pid + "_" + stat];
 }

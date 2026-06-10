@@ -26,7 +26,6 @@ from conftest import (
     make_wnba_standings_row,
 )
 from fastapi.testclient import TestClient
-from helpers.common import cache
 from main import app
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -38,13 +37,6 @@ from main import app
 def client():
     with TestClient(app) as c:
         yield c
-
-
-@pytest.fixture(autouse=True)
-def clear_cache():
-    cache.clear()
-    yield
-    cache.clear()
 
 
 def make_boxscore_team_row(team_id, city, name, score=100):
@@ -188,7 +180,9 @@ INJURY_PAYLOAD = {
 
 class TestInjuries:
     def test_503_when_file_missing(self, client):
-        with patch("routes.injuries.os.path.exists", return_value=False):
+        with patch(
+            "routes.injuries.CBS_INJURIES_FILE", "/nonexistent/cbs_injuries.json"
+        ):
             r = client.get("/api/injuries")
         assert r.status_code == 503
 

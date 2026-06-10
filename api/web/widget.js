@@ -1,22 +1,22 @@
 const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 const TIERS = { points:[30,20,15], rebounds:[15,10,7], assists:[15,10,7], steals:[4,3,2], blocks:[4,3,2] };
 function sc(t,v) { const s=TIERS[t]; return !s||v<=0?"":v>=s[0]?"stat-elite":v>=s[1]?"stat-great":v>=s[2]?"stat-good":""; }
+function safeParse(raw, fallback) { try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
 
 let _league = localStorage.getItem("widget_league") || "nba";
 if (localStorage.getItem("widget_tracked") && !localStorage.getItem("widget_tracked_nba")) {
     localStorage.setItem("widget_tracked_nba", localStorage.getItem("widget_tracked"));
     localStorage.removeItem("widget_tracked");
 }
-let tracked = JSON.parse(localStorage.getItem("widget_tracked_" + _league) || "[]");
+let tracked = safeParse(localStorage.getItem("widget_tracked_" + _league), []);
 let refreshTimer = null;
-const _pins = JSON.parse(localStorage.getItem("pinnedStats") || "{}");
+const _pins = safeParse(localStorage.getItem("pinnedStats"), {});
 function _pinCls(pid, stat) { return _pins[pid + "_" + stat] ? " stat-pinned" : ""; }
 function _togglePin(pid, stat) {
     const k = pid + "_" + stat;
     if (_pins[k]) delete _pins[k]; else _pins[k] = 1;
     localStorage.setItem("pinnedStats", JSON.stringify(_pins));
 }
-function _leagueQ() { return _league === "wnba" ? "?league=wnba" : ""; }
 function _leagueP() { return _league === "wnba" ? "&league=wnba" : ""; }
 
 const $search = document.getElementById("search");
@@ -159,7 +159,7 @@ document.getElementById("leagueToggle").addEventListener("click", e => {
     localStorage.setItem("widget_league", _league);
     document.querySelectorAll(".league-btn").forEach(b => b.classList.toggle("active", b === btn));
     stopRefresh();
-    tracked = JSON.parse(localStorage.getItem("widget_tracked_" + _league) || "[]");
+    tracked = safeParse(localStorage.getItem("widget_tracked_" + _league), []);
     $search.value = "";
     $results.classList.remove("open");
     renderChips();

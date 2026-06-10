@@ -29,6 +29,21 @@ def _patch_lgf_playoffs():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    """Guarantee cache isolation between tests.
+
+    `helpers.common.cache` is a process-global SimpleCache singleton; without a
+    reset, state leaks across tests and creates order-dependent failures. Clear
+    before and after each test. Does not touch the stats.py players cache.
+    """
+    from helpers.common import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared test constants
 # ─────────────────────────────────────────────────────────────────────────────

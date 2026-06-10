@@ -26,13 +26,6 @@ def client():
         yield c
 
 
-@pytest.fixture(autouse=True)
-def clear_cache():
-    cache.clear()
-    yield
-    cache.clear()
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Cache-hit branches
 # ─────────────────────────────────────────────────────────────────────────────

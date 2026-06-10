@@ -23,13 +23,14 @@ from constants import (
     PGL_MATCHUP,
 )
 from fastapi import APIRouter, HTTPException, Path, Query
-from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, cache, executor
+from helpers.common import CACHE_TTL, STATS_TIMEOUT, cache, executor
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
-    _reset_nba_stats_http_session,
     _today_et,
+    call_stats,
     count_double_digits,
+    fetch_regular_and_playoffs,
     find_category_leaders,
     fix_encoding,
     get_cached_boxscore_v3,
@@ -41,7 +42,6 @@ from helpers.stats import (
     load_players_with_lower,
     parse_iso_minutes,
     parse_minutes,
-    with_retry,
 )
 from nba_api.stats.endpoints import (
     commonplayerinfo,
@@ -59,6 +59,55 @@ def _normalize_game_date(date_str: str | None) -> str | None:
         return date.fromisoformat(str(date_str)[:10]).isoformat()
     except ValueError:  # pragma: no cover
         return date_str
+
+
+def _avg_pct(row, h, gp):
+    """Return (avg, pct) closures for per-game averages and percentage columns
+    over a stats `row` indexed by header map `h`."""
+
+    def avg(key):
+        return round((row[h[key]] or 0) / gp, 1)
+
+    def pct(key):
+        val = row[h[key]]
+        return round(val * 100, 1) if val else 0.0
+
+    return avg, pct
+
+
+def _derive_matchup_display(gg, csp):
+    """Build the display matchup string with a resolved game date.
+
+    Date preference: gamelog row date → boxscore game_summary → a YYYY-MM-DD
+    prefix embedded in the matchup string. Returns "YYYY-MM-DD — MATCHUP" when a
+    date is found, else the raw matchup. `gg` is [matchup, game_id, date?].
+    """
+    game_date = _normalize_game_date(gg[2] if len(gg) > 2 else None)
+    if not game_date:
+        try:
+            summary = csp.game_summary.get_dict()
+            hdrs = summary.get("headers", [])
+            data = summary.get("data", [[]])
+            if data and hdrs:
+                summary_map = dict(zip(hdrs, data[0]))
+                game_date = summary_map.get("GAME_DATE_EST") or summary_map.get(
+                    "GAME_DATE"
+                )
+                game_date = _normalize_game_date(game_date)
+        except Exception as ex:  # pragma: no cover
+            log_exceptions(ex)
+
+    matchup_raw = gg[0]
+    matchup_parts = matchup_raw.split(" ", 1)
+    if not game_date and len(matchup_parts) == 2 and len(matchup_parts[0]) == 10:
+        game_date = matchup_parts[0]
+        matchup_display = matchup_parts[1]
+    else:
+        matchup_display = matchup_raw
+
+    if game_date:
+        matchup_display = f"{game_date} — {matchup_display}"
+    return matchup_display
 
 
 @router.get("/api/players/search")
@@ -400,25 +449,11 @@ async def get_last_n_games_stats(
         cached = cache.get(raw_cache_key)
         if cached is None:
             try:
-                pgl_regular = with_retry(
-                    lambda: playergamelog.PlayerGameLog(
-                        player_id=player_id,
-                        season=season,
-                        season_type_all_star="Regular Season",
-                        league_id_nullable=league_id,
-                        proxy=STATS_PROXY,
-                        timeout=STATS_TIMEOUT,
-                    )
-                )
-                pgl_playoffs = with_retry(
-                    lambda: playergamelog.PlayerGameLog(
-                        player_id=player_id,
-                        season=season,
-                        season_type_all_star="Playoffs",
-                        league_id_nullable=league_id,
-                        proxy=STATS_PROXY,
-                        timeout=STATS_TIMEOUT,
-                    )
+                pgl_regular, pgl_playoffs = fetch_regular_and_playoffs(
+                    playergamelog.PlayerGameLog,
+                    player_id=player_id,
+                    season=season,
+                    league_id_nullable=league_id,
                 )
                 data_regular = pgl_regular.player_game_log.get_dict()["data"]
                 data_playoffs = pgl_playoffs.player_game_log.get_dict()["data"]
@@ -427,8 +462,6 @@ async def get_last_n_games_stats(
             except Exception as e:
                 log_exceptions(e)
                 return _unavailable
-            finally:
-                _reset_nba_stats_http_session()
             game_rows_all = [
                 [row[PGL_MATCHUP], row[PGL_GAME_ID], row[PGL_GAME_DATE]] for row in data
             ]
@@ -449,37 +482,7 @@ async def get_last_n_games_stats(
                     x[BS_PLAYER_ID]: x for x in csp.player_stats.get_dict()["data"]
                 }
                 ss = player_stats_dict.get(player_id)
-
-                # Derive game date for display (prefer data from inputs, then boxscore)
-                game_date = _normalize_game_date(gg[2] if len(gg) > 2 else None)
-                if not game_date:
-                    try:
-                        summary = csp.game_summary.get_dict()
-                        hdrs = summary.get("headers", [])
-                        data = summary.get("data", [[]])
-                        if data and hdrs:
-                            summary_map = dict(zip(hdrs, data[0]))
-                            game_date = summary_map.get(
-                                "GAME_DATE_EST"
-                            ) or summary_map.get("GAME_DATE")
-                            game_date = _normalize_game_date(game_date)
-                    except Exception as ex:  # pragma: no cover
-                        log_exceptions(ex)
-
-                matchup_raw = gg[0]
-                matchup_parts = matchup_raw.split(" ", 1)
-                if (
-                    not game_date
-                    and len(matchup_parts) == 2
-                    and len(matchup_parts[0]) == 10
-                ):
-                    game_date = matchup_parts[0]
-                    matchup_display = matchup_parts[1]
-                else:
-                    matchup_display = matchup_raw
-
-                if game_date:
-                    matchup_display = f"{game_date} — {matchup_display}"
+                matchup_display = _derive_matchup_display(gg, csp)
 
                 if ss is not None and ss[BS_MINUTES] != "":
                     return {
@@ -550,17 +553,11 @@ async def get_player_season_avg(
     _no_data = object()
 
     def _sync():
-        try:
-            career = with_retry(
-                lambda: playercareerstats.PlayerCareerStats(
-                    player_id=player_id,
-                    league_id_nullable=league_id,
-                    proxy=STATS_PROXY,
-                    timeout=STATS_TIMEOUT,
-                )
-            )
-        finally:
-            _reset_nba_stats_http_session()
+        career = call_stats(
+            playercareerstats.PlayerCareerStats,
+            player_id=player_id,
+            league_id_nullable=league_id,
+        )
         season_data = career.season_totals_regular_season.get_dict()
         headers = season_data["headers"]
         rows = season_data["data"]
@@ -574,13 +571,7 @@ async def get_player_season_avg(
         tot = [r for r in season_rows if r[h["TEAM_ABBREVIATION"]] == "TOT"]
         row = tot[0] if tot else season_rows[-1]
         gp = row[h["GP"]] or 1
-
-        def avg(key):
-            return round((row[h[key]] or 0) / gp, 1)
-
-        def pct(key):
-            val = row[h[key]]
-            return round(val * 100, 1) if val else 0.0
+        avg, pct = _avg_pct(row, h, gp)
 
         return {
             "season": row[h["SEASON_ID"]],
@@ -593,14 +584,14 @@ async def get_player_season_avg(
             "blocks": avg("BLK"),
             "turnovers": avg("TOV"),
             "fouls": avg("PF"),
-            "fgm": round((row[h["FGM"]] or 0) / gp, 1),
-            "fga": round((row[h["FGA"]] or 0) / gp, 1),
+            "fgm": avg("FGM"),
+            "fga": avg("FGA"),
             "fgPct": pct("FG_PCT"),
-            "fg3m": round((row[h["FG3M"]] or 0) / gp, 1),
-            "fg3a": round((row[h["FG3A"]] or 0) / gp, 1),
+            "fg3m": avg("FG3M"),
+            "fg3a": avg("FG3A"),
             "fg3Pct": pct("FG3_PCT"),
-            "ftm": round((row[h["FTM"]] or 0) / gp, 1),
-            "fta": round((row[h["FTA"]] or 0) / gp, 1),
+            "ftm": avg("FTM"),
+            "fta": avg("FTA"),
             "ftPct": pct("FT_PCT"),
         }
 
@@ -638,17 +629,11 @@ async def get_player_profile(
     _not_found = object()
 
     def _fetch_bio():
-        try:
-            info = with_retry(
-                lambda: commonplayerinfo.CommonPlayerInfo(
-                    player_id=player_id,
-                    league_id_nullable=league_id,
-                    proxy=STATS_PROXY,
-                    timeout=STATS_TIMEOUT,
-                )
-            )
-        finally:
-            _reset_nba_stats_http_session()
+        info = call_stats(
+            commonplayerinfo.CommonPlayerInfo,
+            player_id=player_id,
+            league_id_nullable=league_id,
+        )
         data = info.common_player_info.get_dict()
         if not data["data"]:
             return None
@@ -675,29 +660,17 @@ async def get_player_profile(
         }
 
     def _fetch_career():
-        try:
-            career = with_retry(
-                lambda: playercareerstats.PlayerCareerStats(
-                    player_id=player_id,
-                    league_id_nullable=league_id,
-                    proxy=STATS_PROXY,
-                    timeout=STATS_TIMEOUT,
-                )
-            )
-        finally:
-            _reset_nba_stats_http_session()
+        career = call_stats(
+            playercareerstats.PlayerCareerStats,
+            player_id=player_id,
+            league_id_nullable=league_id,
+        )
         season_dict = career.season_totals_regular_season.get_dict()
         sh = {k: i for i, k in enumerate(season_dict["headers"])}
         career_rows = []
         for row in season_dict["data"]:
             gp = row[sh["GP"]] or 1
-
-            def avg(key):
-                return round((row[sh[key]] or 0) / gp, 1)
-
-            def pct(key):
-                v = row[sh[key]]
-                return round(v * 100, 1) if v else 0.0
+            avg, pct = _avg_pct(row, sh, gp)
 
             career_rows.append(
                 {

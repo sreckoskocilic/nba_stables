@@ -118,7 +118,8 @@ class TestSimpleCache:
         assert self.cache.get("k2") is None
 
     def test_clear_on_empty_cache_is_safe(self):
-        self.cache.clear()  # should not raise
+        self.cache.clear()
+        assert self.cache.get("anything") is None
 
     def test_clear_then_set(self):
         self.cache.set("k", "old", ttl_seconds=60)
@@ -264,9 +265,10 @@ class TestLogExceptions:
     def test_accepts_any_exception_type(self):
         from helpers.logger import log_exceptions
 
-        with patch("helpers.logger.logger"):
+        with patch("helpers.logger.logger") as mock_log:
             log_exceptions(RuntimeError("runtime"))
             log_exceptions(KeyError("key"))
+        assert mock_log.exception.call_count == 2
 
 
 class TestSafeIntEnv:
