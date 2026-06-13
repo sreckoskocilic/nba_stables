@@ -16,7 +16,7 @@
       "players": [
         {
           "name": "RJ Luis Jr.",
-          "updated": "Fri, Jun 12",
+          "updated": "Sat, Jun 13",
           "injury": "Not Injury Related",
           "status": "—"
         },
@@ -261,7 +261,7 @@
       "players": [
         {
           "name": "Charles Bediako",
-          "updated": "Fri, Jun 12",
+          "updated": "Sat, Jun 13",
           "injury": "Not Injury Related",
           "status": "—"
         }
@@ -760,6 +760,12 @@
       "team": "San Antonio",
       "players": [
         {
+          "name": "Luke Kornet",
+          "updated": "Fri, Jun 12",
+          "injury": "Illness",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "David Jones",
           "updated": "Wed, Feb 4",
           "injury": "Ankle",
@@ -904,5 +910,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "June 12, 2026 12:50 UTC"
+  "lastUpdated": "June 13, 2026 11:50 UTC"
 }
