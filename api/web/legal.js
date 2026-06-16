@@ -76,6 +76,15 @@
     showBanner();
   };
 
+  // Delegated handler — inline onclick is blocked by the page CSP (script-src 'self').
+  document.addEventListener("click", function (event) {
+    const trigger = event.target.closest('[data-action="openCookieSettings"]');
+    if (trigger) {
+      event.preventDefault();
+      window.openCookieSettings();
+    }
+  });
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initBanner);
   } else {

@@ -1,6 +1,7 @@
 // Service Worker for NBA Stables PWA
 const CACHE_NAME = 'nba-stables-v1';
 const SHELL_ASSETS = [
+  '/',
   '/web/index.html',
   '/web/app.js',
   '/web/module-header.js',
@@ -44,6 +45,14 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        // Offline navigation to a non-cached URL falls back to the app shell.
+        if (event.request.mode === 'navigate') {
+          return (await caches.match('/')) || caches.match('/web/index.html');
+        }
+        return cached;
+      })
   );
 });
