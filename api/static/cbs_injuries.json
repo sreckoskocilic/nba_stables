@@ -16,7 +16,7 @@
       "players": [
         {
           "name": "RJ Luis Jr.",
-          "updated": "Mon, Jun 15",
+          "updated": "Tue, Jun 16",
           "injury": "Not Injury Related",
           "status": "—"
         },
@@ -208,15 +208,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "PJ Washington",
-          "updated": "Sun, Apr 12",
-          "injury": "Elbow",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Brandon Williams",
           "updated": "Sun, Apr 12",
           "injury": "Illness",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "PJ Washington",
+          "updated": "Sun, Apr 12",
+          "injury": "Elbow",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -261,7 +261,7 @@
       "players": [
         {
           "name": "Charles Bediako",
-          "updated": "Mon, Jun 15",
+          "updated": "Tue, Jun 16",
           "injury": "Not Injury Related",
           "status": "—"
         }
@@ -505,15 +505,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Dru Smith",
-          "updated": "Tue, Apr 14",
-          "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Nikola Jovic",
           "updated": "Tue, Apr 14",
           "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Dru Smith",
+          "updated": "Tue, Apr 14",
+          "injury": "Foot",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -522,15 +522,15 @@
       "team": "Milwaukee",
       "players": [
         {
-          "name": "Gary Harris",
-          "updated": "Mon, Apr 13",
-          "injury": "Groin",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Pete Nance",
           "updated": "Mon, Apr 13",
           "injury": "Knee",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Gary Harris",
+          "updated": "Mon, Apr 13",
+          "injury": "Groin",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -853,9 +853,15 @@
       "team": "Washington",
       "players": [
         {
-          "name": "Tristan Vukcevic",
+          "name": "Alex Sarr",
+          "updated": "Mon, Jun 15",
+          "injury": "Foot",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Bilal Coulibaly",
           "updated": "Sat, Apr 11",
-          "injury": "Knee",
+          "injury": "Heel",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -865,15 +871,9 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Alex Sarr",
+          "name": "Tristan Vukcevic",
           "updated": "Sat, Apr 11",
-          "injury": "Toe",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Bilal Coulibaly",
-          "updated": "Sat, Apr 11",
-          "injury": "Heel",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -910,5 +910,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "June 15, 2026 15:39 UTC"
+  "lastUpdated": "June 16, 2026 14:55 UTC"
 }
