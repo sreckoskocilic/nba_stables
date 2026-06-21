@@ -15,6 +15,12 @@
       "team": "Boston",
       "players": [
         {
+          "name": "RJ Luis Jr.",
+          "updated": "Sun, Jun 21",
+          "injury": "Not Injury Related",
+          "status": "—"
+        },
+        {
           "name": "Jayson Tatum",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
@@ -74,15 +80,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Michael Porter Jr.",
-          "updated": "Tue, Jun 16",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Nicolas Claxton",
           "updated": "Tue, Jun 16",
           "injury": "Finger",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Michael Porter Jr.",
+          "updated": "Tue, Jun 16",
+          "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -156,15 +162,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Nick Richards",
-          "updated": "Tue, Jun 16",
-          "injury": "Elbow",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Noa Essengue",
           "updated": "Tue, Jun 16",
           "injury": "Shoulder",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Nick Richards",
+          "updated": "Tue, Jun 16",
+          "injury": "Elbow",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -184,12 +190,6 @@
       "team": "Dallas",
       "players": [
         {
-          "name": "Brandon Williams",
-          "updated": "Tue, Jun 16",
-          "injury": "Illness",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Cooper Flagg",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
@@ -199,6 +199,12 @@
           "name": "Dereck Lively II",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Brandon Williams",
+          "updated": "Tue, Jun 16",
+          "injury": "Illness",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -247,6 +253,17 @@
           "updated": "Tue, Jun 16",
           "injury": "Calf",
           "status": "Expected to be out until at least Oct 1"
+        }
+      ]
+    },
+    {
+      "team": "Detroit",
+      "players": [
+        {
+          "name": "Charles Bediako",
+          "updated": "Sun, Jun 21",
+          "injury": "Not Injury Related",
+          "status": "—"
         }
       ]
     },
@@ -459,15 +476,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Ja Morant",
-          "updated": "Tue, Jun 16",
-          "injury": "Elbow",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Ty Jerome",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Ja Morant",
+          "updated": "Tue, Jun 16",
+          "injury": "Elbow",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -807,15 +824,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "EJ Harkless",
-          "updated": "Tue, Jun 16",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Jusuf Nurkic",
           "updated": "Tue, Jun 16",
           "injury": "Nose",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "EJ Harkless",
+          "updated": "Tue, Jun 16",
+          "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -887,5 +904,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "June 20, 2026 11:52 UTC"
+  "lastUpdated": "June 21, 2026 12:07 UTC"
 }
