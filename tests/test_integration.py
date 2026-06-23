@@ -21,6 +21,7 @@ from conftest import (
     make_live_boxscore,
     make_live_game,
     make_scoreboard_v3,
+    make_v3_boxscore,
     make_standings_row,
     make_wnba_live_boxscore,
     make_wnba_standings_row,
@@ -837,6 +838,63 @@ class TestGamePlayers:
         assert tp["points"]["value"] == 32
         assert tp["points"]["players"][0]["name"] == "Jayson Tatum"
         assert tp["points"]["players"][0]["team"] == "BOS"
+
+    def test_v3_fallback_when_live_unavailable(self, client):
+        gid = "0042500405"
+        with (
+            patch(
+                "routes.players.get_cached_live_boxscore",
+                side_effect=requests.RequestException("404"),
+            ),
+            patch(
+                "routes.players.get_cached_boxscore_v3",
+                return_value=make_v3_boxscore(gid),
+            ),
+        ):
+            r = client.get(f"/api/games/{gid}/players")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["status"] == "Final"
+        assert len(body["teams"]) == 2
+        nyl = next(t for t in body["teams"] if t["tricode"] == "NYL")
+        assert nyl["score"] == 85
+        assert nyl["periods"] == []
+        assert nyl["players"][0]["name"] == "Sabrina Ionescu"
+        assert body["topPerformers"]["points"]["value"] == 30
+
+    def test_v3_fallback_skips_dnp_players(self, client):
+        gid = "0042500404"
+        box = make_v3_boxscore(gid)
+        data = box.get_dict.return_value["boxScoreTraditional"]
+        data["homeTeam"]["players"].extend(
+            [
+                {
+                    "personId": 999,
+                    "firstName": "Did",
+                    "familyName": "NotPlay",
+                    "statistics": {"minutes": ""},
+                },
+                {
+                    "personId": 998,
+                    "firstName": "Zero",
+                    "familyName": "Minutes",
+                    "statistics": {"minutes": "0:00"},
+                },
+            ]
+        )
+        with (
+            patch(
+                "routes.players.get_cached_live_boxscore",
+                side_effect=requests.RequestException("404"),
+            ),
+            patch("routes.players.get_cached_boxscore_v3", return_value=box),
+        ):
+            r = client.get(f"/api/games/{gid}/players")
+        assert r.status_code == 200
+        nyl = next(t for t in r.json()["teams"] if t["tricode"] == "NYL")
+        names = [p["name"] for p in nyl["players"]]
+        assert "Did NotPlay" not in names
+        assert "Zero Minutes" not in names
 
 
 # ─────────────────────────────────────────────────────────────────────────────
