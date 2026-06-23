@@ -4,6 +4,12 @@
       "team": "Atlanta",
       "players": [
         {
+          "name": "Keshon Gilbert",
+          "updated": "Tue, Jun 16",
+          "injury": "Abdomen",
+          "status": "Expected to be out until at least Jul 2"
+        },
+        {
           "name": "Jock Landale",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
@@ -16,7 +22,7 @@
       "players": [
         {
           "name": "RJ Luis Jr.",
-          "updated": "Mon, Jun 22",
+          "updated": "Tue, Jun 23",
           "injury": "Not Injury Related",
           "status": "—"
         },
@@ -80,15 +86,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Nicolas Claxton",
-          "updated": "Tue, Jun 16",
-          "injury": "Finger",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Michael Porter Jr.",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Nicolas Claxton",
+          "updated": "Tue, Jun 16",
+          "injury": "Finger",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -261,7 +267,7 @@
       "players": [
         {
           "name": "Charles Bediako",
-          "updated": "Mon, Jun 22",
+          "updated": "Tue, Jun 23",
           "injury": "Not Injury Related",
           "status": "—"
         }
@@ -499,13 +505,13 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Tyler Herro",
+          "name": "Dru Smith",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Dru Smith",
+          "name": "Tyler Herro",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
           "status": "Expected to be out until at least Oct 1"
@@ -543,12 +549,6 @@
           "name": "Gary Harris",
           "updated": "Tue, Jun 16",
           "injury": "Groin",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Bobby Portis",
-          "updated": "Tue, Jun 16",
-          "injury": "Wrist",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -731,6 +731,12 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
+          "name": "De'Andre Hunter",
+          "updated": "Tue, Jun 16",
+          "injury": "Eye",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Zach LaVine",
           "updated": "Tue, Jun 16",
           "injury": "Finger",
@@ -743,21 +749,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "De'Andre Hunter",
+          "name": "Malik Monk",
           "updated": "Tue, Jun 16",
-          "injury": "Eye",
+          "injury": "Personal",
           "status": "Expected to be out until at least Oct 1"
         },
         {
           "name": "Drew Eubanks",
           "updated": "Tue, Jun 16",
           "injury": "Thumb",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Malik Monk",
-          "updated": "Tue, Jun 16",
-          "injury": "Personal",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -904,5 +904,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "June 22, 2026 15:15 UTC"
+  "lastUpdated": "June 23, 2026 12:28 UTC"
 }
