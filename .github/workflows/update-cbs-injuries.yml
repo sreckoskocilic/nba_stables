@@ -2,7 +2,6 @@ name: Update CBS Injuries
 
 permissions:
   contents: write
-  pull-requests: write
 
 on:
   schedule:
@@ -28,28 +27,17 @@ jobs:
       - name: Scrape CBS injuries
         run: python api/static/update_injuries.py
 
-      - name: Open auto-merging PR
-        env:
-          GH_TOKEN: ${{ secrets.BOT_PAT }}
+      - name: Commit and push to main
         run: |
           set -euo pipefail
 
           if git diff --quiet api/static/cbs_injuries.json; then
-            echo "No changes — skipping PR."
+            echo "No changes — skipping commit."
             exit 0
           fi
 
-          branch="cbs-injuries-$(date -u +%Y-%m-%d-%H%M%S)"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$branch"
           git add api/static/cbs_injuries.json
           git commit -m "update CBS injuries data"
-          git push origin "$branch"
-
-          pr_url=$(gh pr create \
-            --base main \
-            --head "$branch" \
-            --title "update CBS injuries data" \
-            --body "Automated daily CBS injuries scrape.")
-          gh pr merge "$pr_url" --auto --squash --delete-branch
+          git push origin main
