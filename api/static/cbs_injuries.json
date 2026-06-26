@@ -22,7 +22,7 @@
       "players": [
         {
           "name": "RJ Luis Jr.",
-          "updated": "Thu, Jun 25",
+          "updated": "Fri, Jun 26",
           "injury": "Not Injury Related",
           "status": "—"
         },
@@ -86,15 +86,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Michael Porter Jr.",
-          "updated": "Tue, Jun 16",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Nicolas Claxton",
           "updated": "Tue, Jun 16",
           "injury": "Finger",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Michael Porter Jr.",
+          "updated": "Tue, Jun 16",
+          "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -168,15 +168,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Noa Essengue",
-          "updated": "Tue, Jun 16",
-          "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Nick Richards",
           "updated": "Tue, Jun 16",
           "injury": "Elbow",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Noa Essengue",
+          "updated": "Tue, Jun 16",
+          "injury": "Shoulder",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -196,15 +196,15 @@
       "team": "Dallas",
       "players": [
         {
-          "name": "Cooper Flagg",
-          "updated": "Tue, Jun 16",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Dereck Lively II",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Cooper Flagg",
+          "updated": "Tue, Jun 16",
+          "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -267,7 +267,7 @@
       "players": [
         {
           "name": "Charles Bediako",
-          "updated": "Thu, Jun 25",
+          "updated": "Fri, Jun 26",
           "injury": "Not Injury Related",
           "status": "—"
         }
@@ -417,9 +417,15 @@
       "players": [
         {
           "name": "Adama-Alpha Bal",
-          "updated": "Tue, Jun 16",
+          "updated": "Thu, Jun 25",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Expected to be out until at least Jul 2"
+        },
+        {
+          "name": "Richie Saunders",
+          "updated": "Thu, Jun 25",
+          "injury": "Knee",
+          "status": "Expected to be out until at least Dec 1"
         },
         {
           "name": "Walter Clayton Jr.",
@@ -610,15 +616,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Zion Williamson",
-          "updated": "Tue, Jun 16",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Dejounte Murray",
           "updated": "Tue, Jun 16",
           "injury": "Hand",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Zion Williamson",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -639,12 +645,6 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Jalen Williams",
-          "updated": "Tue, Jun 16",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Thomas Sorber",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
@@ -654,6 +654,12 @@
           "name": "Nikola Topic",
           "updated": "Tue, Jun 16",
           "injury": "Back",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Jalen Williams",
+          "updated": "Tue, Jun 16",
+          "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -731,12 +737,6 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "De'Andre Hunter",
-          "updated": "Tue, Jun 16",
-          "injury": "Eye",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Zach LaVine",
           "updated": "Tue, Jun 16",
           "injury": "Finger",
@@ -749,9 +749,9 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Malik Monk",
+          "name": "De'Andre Hunter",
           "updated": "Tue, Jun 16",
-          "injury": "Personal",
+          "injury": "Eye",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -759,12 +759,24 @@
           "updated": "Tue, Jun 16",
           "injury": "Thumb",
           "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Malik Monk",
+          "updated": "Tue, Jun 16",
+          "injury": "Personal",
+          "status": "Expected to be out until at least Oct 1"
         }
       ]
     },
     {
       "team": "San Antonio",
       "players": [
+        {
+          "name": "Jayden Quaintance",
+          "updated": "Thu, Jun 25",
+          "injury": "Knee",
+          "status": "Expected to be out until at least Jul 2"
+        },
         {
           "name": "David Jones",
           "updated": "Tue, Jun 16",
@@ -904,5 +916,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "June 25, 2026 12:12 UTC"
+  "lastUpdated": "June 26, 2026 12:06 UTC"
 }
