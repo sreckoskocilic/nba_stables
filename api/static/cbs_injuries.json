@@ -22,7 +22,7 @@
       "players": [
         {
           "name": "RJ Luis Jr.",
-          "updated": "Fri, Jun 26",
+          "updated": "Sat, Jun 27",
           "injury": "Not Injury Related",
           "status": "—"
         },
@@ -132,6 +132,12 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
+          "name": "Noa Essengue",
+          "updated": "Tue, Jun 16",
+          "injury": "Shoulder",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Matas Buzelis",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
@@ -172,12 +178,6 @@
           "updated": "Tue, Jun 16",
           "injury": "Elbow",
           "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Noa Essengue",
-          "updated": "Tue, Jun 16",
-          "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
         }
       ]
     },
@@ -196,15 +196,15 @@
       "team": "Dallas",
       "players": [
         {
-          "name": "Dereck Lively II",
-          "updated": "Tue, Jun 16",
-          "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Cooper Flagg",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Dereck Lively II",
+          "updated": "Tue, Jun 16",
+          "injury": "Foot",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -259,17 +259,6 @@
           "updated": "Tue, Jun 16",
           "injury": "Calf",
           "status": "Expected to be out until at least Oct 1"
-        }
-      ]
-    },
-    {
-      "team": "Detroit",
-      "players": [
-        {
-          "name": "Charles Bediako",
-          "updated": "Fri, Jun 26",
-          "injury": "Not Injury Related",
-          "status": "—"
         }
       ]
     },
@@ -387,6 +376,12 @@
     {
       "team": "L.A. Clippers",
       "players": [
+        {
+          "name": "Narcisse Ngoy",
+          "updated": "Fri, Jun 26",
+          "injury": "Not Injury Related",
+          "status": "Expected to be out until at least Oct 1, 2027"
+        },
         {
           "name": "Yanic Konan Niederhauser",
           "updated": "Tue, Jun 16",
@@ -540,12 +535,6 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Kevin Porter",
-          "updated": "Tue, Jun 16",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Myles Turner",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
@@ -580,6 +569,12 @@
           "updated": "Tue, Jun 16",
           "injury": "Oblique",
           "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Kevin Porter",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
+          "status": "Expected to be out until at least Oct 1"
         }
       ]
     },
@@ -604,15 +599,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Yves Missi",
-          "updated": "Tue, Jun 16",
-          "injury": "Hand",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Karlo Matkovic",
           "updated": "Tue, Jun 16",
           "injury": "Back",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Yves Missi",
+          "updated": "Tue, Jun 16",
+          "injury": "Hand",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -818,6 +813,12 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
+          "name": "Keyonte George",
+          "updated": "Tue, Jun 16",
+          "injury": "Hamstring",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Isaiah Collier",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
@@ -827,12 +828,6 @@
           "name": "Kyle Filipowski",
           "updated": "Tue, Jun 16",
           "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Keyonte George",
-          "updated": "Tue, Jun 16",
-          "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -916,5 +911,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "June 26, 2026 12:06 UTC"
+  "lastUpdated": "June 27, 2026 11:23 UTC"
 }
