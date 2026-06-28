@@ -22,7 +22,7 @@
       "players": [
         {
           "name": "RJ Luis Jr.",
-          "updated": "Sat, Jun 27",
+          "updated": "Sun, Jun 28",
           "injury": "Not Injury Related",
           "status": "—"
         },
@@ -208,15 +208,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Brandon Williams",
-          "updated": "Tue, Jun 16",
-          "injury": "Illness",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Caleb Martin",
           "updated": "Tue, Jun 16",
           "injury": "Heel",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Brandon Williams",
+          "updated": "Tue, Jun 16",
+          "injury": "Illness",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -259,6 +259,17 @@
           "updated": "Tue, Jun 16",
           "injury": "Calf",
           "status": "Expected to be out until at least Oct 1"
+        }
+      ]
+    },
+    {
+      "team": "Detroit",
+      "players": [
+        {
+          "name": "Charles Bediako",
+          "updated": "Sun, Jun 28",
+          "injury": "Not Injury Related",
+          "status": "—"
         }
       ]
     },
@@ -318,15 +329,15 @@
       "team": "Indiana",
       "players": [
         {
-          "name": "Ben Sheppard",
-          "updated": "Tue, Jun 16",
-          "injury": "Hip",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Jarace Walker",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Ben Sheppard",
+          "updated": "Tue, Jun 16",
+          "injury": "Hip",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -423,6 +434,12 @@
           "status": "Expected to be out until at least Dec 1"
         },
         {
+          "name": "Santi Aldama",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Walter Clayton Jr.",
           "updated": "Tue, Jun 16",
           "injury": "Hip",
@@ -435,21 +452,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Cam Spencer",
-          "updated": "Tue, Jun 16",
-          "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Scotty Pippen Jr.",
           "updated": "Tue, Jun 16",
           "injury": "Toe",
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Santi Aldama",
+          "name": "Cam Spencer",
           "updated": "Tue, Jun 16",
-          "injury": "Knee",
+          "injury": "Back",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -535,6 +546,12 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
+          "name": "Kevin Porter",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Myles Turner",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
@@ -568,12 +585,6 @@
           "name": "Gary Trent Jr.",
           "updated": "Tue, Jun 16",
           "injury": "Oblique",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Kevin Porter",
-          "updated": "Tue, Jun 16",
-          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -666,12 +677,6 @@
           "name": "Franz Wagner",
           "updated": "Tue, Jun 16",
           "injury": "Calf",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Jonathan Isaac",
-          "updated": "Tue, Jun 16",
-          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -911,5 +916,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "June 27, 2026 11:23 UTC"
+  "lastUpdated": "June 28, 2026 11:43 UTC"
 }
