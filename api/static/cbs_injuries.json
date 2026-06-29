@@ -21,12 +21,6 @@
       "team": "Boston",
       "players": [
         {
-          "name": "RJ Luis Jr.",
-          "updated": "Sun, Jun 28",
-          "injury": "Not Injury Related",
-          "status": "—"
-        },
-        {
           "name": "Jayson Tatum",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
@@ -150,15 +144,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Guerschon Yabusele",
-          "updated": "Tue, Jun 16",
-          "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Zach Collins",
           "updated": "Tue, Jun 16",
           "injury": "Toe",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Guerschon Yabusele",
+          "updated": "Tue, Jun 16",
+          "injury": "Shoulder",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -196,15 +190,15 @@
       "team": "Dallas",
       "players": [
         {
-          "name": "Cooper Flagg",
-          "updated": "Tue, Jun 16",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Dereck Lively II",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Cooper Flagg",
+          "updated": "Tue, Jun 16",
+          "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -214,15 +208,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Brandon Williams",
-          "updated": "Tue, Jun 16",
-          "injury": "Illness",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Kyrie Irving",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Brandon Williams",
+          "updated": "Tue, Jun 16",
+          "injury": "Illness",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -232,15 +226,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Naji Marshall",
-          "updated": "Tue, Jun 16",
-          "injury": "Hip",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "PJ Washington",
           "updated": "Tue, Jun 16",
           "injury": "Elbow",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Naji Marshall",
+          "updated": "Tue, Jun 16",
+          "injury": "Hip",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -259,17 +253,6 @@
           "updated": "Tue, Jun 16",
           "injury": "Calf",
           "status": "Expected to be out until at least Oct 1"
-        }
-      ]
-    },
-    {
-      "team": "Detroit",
-      "players": [
-        {
-          "name": "Charles Bediako",
-          "updated": "Sun, Jun 28",
-          "injury": "Not Injury Related",
-          "status": "—"
         }
       ]
     },
@@ -434,9 +417,9 @@
           "status": "Expected to be out until at least Dec 1"
         },
         {
-          "name": "Santi Aldama",
+          "name": "Zach Edey",
           "updated": "Tue, Jun 16",
-          "injury": "Knee",
+          "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -446,9 +429,9 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Zach Edey",
+          "name": "Cam Spencer",
           "updated": "Tue, Jun 16",
-          "injury": "Ankle",
+          "injury": "Back",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -458,9 +441,9 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Cam Spencer",
+          "name": "Santi Aldama",
           "updated": "Tue, Jun 16",
-          "injury": "Back",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -488,15 +471,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Kentavious Caldwell-Pope",
-          "updated": "Tue, Jun 16",
-          "injury": "Finger",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Ty Jerome",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Kentavious Caldwell-Pope",
+          "updated": "Tue, Jun 16",
+          "injury": "Finger",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -546,12 +529,6 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Kevin Porter",
-          "updated": "Tue, Jun 16",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Myles Turner",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
@@ -561,6 +538,12 @@
           "name": "Gary Harris",
           "updated": "Tue, Jun 16",
           "injury": "Groin",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Kyle Kuzma",
+          "updated": "Tue, Jun 16",
+          "injury": "Achilles",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -576,15 +559,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Kyle Kuzma",
-          "updated": "Tue, Jun 16",
-          "injury": "Achilles",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Gary Trent Jr.",
           "updated": "Tue, Jun 16",
           "injury": "Oblique",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Kevin Porter",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -713,6 +696,12 @@
       "team": "Sacramento",
       "players": [
         {
+          "name": "Zach LaVine",
+          "updated": "Sun, Jun 28",
+          "injury": "Hand",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Keegan Murray",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
@@ -737,12 +726,6 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Zach LaVine",
-          "updated": "Tue, Jun 16",
-          "injury": "Finger",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "DeMar DeRozan",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
@@ -755,15 +738,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Drew Eubanks",
-          "updated": "Tue, Jun 16",
-          "injury": "Thumb",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Malik Monk",
           "updated": "Tue, Jun 16",
           "injury": "Personal",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Drew Eubanks",
+          "updated": "Tue, Jun 16",
+          "injury": "Thumb",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -916,5 +899,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "June 28, 2026 11:43 UTC"
+  "lastUpdated": "June 29, 2026 13:59 UTC"
 }
