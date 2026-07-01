@@ -22,7 +22,7 @@
       "players": [
         {
           "name": "RJ Luis Jr.",
-          "updated": "Tue, Jun 30",
+          "updated": "Wed, Jul 1",
           "injury": "Not Injury Related",
           "status": "—"
         },
@@ -39,7 +39,7 @@
       "players": [
         {
           "name": "Nolan Traore",
-          "updated": "Mon, Jun 29",
+          "updated": "Tue, Jun 30",
           "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
@@ -196,15 +196,15 @@
       "team": "Dallas",
       "players": [
         {
-          "name": "Cooper Flagg",
-          "updated": "Tue, Jun 16",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Dereck Lively II",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Cooper Flagg",
+          "updated": "Tue, Jun 16",
+          "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -259,17 +259,6 @@
           "updated": "Tue, Jun 16",
           "injury": "Calf",
           "status": "Expected to be out until at least Oct 1"
-        }
-      ]
-    },
-    {
-      "team": "Detroit",
-      "players": [
-        {
-          "name": "Charles Bediako",
-          "updated": "Tue, Jun 30",
-          "injury": "Not Injury Related",
-          "status": "—"
         }
       ]
     },
@@ -440,15 +429,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Cam Spencer",
-          "updated": "Tue, Jun 16",
-          "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Zach Edey",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Cam Spencer",
+          "updated": "Tue, Jun 16",
+          "injury": "Back",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -497,12 +486,6 @@
           "name": "Kentavious Caldwell-Pope",
           "updated": "Tue, Jun 16",
           "injury": "Finger",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Ja Morant",
-          "updated": "Tue, Jun 16",
-          "injury": "Elbow",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -706,6 +689,12 @@
           "updated": "Tue, Jun 16",
           "injury": "Achilles",
           "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Ja Morant",
+          "updated": "Tue, Jun 16",
+          "injury": "Elbow",
+          "status": "Expected to be out until at least Oct 1"
         }
       ]
     },
@@ -772,10 +761,16 @@
       "team": "San Antonio",
       "players": [
         {
+          "name": "Carter Bryant",
+          "updated": "Tue, Jun 30",
+          "injury": "Not Injury Related",
+          "status": "Expected to be out until at least Jul 9"
+        },
+        {
           "name": "Jayden Quaintance",
-          "updated": "Thu, Jun 25",
+          "updated": "Tue, Jun 30",
           "injury": "Knee",
-          "status": "Expected to be out until at least Jul 2"
+          "status": "Expected to be out until at least Oct 1"
         },
         {
           "name": "David Jones",
@@ -818,15 +813,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Isaiah Collier",
-          "updated": "Tue, Jun 16",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Kyle Filipowski",
           "updated": "Tue, Jun 16",
           "injury": "Back",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Isaiah Collier",
+          "updated": "Tue, Jun 16",
+          "injury": "Hamstring",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -859,12 +854,6 @@
       "team": "Washington",
       "players": [
         {
-          "name": "Cam Whitmore",
-          "updated": "Tue, Jun 16",
-          "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Tre Johnson",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
@@ -895,6 +884,12 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
+          "name": "Cam Whitmore",
+          "updated": "Tue, Jun 16",
+          "injury": "Shoulder",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Anthony Davis",
           "updated": "Tue, Jun 16",
           "injury": "Finger",
@@ -910,5 +905,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "June 30, 2026 12:04 UTC"
+  "lastUpdated": "July 01, 2026 12:28 UTC"
 }
