@@ -1148,10 +1148,10 @@ function drawBracket(t, e, s, piActual, seriesResults, opts) {
       },
     };
   }
-  function _findWinner(tA, tB, sr) {
+  function _findWinner(tA, tB, sr, win = _wSF) {
     if (!sr) return null;
-    if (tA && sr[tA.teamId] && sr[tA.teamId].w >= _wSF) return tA;
-    if (tB && sr[tB.teamId] && sr[tB.teamId].w >= _wSF) return tB;
+    if (tA && sr[tA.teamId] && sr[tA.teamId].w >= win) return tA;
+    if (tB && sr[tB.teamId] && sr[tB.teamId].w >= win) return tB;
     return null;
   }
   const _semiSr = [
@@ -1163,7 +1163,7 @@ function drawBracket(t, e, s, piActual, seriesResults, opts) {
     _findWinner(_r1Winners[2], _r1Winners[3], _semiSr[1]),
   ];
   const _cfSr = _getSeries(_semiWinners[0], _semiWinners[1]);
-  const _cfWinner = _findWinner(_semiWinners[0], _semiWinners[1], _cfSr);
+  const _cfWinner = _findWinner(_semiWinners[0], _semiWinners[1], _cfSr, 4);
   function _recStr(sr, team) {
     if (!sr || !team || !sr[team.teamId]) return "";
     const e = sr[team.teamId];
@@ -2002,7 +2002,7 @@ function _buildTickerItems(games) {
     const status = String(g.status || "");
     const isFinal = /final/i.test(status);
     const isLive =
-      !isFinal && /q[1-4]|ot|halftime|\bend\b|\d:\d{2}/i.test(status);
+      !isFinal && /q[1-4]|ot|halftime|\bend\b/i.test(status);
     if (isLive) hasLive = true;
 
     const homeT = esc(home.tricode || home.name || "—");

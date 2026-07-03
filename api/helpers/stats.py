@@ -7,8 +7,6 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import requests
-from isodate import parse_duration
-
 from constants import (
     CAP_DISPLAY_LAST_COMMA_FIRST,
     CAP_PERSON_ID,
@@ -23,6 +21,7 @@ from constants import (
     GL_TEAM_ID,
     STATUS_SCHEDULED,
 )
+from curl_cffi import requests as curl_requests
 from helpers.common import (
     CACHE_TTL,
     SEASON_CUTOFF_DAY,
@@ -32,10 +31,11 @@ from helpers.common import (
     cache,
 )
 from helpers.logger import log_exceptions
+from isodate import parse_duration
+from nba_api.library.http import NBAHTTP
 from nba_api.live.nba.endpoints import boxscore as live_boxscore
 from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
 from nba_api.live.nba.library.http import NBALiveHTTP
-from nba_api.library.http import NBAHTTP
 from nba_api.stats.endpoints import (
     boxscoretraditionalv3,
     commonallplayers,
@@ -318,23 +318,22 @@ def load_players_with_lower(league_id: str = "00") -> list:  # pragma: no cover
 
 
 _WNBA_LIVE_BASE = "https://cdn.wnba.com/static/json/liveData"
-_WNBA_LIVE_HEADERS = {
-    "User-Agent": "Mozilla/5.0",
-    "Referer": "https://www.wnba.com/",
-    "Accept": "application/json",
-}
+
+
+def _fetch_wnba_live_json(path: str) -> Any:  # pragma: no cover
+    r = curl_requests.get(
+        f"{_WNBA_LIVE_BASE}/{path}",
+        impersonate="chrome",
+        timeout=STATS_TIMEOUT,
+        proxies=({"https": STATS_PROXY, "http": STATS_PROXY} if STATS_PROXY else None),
+    )
+    r.raise_for_status()
+    return r.json()
 
 
 def _fetch_wnba_live_scoreboard() -> list:  # pragma: no cover
-    url = f"{_WNBA_LIVE_BASE}/scoreboard/todaysScoreboard_10.json"
-    r = requests.get(
-        url,
-        headers=_WNBA_LIVE_HEADERS,
-        timeout=STATS_TIMEOUT,
-        proxies=({"https": STATS_PROXY} if STATS_PROXY else None),
-    )
-    r.raise_for_status()
-    return r.json()["scoreboard"]["games"]
+    data = _fetch_wnba_live_json("scoreboard/todaysScoreboard_10.json")
+    return data["scoreboard"]["games"]
 
 
 def get_cached_scoreboard(league_id: str = "00") -> Any:  # pragma: no cover
@@ -366,15 +365,7 @@ def get_cached_scoreboard(league_id: str = "00") -> Any:  # pragma: no cover
 
 
 def _fetch_wnba_live_boxscore(game_id: str) -> dict:  # pragma: no cover
-    url = f"{_WNBA_LIVE_BASE}/boxscore/boxscore_{game_id}.json"
-    r = requests.get(
-        url,
-        headers=_WNBA_LIVE_HEADERS,
-        timeout=STATS_TIMEOUT,
-        proxies=({"https": STATS_PROXY} if STATS_PROXY else None),
-    )
-    r.raise_for_status()
-    return r.json()
+    return _fetch_wnba_live_json(f"boxscore/boxscore_{game_id}.json")
 
 
 def get_cached_live_boxscore(

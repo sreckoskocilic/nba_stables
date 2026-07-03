@@ -1,6 +1,9 @@
 import asyncio
 
 from fastapi import APIRouter, Query
+from nba_api.stats.endpoints import leaguestandings, LeagueGameFinder
+from nba_api.stats.library.http import NBAStatsHTTP
+
 from constants import (
     ET_SUFFIX,
     GH_GAME_CODE,
@@ -44,7 +47,6 @@ from helpers.common import (
     STATS_TIMEOUT,
     TEAMS,
     cache,
-    executor,
 )
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
@@ -66,8 +68,6 @@ from helpers.stats import (
     get_wnba_current_season,
     scoreboard_date,
 )
-from nba_api.stats.endpoints import leaguestandings, LeagueGameFinder
-from nba_api.stats.library.http import NBAStatsHTTP
 
 router = APIRouter()
 
@@ -900,24 +900,8 @@ async def get_playoff_picture(league: str = Query(default="nba")):
 
         east_sorted = _sort_by_rank(east)
         west_sorted = _sort_by_rank(west)
-        playin_future = executor.submit(
-            _fetch_playin_data, east_sorted[6:10], west_sorted[6:10]
-        )
-        series_future = executor.submit(
-            _get_playoff_series_cached, get_current_season()
-        )
-        try:
-            playin_actual = playin_future.result(timeout=STATS_TIMEOUT)
-        except TimeoutError as ex:
-            log_exceptions(ex, "playin_data_timeout")
-            playin_actual = {"east": {"gameScores": {}}, "west": {"gameScores": {}}}
-        try:
-            series_results, series_games = series_future.result(
-                timeout=STATS_TIMEOUT,
-            )
-        except TimeoutError as ex:
-            log_exceptions(ex, "playoff_series_timeout")
-            series_results, series_games = {}, {}
+        playin_actual = _fetch_playin_data(east_sorted[6:10], west_sorted[6:10])
+        series_results, series_games = _get_playoff_series_cached(get_current_season())
 
         finals = _build_finals_data(
             east_sorted,

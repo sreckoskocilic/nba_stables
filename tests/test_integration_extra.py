@@ -16,7 +16,6 @@ from conftest import (
     make_standings_row,
 )
 from fastapi.testclient import TestClient
-from helpers.common import cache
 from main import app
 
 
@@ -862,15 +861,11 @@ class TestScoresErrorHandlers:
             r = client.get("/api/scoreboard")
         assert r.status_code == 500
 
-    def test_boxscores_timeout_returns_empty(self, client):
-        with (
-            patch(
-                "routes.scores.get_games_leaders_list",
-                return_value={"g1": [], "g2": []},
-            ),
-            patch("routes.scores.executor") as mock_exec,
+    def test_boxscores_empty_leaders_returns_empty(self, client):
+        with patch(
+            "routes.scores.get_games_leaders_list",
+            return_value={"g1": [], "g2": []},
         ):
-            mock_exec.map.side_effect = TimeoutError("timed out")
             r = client.get("/api/boxscores?days_offset=1")
         assert r.status_code == 200
         assert r.json()["boxscores"] == []
@@ -1127,72 +1122,6 @@ class TestExecutorTimeouts:
             r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
         assert r.status_code == 200
         assert r.json()["players"] == []
-
-    def test_last_n_games_timeout_returns_empty_games(self, client):
-        with (
-            patch("routes.players.get_current_season", return_value="2025-26"),
-            patch(
-                "routes.players.load_players_dict",
-                return_value={PLAYER_ID: [PLAYER_ID, "Test Player", TEAM_ID_LAL]},
-            ),
-            patch("routes.players.executor") as mock_exec,
-            patch("routes.players.log_exceptions"),
-        ):
-            cache.set(
-                f"player_games_raw_00_{PLAYER_ID}_2025-26",
-                ([["LAL @ BOS", GAME_ID, "2026-03-01"]], 0),
-                60,
-            )
-            mock_exec.map.side_effect = TimeoutError("timed out")
-            r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
-        assert r.status_code == 200
-        assert r.json()["games"] == []
-
-    def test_playoffs_playin_timeout_returns_empty(self, client):
-        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
-        standings_mock = MagicMock()
-        standings_mock.return_value.get_dict.return_value = {
-            "resultSets": [{"rowSet": rows}]
-        }
-        playin_future = MagicMock()
-        playin_future.result.side_effect = TimeoutError("playin timed out")
-        series_future = MagicMock()
-        series_future.result.return_value = ({}, {})
-        with (
-            patch("routes.scores.leaguestandings.LeagueStandings", standings_mock),
-            patch("routes.scores.executor") as mock_exec,
-            patch("routes.scores.log_exceptions"),
-        ):
-            mock_exec.submit.side_effect = [playin_future, series_future]
-            r = client.get("/api/playoffs")
-        assert r.status_code == 200
-        assert r.json()["playinActual"] == {
-            "east": {"gameScores": {}},
-            "west": {"gameScores": {}},
-        }
-
-    def test_playoffs_series_timeout_returns_empty(self, client):
-        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
-        standings_mock = MagicMock()
-        standings_mock.return_value.get_dict.return_value = {
-            "resultSets": [{"rowSet": rows}]
-        }
-        playin_future = MagicMock()
-        playin_future.result.return_value = {
-            "east": {"gameScores": {}},
-            "west": {"gameScores": {}},
-        }
-        series_future = MagicMock()
-        series_future.result.side_effect = TimeoutError("series timed out")
-        with (
-            patch("routes.scores.leaguestandings.LeagueStandings", standings_mock),
-            patch("routes.scores.executor") as mock_exec,
-            patch("routes.scores.log_exceptions"),
-        ):
-            mock_exec.submit.side_effect = [playin_future, series_future]
-            r = client.get("/api/playoffs")
-        assert r.status_code == 200
-        assert r.json()["seriesResults"] == {}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

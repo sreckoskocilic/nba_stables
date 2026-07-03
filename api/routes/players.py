@@ -3,6 +3,13 @@ import json
 import re
 from datetime import date
 
+from fastapi import APIRouter, HTTPException, Path, Query
+from nba_api.stats.endpoints import (
+    commonplayerinfo,
+    playercareerstats,
+    playergamelog,
+)
+
 from constants import (
     BS_AST,
     BS_BLK,
@@ -22,7 +29,6 @@ from constants import (
     PGL_GAME_ID,
     PGL_MATCHUP,
 )
-from fastapi import APIRouter, HTTPException, Path, Query
 from helpers.common import CACHE_TTL, STATS_TIMEOUT, cache, executor
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
@@ -42,11 +48,6 @@ from helpers.stats import (
     load_players_with_lower,
     parse_iso_minutes,
     parse_minutes,
-)
-from nba_api.stats.endpoints import (
-    commonplayerinfo,
-    playercareerstats,
-    playergamelog,
 )
 
 router = APIRouter()
@@ -577,13 +578,7 @@ async def get_last_n_games_stats(
                 return None
 
         playoff_in_slice = min(playoff_count, len(game_rows))
-        try:
-            results = list(
-                executor.map(fetch_game_stats, game_rows, timeout=STATS_TIMEOUT)
-            )
-        except TimeoutError as ex:
-            log_exceptions(ex, f"player_games_timeout player_id={player_id}")
-            results = []
+        results = [fetch_game_stats(gg) for gg in game_rows]
 
         games = [r for r in results if r is not None]
         actual_playoff = sum(1 for r in results[:playoff_in_slice] if r is not None)
@@ -761,15 +756,13 @@ async def get_player_profile(
         return career_rows
 
     def _sync():
-        bio_future = executor.submit(_fetch_bio)
-        career_future = executor.submit(_fetch_career)
         try:
-            bio = bio_future.result(timeout=STATS_TIMEOUT)
+            bio = _fetch_bio()
         except Exception as ex:
             log_exceptions(ex, f"profile_bio player_id={player_id}")
             bio = None
         try:
-            career = career_future.result(timeout=STATS_TIMEOUT)
+            career = _fetch_career()
         except Exception as ex:
             log_exceptions(ex, f"profile_career player_id={player_id}")
             career = []
