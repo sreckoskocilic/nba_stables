@@ -5,9 +5,9 @@
       "players": [
         {
           "name": "Keshon Gilbert",
-          "updated": "Tue, Jun 16",
+          "updated": "Fri, Jul 3",
           "injury": "Abdomen",
-          "status": "Expected to be out until at least Jul 2"
+          "status": "Expected to be out until at least Jul 4"
         },
         {
           "name": "Jock Landale",
@@ -21,12 +21,6 @@
       "team": "Boston",
       "players": [
         {
-          "name": "RJ Luis Jr.",
-          "updated": "Thu, Jul 2",
-          "injury": "Not Injury Related",
-          "status": "—"
-        },
-        {
           "name": "Jayson Tatum",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
@@ -37,6 +31,12 @@
     {
       "team": "Brooklyn",
       "players": [
+        {
+          "name": "Egor Demin",
+          "updated": "Fri, Jul 3",
+          "injury": "Foot",
+          "status": "Expected to be out until at least Jul 4"
+        },
         {
           "name": "Nolan Traore",
           "updated": "Tue, Jun 30",
@@ -60,12 +60,6 @@
           "updated": "Tue, Jun 16",
           "injury": "Thumb",
           "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Egor Demin",
-          "updated": "Tue, Jun 16",
-          "injury": "Foot",
-          "status": "Expected to be out until at least Jul 2"
         },
         {
           "name": "Danny Wolf",
@@ -196,15 +190,15 @@
       "team": "Dallas",
       "players": [
         {
-          "name": "Dereck Lively II",
-          "updated": "Tue, Jun 16",
-          "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Cooper Flagg",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Dereck Lively II",
+          "updated": "Tue, Jun 16",
+          "injury": "Foot",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -220,15 +214,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Marvin Bagley III",
-          "updated": "Tue, Jun 16",
-          "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Brandon Williams",
           "updated": "Tue, Jun 16",
           "injury": "Illness",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Marvin Bagley III",
+          "updated": "Tue, Jun 16",
+          "injury": "Shoulder",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -263,24 +257,13 @@
       ]
     },
     {
-      "team": "Detroit",
-      "players": [
-        {
-          "name": "Charles Bediako",
-          "updated": "Thu, Jul 2",
-          "injury": "Not Injury Related",
-          "status": "—"
-        }
-      ]
-    },
-    {
       "team": "Golden St.",
       "players": [
         {
           "name": "L.J. Cryer",
-          "updated": "Tue, Jun 16",
+          "updated": "Fri, Jul 3",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Jul 2"
+          "status": "Expected to be out until at least Jul 3"
         },
         {
           "name": "Quinten Post",
@@ -458,6 +441,12 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
+          "name": "Santi Aldama",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Jaylen Wells",
           "updated": "Tue, Jun 16",
           "injury": "Toe",
@@ -482,21 +471,15 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Santi Aldama",
+          "name": "Ty Jerome",
           "updated": "Tue, Jun 16",
-          "injury": "Knee",
+          "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         },
         {
           "name": "Kentavious Caldwell-Pope",
           "updated": "Tue, Jun 16",
           "injury": "Finger",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Ty Jerome",
-          "updated": "Tue, Jun 16",
-          "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
         }
       ]
@@ -540,21 +523,27 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Myles Turner",
-          "updated": "Tue, Jun 16",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Kevin Porter",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
           "status": "Expected to be out until at least Oct 1"
         },
         {
+          "name": "Myles Turner",
+          "updated": "Tue, Jun 16",
+          "injury": "Ankle",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Gary Harris",
           "updated": "Tue, Jun 16",
           "injury": "Groin",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Kyle Kuzma",
+          "updated": "Tue, Jun 16",
+          "injury": "Achilles",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -567,12 +556,6 @@
           "name": "Pete Nance",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Kyle Kuzma",
-          "updated": "Tue, Jun 16",
-          "injury": "Achilles",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -719,6 +702,18 @@
       "team": "Sacramento",
       "players": [
         {
+          "name": "Isaiah Stevens",
+          "updated": "Fri, Jul 3",
+          "injury": "Ankle",
+          "status": "Expected to be out until at least Jul 4"
+        },
+        {
+          "name": "Alex Karaban",
+          "updated": "Thu, Jul 2",
+          "injury": "Ankle",
+          "status": "Expected to be out until at least Jul 4"
+        },
+        {
           "name": "Zach LaVine",
           "updated": "Sun, Jun 28",
           "injury": "Hand",
@@ -729,12 +724,6 @@
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
           "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Isaiah Stevens",
-          "updated": "Tue, Jun 16",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Jul 2"
         },
         {
           "name": "Russell Westbrook",
@@ -778,10 +767,10 @@
       "team": "San Antonio",
       "players": [
         {
-          "name": "Carter Bryant",
-          "updated": "Tue, Jun 30",
-          "injury": "Not Injury Related",
-          "status": "Expected to be out until at least Jul 9"
+          "name": "David Jones",
+          "updated": "Fri, Jul 3",
+          "injury": "Ankle",
+          "status": "Expected to be out until at least Jul 3"
         },
         {
           "name": "Jayden Quaintance",
@@ -790,10 +779,10 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "David Jones",
-          "updated": "Tue, Jun 16",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Jul 2"
+          "name": "Carter Bryant",
+          "updated": "Tue, Jun 30",
+          "injury": "Not Injury Related",
+          "status": "Expected to be out until at least Jul 9"
         }
       ]
     },
@@ -802,9 +791,9 @@
       "players": [
         {
           "name": "Chucky Hepburn",
-          "updated": "Tue, Jun 16",
+          "updated": "Fri, Jul 3",
           "injury": "Knee",
-          "status": "Expected to be out until at least Jul 2"
+          "status": "Expected to be out until at least Jul 10"
         },
         {
           "name": "Brandon Ingram",
@@ -824,15 +813,15 @@
       "team": "Utah",
       "players": [
         {
-          "name": "Kyle Filipowski",
-          "updated": "Tue, Jun 16",
-          "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Isaiah Collier",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
+          "name": "Kyle Filipowski",
+          "updated": "Tue, Jun 16",
+          "injury": "Back",
           "status": "Expected to be out until at least Oct 1"
         },
         {
@@ -865,6 +854,12 @@
       "team": "Washington",
       "players": [
         {
+          "name": "Cam Whitmore",
+          "updated": "Tue, Jun 16",
+          "injury": "Shoulder",
+          "status": "Expected to be out until at least Oct 1"
+        },
+        {
           "name": "Tre Johnson",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
@@ -895,12 +890,6 @@
           "status": "Expected to be out until at least Oct 1"
         },
         {
-          "name": "Cam Whitmore",
-          "updated": "Tue, Jun 16",
-          "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Anthony Davis",
           "updated": "Tue, Jun 16",
           "injury": "Finger",
@@ -916,5 +905,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "July 02, 2026 12:05 UTC"
+  "lastUpdated": "July 03, 2026 12:03 UTC"
 }
