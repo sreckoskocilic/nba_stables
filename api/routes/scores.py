@@ -424,7 +424,6 @@ def _parse_team_row(team) -> dict:
 _WS_TEAM_ID = 2
 _WS_CITY = 3
 _WS_NAME = 4
-_WS_CONF = 6
 _WS_RANK = 8
 _WS_WINS = 13
 _WS_LOSSES = 14
@@ -433,7 +432,6 @@ _WS_HOME = 18
 _WS_AWAY = 19
 _WS_L10 = 20
 _WS_STREAK = 37
-_WS_GAMES_BACK = 38
 
 
 def _fetch_wnba_standings_teams() -> list:
@@ -468,7 +466,6 @@ def _parse_wnba_team_row(team) -> dict:
         "wins": team[_WS_WINS] or 0,
         "losses": team[_WS_LOSSES] or 0,
         "winPct": round(win_pct, 3) if win_pct else 0,
-        "gamesBack": team[_WS_GAMES_BACK] if team[_WS_GAMES_BACK] is not None else "-",
         "streak": team[_WS_STREAK] or "-",
         "last10": team[_WS_L10] or "0-0",
         "homeRecord": team[_WS_HOME] or "0-0",

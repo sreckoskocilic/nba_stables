@@ -39,8 +39,13 @@ class SimpleCache:
     def _evict_loop(self):
         while True:
             time.sleep(self._EVICT_INTERVAL)
-            with self._lock:
-                self._evict_expired()
+            try:
+                with self._lock:
+                    self._evict_expired()
+            except (
+                Exception
+            ):  # pragma: no cover - keep the sweeper alive on unexpected errors
+                pass
 
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
@@ -110,7 +115,7 @@ def _safe_int_env(name: str, default: int) -> int:
     if raw is None:
         return default
     try:
-        return int(raw)
+        return max(1, int(raw))
     except ValueError:
         return default
 

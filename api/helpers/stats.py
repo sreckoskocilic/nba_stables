@@ -31,7 +31,6 @@ from helpers.common import (
     cache,
 )
 from helpers.logger import log_exceptions
-from isodate import parse_duration
 from nba_api.library.http import NBAHTTP
 from nba_api.live.nba.endpoints import boxscore as live_boxscore
 from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
@@ -150,10 +149,16 @@ def reformat_player_minutes(total_seconds: int) -> str:
     return f"{minutes}:{seconds:02d}"
 
 
+_ISO_MIN_RE = re.compile(r"PT(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?")
+
+
 def parse_iso_minutes(iso_str: str) -> str:
     """Parse an ISO-8601 duration (e.g. 'PT30M37.00S') to 'MM:SS'. Returns '0:00' on failure."""
     try:
-        return reformat_player_minutes(int(parse_duration(iso_str).total_seconds()))
+        m = _ISO_MIN_RE.fullmatch(iso_str)
+        return reformat_player_minutes(
+            int(m.group(1) or 0) * 60 + int(float(m.group(2) or 0))
+        )
     except Exception as ex:  # pragma: no cover
         log_exceptions(ex)
         return "0:00"

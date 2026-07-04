@@ -13,6 +13,7 @@ from helpers.stats import (
     get_display_date,
     get_games_leaders_list,
     get_games_list,
+    parse_iso_minutes,
     reformat_player_minutes,
 )
 
@@ -55,6 +56,31 @@ class TestReformatPlayerMinutes:
     def test_large_value(self):
         # 100 minutes 0 seconds
         assert reformat_player_minutes(6000) == "100:00"
+
+
+# ---------------------------------------------------------------------------
+# parse_iso_minutes (ISO-8601 duration → MM:SS; regex-based, no isodate)
+# ---------------------------------------------------------------------------
+
+
+class TestParseIsoMinutes:
+    def test_minutes_and_seconds(self):
+        assert parse_iso_minutes("PT30M37.00S") == "30:37"
+
+    def test_seconds_only(self):
+        assert parse_iso_minutes("PT37.00S") == "0:37"
+
+    def test_truncates_fractional_seconds(self):
+        assert parse_iso_minutes("PT12M45.99S") == "12:45"
+
+    def test_minutes_only(self):
+        assert parse_iso_minutes("PT5M") == "5:00"
+
+    def test_malformed_returns_zero(self):
+        assert parse_iso_minutes("garbage") == "0:00"
+
+    def test_empty_returns_zero(self):
+        assert parse_iso_minutes("") == "0:00"
 
 
 # ---------------------------------------------------------------------------

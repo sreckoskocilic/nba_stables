@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+from fastapi.testclient import TestClient
+
 from conftest import (
     CAREER_HEADERS,
     FAKE_PLAYERS,
@@ -26,8 +28,8 @@ from conftest import (
     make_wnba_live_boxscore,
     make_wnba_standings_row,
 )
-from fastapi.testclient import TestClient
 from main import app
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
@@ -567,15 +569,18 @@ class TestLeaders:
             ),
         ):
             r = client.get("/api/leaders?days_offset=1")
-        for cat in (
-            "points",
-            "rebounds",
-            "assists",
-            "blocks",
-            "steals",
-            "threePointers",
-        ):
-            assert cat in r.json()["leaders"]
+        leaders = r.json()["leaders"]
+        expected = {
+            "points": 35,
+            "rebounds": 10,
+            "assists": 8,
+            "blocks": 2,
+            "steals": 3,
+            "threePointers": 4,
+        }
+        for cat, value in expected.items():
+            assert leaders[cat]["value"] == value
+            assert leaders[cat]["players"][0]["name"] == "LeBron James"
 
     def test_offset_too_large_rejected(self, client):
         assert client.get("/api/leaders?days_offset=10").status_code == 422
@@ -624,17 +629,14 @@ class TestStandings:
         with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
             r = client.get("/api/standings")
         team = r.json()["east"][0]
-        for key in (
-            "rank",
-            "name",
-            "wins",
-            "losses",
-            "winPct",
-            "gamesBack",
-            "streak",
-            "last10",
-        ):
-            assert key in team
+        assert team["rank"] == 1
+        assert team["name"] == "Boston Celtics"
+        assert team["wins"] == 50
+        assert team["losses"] == 20
+        assert team["winPct"] == round(50 / 70, 3)
+        assert team["last10"] == "8-2"
+        assert team["streak"] == "W3"
+        assert team["gamesBack"] == 2.5
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1410,19 +1412,16 @@ class TestWnbaStandings:
         ):
             r = client.get("/api/standings?league=wnba")
         team = r.json()["all"][0]
-        for key in (
-            "rank",
-            "name",
-            "wins",
-            "losses",
-            "winPct",
-            "gamesBack",
-            "streak",
-            "last10",
-            "homeRecord",
-            "awayRecord",
-        ):
-            assert key in team
+        assert team["rank"] == 1
+        assert team["name"] == "New York Liberty"
+        assert team["wins"] == 2
+        assert team["losses"] == 0
+        assert team["winPct"] == 1.0
+        assert team["last10"] == "8-2"
+        assert team["streak"] == "W3"
+        assert team["gamesBack"] == "-"  # leader's games-back is recomputed to "-"
+        assert team["homeRecord"] == "1-0"
+        assert team["awayRecord"] == "1-0"
 
     def test_tricode_from_teams_dict(self, client):
         rows = [

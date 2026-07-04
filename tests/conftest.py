@@ -44,6 +44,22 @@ def _clear_cache():
     cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def _clear_players_cache():
+    """Isolate the stats.py player caches between tests."""
+    import helpers.stats as hs
+
+    def _reset():
+        hs._players_cache.clear()
+        hs._players_dict_cache.clear()
+        hs._players_cache_lower.clear()
+        hs._players_cache_expires.clear()
+
+    _reset()
+    yield
+    _reset()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared test constants
 # ─────────────────────────────────────────────────────────────────────────────
