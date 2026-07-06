@@ -4,16 +4,10 @@
       "team": "Atlanta",
       "players": [
         {
-          "name": "Keshon Gilbert",
-          "updated": "Fri, Jul 3",
-          "injury": "Abdomen",
-          "status": "Expected to be out until at least Jul 4"
-        },
-        {
           "name": "Jock Landale",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -22,7 +16,7 @@
       "players": [
         {
           "name": "RJ Luis Jr.",
-          "updated": "Sun, Jul 5",
+          "updated": "Mon, Jul 6",
           "injury": "Not Injury Related",
           "status": "—"
         },
@@ -30,7 +24,7 @@
           "name": "Jayson Tatum",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -38,58 +32,88 @@
       "team": "Brooklyn",
       "players": [
         {
+          "name": "Mikel Brown Jr.",
+          "updated": "Sun, Jul 5",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Danny Wolf",
+          "updated": "Sun, Jul 5",
+          "injury": "Back",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Chaney Johnson",
+          "updated": "Sun, Jul 5",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Drake Powell",
+          "updated": "Sun, Jul 5",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Tyler Bilodeau",
+          "updated": "Sun, Jul 5",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Ben Saraf",
+          "updated": "Sun, Jul 5",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
           "name": "Nolan Traore",
           "updated": "Tue, Jun 30",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Ziaire Williams",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Josh Minott",
-          "updated": "Tue, Jun 16",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Day'Ron Sharpe",
           "updated": "Tue, Jun 16",
           "injury": "Thumb",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
-          "name": "Danny Wolf",
+          "name": "Josh Minott",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Noah Clowney",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Terance Mann",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Nicolas Claxton",
           "updated": "Tue, Jun 16",
           "injury": "Finger",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Michael Porter Jr.",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -97,16 +121,16 @@
       "team": "Charlotte",
       "players": [
         {
-          "name": "PJ Hall",
-          "updated": "Tue, Jun 16",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Brandon Miller",
           "updated": "Tue, Jun 16",
           "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "PJ Hall",
+          "updated": "Tue, Jun 16",
+          "injury": "Ankle",
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -114,64 +138,64 @@
       "team": "Chicago",
       "players": [
         {
-          "name": "Isaac Okoro",
+          "name": "Matas Buzelis",
           "updated": "Tue, Jun 16",
-          "injury": "Quadriceps",
-          "status": "Expected to be out until at least Oct 1"
+          "injury": "Ankle",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Josh Giddey",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Noa Essengue",
           "updated": "Tue, Jun 16",
           "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
-          "name": "Matas Buzelis",
+          "name": "Isaac Okoro",
           "updated": "Tue, Jun 16",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "injury": "Quadriceps",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Rob Dillingham",
           "updated": "Tue, Jun 16",
           "injury": "Wrist",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Zach Collins",
           "updated": "Tue, Jun 16",
           "injury": "Toe",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Guerschon Yabusele",
           "updated": "Tue, Jun 16",
           "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Jalen Smith",
           "updated": "Tue, Jun 16",
           "injury": "Calf",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Anfernee Simons",
           "updated": "Tue, Jun 16",
           "injury": "Wrist",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Nick Richards",
           "updated": "Tue, Jun 16",
           "injury": "Elbow",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -182,7 +206,7 @@
           "name": "Dennis Schroder",
           "updated": "Tue, Jun 16",
           "injury": "Illness",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -193,49 +217,43 @@
           "name": "Cooper Flagg",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Dereck Lively II",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Caleb Martin",
           "updated": "Tue, Jun 16",
           "injury": "Heel",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Kyrie Irving",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Brandon Williams",
           "updated": "Tue, Jun 16",
           "injury": "Illness",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Marvin Bagley III",
-          "updated": "Tue, Jun 16",
-          "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Naji Marshall",
-          "updated": "Tue, Jun 16",
-          "injury": "Hip",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "PJ Washington",
           "updated": "Tue, Jun 16",
           "injury": "Elbow",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Naji Marshall",
+          "updated": "Tue, Jun 16",
+          "injury": "Hip",
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -246,13 +264,24 @@
           "name": "Peyton Watson",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Aaron Gordon",
           "updated": "Tue, Jun 16",
           "injury": "Calf",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        }
+      ]
+    },
+    {
+      "team": "Detroit",
+      "players": [
+        {
+          "name": "Charles Bediako",
+          "updated": "Mon, Jul 6",
+          "injury": "Not Injury Related",
+          "status": "—"
         }
       ]
     },
@@ -260,16 +289,10 @@
       "team": "Golden St.",
       "players": [
         {
-          "name": "L.J. Cryer",
-          "updated": "Fri, Jul 3",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Jul 3"
-        },
-        {
           "name": "Quinten Post",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Moses Moody",
@@ -292,19 +315,19 @@
           "name": "Kevin Durant",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Fred VanVleet",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Steven Adams",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -315,49 +338,49 @@
           "name": "Jarace Walker",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Ivica Zubac",
           "updated": "Tue, Jun 16",
           "injury": "Ribs",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "T.J. McConnell",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Pascal Siakam",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Andrew Nembhard",
-          "updated": "Tue, Jun 16",
-          "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Aaron Nesmith",
-          "updated": "Tue, Jun 16",
-          "injury": "Neck",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Tyrese Haliburton",
-          "updated": "Tue, Jun 16",
-          "injury": "Achilles",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Ben Sheppard",
           "updated": "Tue, Jun 16",
           "injury": "Hip",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Andrew Nembhard",
+          "updated": "Tue, Jun 16",
+          "injury": "Back",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Aaron Nesmith",
+          "updated": "Tue, Jun 16",
+          "injury": "Neck",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Tyrese Haliburton",
+          "updated": "Tue, Jun 16",
+          "injury": "Achilles",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Johnny Furphy",
@@ -380,13 +403,13 @@
           "name": "Yanic Konan Niederhauser",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Bradley Beal",
           "updated": "Tue, Jun 16",
           "injury": "Hip",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -397,7 +420,7 @@
           "name": "Luka Doncic",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -405,16 +428,22 @@
       "team": "Memphis",
       "players": [
         {
-          "name": "Walter Clayton Jr.",
-          "updated": "Sat, Jul 4",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Jul 9"
+          "name": "Karim Lopez",
+          "updated": "Sun, Jul 5",
+          "injury": "Hamstring",
+          "status": "Probable for start of season"
         },
         {
-          "name": "Karim Lopez",
-          "updated": "Sat, Jul 4",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Jul 9"
+          "name": "Walter Clayton Jr.",
+          "updated": "Sun, Jul 5",
+          "injury": "Knee",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Adama-Alpha Bal",
+          "updated": "Thu, Jun 25",
+          "injury": "Ankle",
+          "status": "Probable for start of season"
         },
         {
           "name": "Richie Saunders",
@@ -423,58 +452,52 @@
           "status": "Expected to be out until at least Dec 1"
         },
         {
-          "name": "Adama-Alpha Bal",
-          "updated": "Thu, Jun 25",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Jul 2"
-        },
-        {
-          "name": "Scotty Pippen Jr.",
-          "updated": "Tue, Jun 16",
-          "injury": "Toe",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Cam Spencer",
-          "updated": "Tue, Jun 16",
-          "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Zach Edey",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Jaylen Wells",
-          "updated": "Tue, Jun 16",
-          "injury": "Toe",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Gregory Jackson",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
-          "name": "Santi Aldama",
+          "name": "Jaylen Wells",
           "updated": "Tue, Jun 16",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "injury": "Toe",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Ty Jerome",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Kentavious Caldwell-Pope",
           "updated": "Tue, Jun 16",
           "injury": "Finger",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Scotty Pippen Jr.",
+          "updated": "Tue, Jun 16",
+          "injury": "Toe",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Santi Aldama",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Cam Spencer",
+          "updated": "Tue, Jun 16",
+          "injury": "Back",
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -483,21 +506,21 @@
       "players": [
         {
           "name": "Myron Gardner",
-          "updated": "Fri, Jul 3",
+          "updated": "Sun, Jul 5",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Jul 5"
+          "status": "Probable for start of season"
         },
         {
           "name": "Nikola Jovic",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Dru Smith",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Giannis Antetokounmpo",
@@ -509,7 +532,7 @@
           "name": "Bam Adebayo",
           "updated": "Tue, Jun 16",
           "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -517,34 +540,52 @@
       "team": "Milwaukee",
       "players": [
         {
+          "name": "Cormac Ryan",
+          "updated": "Sun, Jul 5",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Brayden Burries",
+          "updated": "Sun, Jul 5",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Bogoljub Markovic",
+          "updated": "Sun, Jul 5",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
           "name": "Ryan Rollins",
           "updated": "Tue, Jun 16",
           "injury": "Thumb",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Myles Turner",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Gary Harris",
-          "updated": "Tue, Jun 16",
-          "injury": "Groin",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Kevin Porter",
-          "updated": "Tue, Jun 16",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Kyle Kuzma",
           "updated": "Tue, Jun 16",
           "injury": "Achilles",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Gary Harris",
+          "updated": "Tue, Jun 16",
+          "injury": "Groin",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Kevin Porter",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Tyler Herro",
@@ -556,7 +597,7 @@
           "name": "Gary Trent Jr.",
           "updated": "Tue, Jun 16",
           "injury": "Oblique",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -578,37 +619,37 @@
           "name": "Bryce McGowens",
           "updated": "Tue, Jun 16",
           "injury": "Toe",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Yves Missi",
-          "updated": "Tue, Jun 16",
-          "injury": "Hand",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Karlo Matkovic",
           "updated": "Tue, Jun 16",
           "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Yves Missi",
+          "updated": "Tue, Jun 16",
+          "injury": "Hand",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Dejounte Murray",
           "updated": "Tue, Jun 16",
           "injury": "Hand",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Zion Williamson",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Trey Murphy III",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -619,25 +660,25 @@
           "name": "Ajay Mitchell",
           "updated": "Tue, Jun 16",
           "injury": "Calf",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Thomas Sorber",
-          "updated": "Tue, Jun 16",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Nikola Topic",
           "updated": "Tue, Jun 16",
           "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Thomas Sorber",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Jalen Williams",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -648,13 +689,13 @@
           "name": "Franz Wagner",
           "updated": "Tue, Jun 16",
           "injury": "Calf",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Jonathan Isaac",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -665,13 +706,13 @@
           "name": "Mark Williams",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Jordan Goodwin",
           "updated": "Tue, Jun 16",
           "injury": "Calf",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -682,13 +723,13 @@
           "name": "Damian Lillard",
           "updated": "Tue, Jun 16",
           "injury": "Achilles",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Ja Morant",
           "updated": "Tue, Jun 16",
           "injury": "Elbow",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -696,64 +737,76 @@
       "team": "Sacramento",
       "players": [
         {
-          "name": "Isaiah Stevens",
-          "updated": "Fri, Jul 3",
+          "name": "Alex Karaban",
+          "updated": "Sun, Jul 5",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Jul 4"
+          "status": "Probable for start of season"
         },
         {
-          "name": "Alex Karaban",
-          "updated": "Thu, Jul 2",
-          "injury": "Ankle",
-          "status": "Expected to be out until at least Jul 4"
+          "name": "Dylan Cardwell",
+          "updated": "Sun, Jul 5",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Nique Clifford",
+          "updated": "Sun, Jul 5",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Darius Acuff Jr.",
+          "updated": "Sun, Jul 5",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
         },
         {
           "name": "Zach LaVine",
           "updated": "Sun, Jun 28",
           "injury": "Hand",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Keegan Murray",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Russell Westbrook",
           "updated": "Tue, Jun 16",
           "injury": "Toe",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Domantas Sabonis",
-          "updated": "Tue, Jun 16",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "DeMar DeRozan",
-          "updated": "Tue, Jun 16",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "De'Andre Hunter",
           "updated": "Tue, Jun 16",
           "injury": "Eye",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Domantas Sabonis",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "DeMar DeRozan",
+          "updated": "Tue, Jun 16",
+          "injury": "Hamstring",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Malik Monk",
           "updated": "Tue, Jun 16",
           "injury": "Personal",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Drew Eubanks",
           "updated": "Tue, Jun 16",
           "injury": "Thumb",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -762,21 +815,21 @@
       "players": [
         {
           "name": "David Jones",
-          "updated": "Fri, Jul 3",
+          "updated": "Sun, Jul 5",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Jul 3"
-        },
-        {
-          "name": "Jayden Quaintance",
-          "updated": "Tue, Jun 30",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Carter Bryant",
           "updated": "Tue, Jun 30",
           "injury": "Not Injury Related",
-          "status": "Expected to be out until at least Jul 9"
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Jayden Quaintance",
+          "updated": "Tue, Jun 30",
+          "injury": "Knee",
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -787,19 +840,19 @@
           "name": "Chucky Hepburn",
           "updated": "Fri, Jul 3",
           "injury": "Knee",
-          "status": "Expected to be out until at least Jul 10"
+          "status": "Probable for start of season"
         },
         {
           "name": "Brandon Ingram",
           "updated": "Tue, Jun 16",
           "injury": "Heel",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Immanuel Quickley",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -808,45 +861,45 @@
       "players": [
         {
           "name": "Tamar Bates",
-          "updated": "Fri, Jul 3",
+          "updated": "Sun, Jul 5",
           "injury": "Foot",
-          "status": "Expected to be out until at least Jul 4"
-        },
-        {
-          "name": "Keyonte George",
-          "updated": "Tue, Jun 16",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Isaiah Collier",
-          "updated": "Tue, Jun 16",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Probable for start of season"
         },
         {
           "name": "Kyle Filipowski",
           "updated": "Tue, Jun 16",
           "injury": "Back",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Keyonte George",
+          "updated": "Tue, Jun 16",
+          "injury": "Hamstring",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Isaiah Collier",
+          "updated": "Tue, Jun 16",
+          "injury": "Hamstring",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Jusuf Nurkic",
           "updated": "Tue, Jun 16",
           "injury": "Nose",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Lauri Markkanen",
           "updated": "Tue, Jun 16",
           "injury": "Hip",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Jaren Jackson Jr.",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     },
@@ -854,56 +907,56 @@
       "team": "Washington",
       "players": [
         {
-          "name": "Tre Johnson",
-          "updated": "Tue, Jun 16",
-          "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
           "name": "Alex Sarr",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Tre Johnson",
+          "updated": "Tue, Jun 16",
+          "injury": "Foot",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Kyshawn George",
           "updated": "Tue, Jun 16",
           "injury": "Elbow",
-          "status": "Expected to be out until at least Oct 1"
-        },
-        {
-          "name": "Tristan Vukcevic",
-          "updated": "Tue, Jun 16",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Bilal Coulibaly",
           "updated": "Tue, Jun 16",
           "injury": "Heel",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Cam Whitmore",
           "updated": "Tue, Jun 16",
           "injury": "Shoulder",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Tristan Vukcevic",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Anthony Davis",
           "updated": "Tue, Jun 16",
           "injury": "Finger",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Trae Young",
           "updated": "Tue, Jun 16",
           "injury": "Quadriceps",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         }
       ]
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "July 05, 2026 11:25 UTC"
+  "lastUpdated": "July 06, 2026 13:39 UTC"
 }
