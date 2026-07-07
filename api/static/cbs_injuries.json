@@ -4,6 +4,12 @@
       "team": "Atlanta",
       "players": [
         {
+          "name": "RayJ Dennis",
+          "updated": "Mon, Jul 6",
+          "injury": "Achilles",
+          "status": "Probable for start of season"
+        },
+        {
           "name": "Jock Landale",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
@@ -16,7 +22,7 @@
       "players": [
         {
           "name": "RJ Luis Jr.",
-          "updated": "Mon, Jul 6",
+          "updated": "Tue, Jul 7",
           "injury": "Not Injury Related",
           "status": "—"
         },
@@ -32,39 +38,9 @@
       "team": "Brooklyn",
       "players": [
         {
-          "name": "Mikel Brown Jr.",
-          "updated": "Sun, Jul 5",
-          "injury": "Undisclosed",
-          "status": "Probable for start of season"
-        },
-        {
           "name": "Danny Wolf",
-          "updated": "Sun, Jul 5",
+          "updated": "Mon, Jul 6",
           "injury": "Back",
-          "status": "Probable for start of season"
-        },
-        {
-          "name": "Chaney Johnson",
-          "updated": "Sun, Jul 5",
-          "injury": "Undisclosed",
-          "status": "Probable for start of season"
-        },
-        {
-          "name": "Drake Powell",
-          "updated": "Sun, Jul 5",
-          "injury": "Undisclosed",
-          "status": "Probable for start of season"
-        },
-        {
-          "name": "Tyler Bilodeau",
-          "updated": "Sun, Jul 5",
-          "injury": "Undisclosed",
-          "status": "Probable for start of season"
-        },
-        {
-          "name": "Ben Saraf",
-          "updated": "Sun, Jul 5",
-          "injury": "Undisclosed",
           "status": "Probable for start of season"
         },
         {
@@ -77,18 +53,6 @@
           "name": "Ziaire Williams",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Day'Ron Sharpe",
-          "updated": "Tue, Jun 16",
-          "injury": "Thumb",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Josh Minott",
-          "updated": "Tue, Jun 16",
-          "injury": "Ankle",
           "status": "Questionable for start of season"
         },
         {
@@ -121,15 +85,15 @@
       "team": "Charlotte",
       "players": [
         {
-          "name": "Brandon Miller",
-          "updated": "Tue, Jun 16",
-          "injury": "Shoulder",
-          "status": "Questionable for start of season"
-        },
-        {
           "name": "PJ Hall",
           "updated": "Tue, Jun 16",
           "injury": "Ankle",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Brandon Miller",
+          "updated": "Tue, Jun 16",
+          "injury": "Shoulder",
           "status": "Questionable for start of season"
         }
       ]
@@ -138,10 +102,10 @@
       "team": "Chicago",
       "players": [
         {
-          "name": "Matas Buzelis",
-          "updated": "Tue, Jun 16",
-          "injury": "Ankle",
-          "status": "Questionable for start of season"
+          "name": "Noa Essengue",
+          "updated": "Mon, Jul 6",
+          "injury": "Shoulder",
+          "status": "Probable for start of season"
         },
         {
           "name": "Josh Giddey",
@@ -150,21 +114,21 @@
           "status": "Questionable for start of season"
         },
         {
-          "name": "Noa Essengue",
+          "name": "Matas Buzelis",
           "updated": "Tue, Jun 16",
-          "injury": "Shoulder",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Isaac Okoro",
-          "updated": "Tue, Jun 16",
-          "injury": "Quadriceps",
+          "injury": "Ankle",
           "status": "Questionable for start of season"
         },
         {
           "name": "Rob Dillingham",
           "updated": "Tue, Jun 16",
           "injury": "Wrist",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Isaac Okoro",
+          "updated": "Tue, Jun 16",
+          "injury": "Quadriceps",
           "status": "Questionable for start of season"
         },
         {
@@ -183,12 +147,6 @@
           "name": "Jalen Smith",
           "updated": "Tue, Jun 16",
           "injury": "Calf",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Anfernee Simons",
-          "updated": "Tue, Jun 16",
-          "injury": "Wrist",
           "status": "Questionable for start of season"
         },
         {
@@ -275,19 +233,26 @@
       ]
     },
     {
-      "team": "Detroit",
-      "players": [
-        {
-          "name": "Charles Bediako",
-          "updated": "Mon, Jul 6",
-          "injury": "Not Injury Related",
-          "status": "—"
-        }
-      ]
-    },
-    {
       "team": "Golden St.",
       "players": [
+        {
+          "name": "Will Richard",
+          "updated": "Mon, Jul 6",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "L.J. Cryer",
+          "updated": "Mon, Jul 6",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Yaxel Lendeborg",
+          "updated": "Mon, Jul 6",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
         {
           "name": "Quinten Post",
           "updated": "Tue, Jun 16",
@@ -417,6 +382,12 @@
       "team": "L.A. Lakers",
       "players": [
         {
+          "name": "Adou Thiero",
+          "updated": "Mon, Jul 6",
+          "injury": "Wrist",
+          "status": "Probable for start of season"
+        },
+        {
           "name": "Luka Doncic",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
@@ -428,15 +399,21 @@
       "team": "Memphis",
       "players": [
         {
-          "name": "Karim Lopez",
-          "updated": "Sun, Jul 5",
-          "injury": "Hamstring",
+          "name": "Taylor Hendricks",
+          "updated": "Mon, Jul 6",
+          "injury": "Undisclosed",
           "status": "Probable for start of season"
         },
         {
           "name": "Walter Clayton Jr.",
           "updated": "Sun, Jul 5",
           "injury": "Knee",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Karim Lopez",
+          "updated": "Sun, Jul 5",
+          "injury": "Hamstring",
           "status": "Probable for start of season"
         },
         {
@@ -458,15 +435,21 @@
           "status": "Questionable for start of season"
         },
         {
-          "name": "Gregory Jackson",
-          "updated": "Tue, Jun 16",
-          "injury": "Knee",
-          "status": "Questionable for start of season"
-        },
-        {
           "name": "Jaylen Wells",
           "updated": "Tue, Jun 16",
           "injury": "Toe",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Cam Spencer",
+          "updated": "Tue, Jun 16",
+          "injury": "Back",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Gregory Jackson",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
           "status": "Questionable for start of season"
         },
         {
@@ -482,21 +465,15 @@
           "status": "Questionable for start of season"
         },
         {
-          "name": "Scotty Pippen Jr.",
-          "updated": "Tue, Jun 16",
-          "injury": "Toe",
-          "status": "Questionable for start of season"
-        },
-        {
           "name": "Santi Aldama",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
           "status": "Questionable for start of season"
         },
         {
-          "name": "Cam Spencer",
+          "name": "Scotty Pippen Jr.",
           "updated": "Tue, Jun 16",
-          "injury": "Back",
+          "injury": "Toe",
           "status": "Questionable for start of season"
         }
       ]
@@ -505,9 +482,27 @@
       "team": "Miami",
       "players": [
         {
+          "name": "Vladislav Goldin",
+          "updated": "Mon, Jul 6",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Trevor Keels",
+          "updated": "Mon, Jul 6",
+          "injury": "Rest",
+          "status": "Probable for start of season"
+        },
+        {
           "name": "Myron Gardner",
-          "updated": "Sun, Jul 5",
+          "updated": "Mon, Jul 6",
           "injury": "Ankle",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Jahmir Young",
+          "updated": "Mon, Jul 6",
+          "injury": "Rest",
           "status": "Probable for start of season"
         },
         {
@@ -526,7 +521,7 @@
           "name": "Giannis Antetokounmpo",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
-          "status": "Expected to be out until at least Oct 1"
+          "status": "Questionable for start of season"
         },
         {
           "name": "Bam Adebayo",
@@ -541,19 +536,7 @@
       "players": [
         {
           "name": "Cormac Ryan",
-          "updated": "Sun, Jul 5",
-          "injury": "Undisclosed",
-          "status": "Probable for start of season"
-        },
-        {
-          "name": "Brayden Burries",
-          "updated": "Sun, Jul 5",
-          "injury": "Undisclosed",
-          "status": "Probable for start of season"
-        },
-        {
-          "name": "Bogoljub Markovic",
-          "updated": "Sun, Jul 5",
+          "updated": "Tue, Jul 7",
           "injury": "Undisclosed",
           "status": "Probable for start of season"
         },
@@ -622,15 +605,15 @@
           "status": "Questionable for start of season"
         },
         {
-          "name": "Karlo Matkovic",
-          "updated": "Tue, Jun 16",
-          "injury": "Back",
-          "status": "Questionable for start of season"
-        },
-        {
           "name": "Yves Missi",
           "updated": "Tue, Jun 16",
           "injury": "Hand",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Karlo Matkovic",
+          "updated": "Tue, Jun 16",
+          "injury": "Back",
           "status": "Questionable for start of season"
         },
         {
@@ -663,15 +646,15 @@
           "status": "Questionable for start of season"
         },
         {
-          "name": "Nikola Topic",
-          "updated": "Tue, Jun 16",
-          "injury": "Back",
-          "status": "Questionable for start of season"
-        },
-        {
           "name": "Thomas Sorber",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Nikola Topic",
+          "updated": "Tue, Jun 16",
+          "injury": "Back",
           "status": "Questionable for start of season"
         },
         {
@@ -695,6 +678,17 @@
           "name": "Jonathan Isaac",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
+          "status": "Questionable for start of season"
+        }
+      ]
+    },
+    {
+      "team": "Philadelphia",
+      "players": [
+        {
+          "name": "Anfernee Simons",
+          "updated": "Tue, Jun 16",
+          "injury": "Wrist",
           "status": "Questionable for start of season"
         }
       ]
@@ -737,27 +731,21 @@
       "team": "Sacramento",
       "players": [
         {
+          "name": "Jonathan Mogbo",
+          "updated": "Mon, Jul 6",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Emanuel Sharp",
+          "updated": "Mon, Jul 6",
+          "injury": "Undisclosed",
+          "status": "Probable for start of season"
+        },
+        {
           "name": "Alex Karaban",
           "updated": "Sun, Jul 5",
           "injury": "Ankle",
-          "status": "Probable for start of season"
-        },
-        {
-          "name": "Dylan Cardwell",
-          "updated": "Sun, Jul 5",
-          "injury": "Undisclosed",
-          "status": "Probable for start of season"
-        },
-        {
-          "name": "Nique Clifford",
-          "updated": "Sun, Jul 5",
-          "injury": "Undisclosed",
-          "status": "Probable for start of season"
-        },
-        {
-          "name": "Darius Acuff Jr.",
-          "updated": "Sun, Jul 5",
-          "injury": "Undisclosed",
           "status": "Probable for start of season"
         },
         {
@@ -788,12 +776,6 @@
           "name": "Domantas Sabonis",
           "updated": "Tue, Jun 16",
           "injury": "Knee",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "DeMar DeRozan",
-          "updated": "Tue, Jun 16",
-          "injury": "Hamstring",
           "status": "Questionable for start of season"
         },
         {
@@ -861,9 +843,21 @@
       "players": [
         {
           "name": "Tamar Bates",
-          "updated": "Sun, Jul 5",
+          "updated": "Mon, Jul 6",
           "injury": "Foot",
           "status": "Probable for start of season"
+        },
+        {
+          "name": "Ace Bailey",
+          "updated": "Mon, Jul 6",
+          "injury": "Back",
+          "status": "Probable for start of season"
+        },
+        {
+          "name": "Isaiah Collier",
+          "updated": "Tue, Jun 16",
+          "injury": "Hamstring",
+          "status": "Questionable for start of season"
         },
         {
           "name": "Kyle Filipowski",
@@ -873,12 +867,6 @@
         },
         {
           "name": "Keyonte George",
-          "updated": "Tue, Jun 16",
-          "injury": "Hamstring",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Isaiah Collier",
           "updated": "Tue, Jun 16",
           "injury": "Hamstring",
           "status": "Questionable for start of season"
@@ -907,13 +895,13 @@
       "team": "Washington",
       "players": [
         {
-          "name": "Alex Sarr",
+          "name": "Tre Johnson",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
           "status": "Questionable for start of season"
         },
         {
-          "name": "Tre Johnson",
+          "name": "Alex Sarr",
           "updated": "Tue, Jun 16",
           "injury": "Foot",
           "status": "Questionable for start of season"
@@ -922,6 +910,12 @@
           "name": "Kyshawn George",
           "updated": "Tue, Jun 16",
           "injury": "Elbow",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Tristan Vukcevic",
+          "updated": "Tue, Jun 16",
+          "injury": "Knee",
           "status": "Questionable for start of season"
         },
         {
@@ -934,12 +928,6 @@
           "name": "Cam Whitmore",
           "updated": "Tue, Jun 16",
           "injury": "Shoulder",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Tristan Vukcevic",
-          "updated": "Tue, Jun 16",
-          "injury": "Knee",
           "status": "Questionable for start of season"
         },
         {
@@ -958,5 +946,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "July 06, 2026 13:39 UTC"
+  "lastUpdated": "July 07, 2026 12:22 UTC"
 }
