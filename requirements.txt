@@ -6,4 +6,4 @@ requests[socks]==2.34.2
 curl_cffi==0.15.0
 lxml==6.1.1
 PyYAML==6.0.3
-tzdata==2026.2
+tzdata==2026.3

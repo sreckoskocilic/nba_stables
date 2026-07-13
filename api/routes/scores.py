@@ -446,6 +446,7 @@ def _fetch_wnba_standings_teams() -> list:
                 "Season": get_wnba_current_season(),
                 "SeasonType": "Regular Season",
             },
+            proxy=STATS_PROXY,
             timeout=STATS_TIMEOUT,
         )
         teams = resp.get_dict()["resultSets"][0]["rowSet"]

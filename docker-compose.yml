@@ -27,7 +27,7 @@ services:
       retries: 3
       start_period: 10s
     volumes:
-      - /opt/nba_stables/api/static/cbs_injuries.json:/app/api/static/cbs_injuries.json:ro
+      - /opt/nba_stables/logs:/app/logs
   nba-stables-dev:
     <<: *nba-common
     profiles: ["dev"]
