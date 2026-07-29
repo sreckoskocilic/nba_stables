@@ -3,6 +3,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi.testclient import TestClient
+
 from conftest import (
     CAREER_HEADERS,
     FAKE_PLAYERS,
@@ -15,7 +17,6 @@ from conftest import (
     make_live_player_stats,
     make_standings_row,
 )
-from fastapi.testclient import TestClient
 from main import app
 
 
@@ -1062,8 +1063,8 @@ class TestSeasonErrorHandlers:
         assert r.status_code == 500
 
     def test_injuries_500_on_json_error(self, client):
-        import tempfile
         import os
+        import tempfile
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("not json")

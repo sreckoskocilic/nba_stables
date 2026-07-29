@@ -1,0 +1,11 @@
+# Package root is api/, so `constants`, `helpers`, `routes`, ... are first-party.
+src = ["api", "tests"]
+
+[lint]
+ignore = [
+    # Broad `except Exception` is deliberate: route handlers, retry wrappers and
+    # background threads must degrade gracefully instead of leaking a traceback.
+    "BLE001",
+    # try/except/pass in best-effort cleanup paths (cache sweeper, session reset).
+    "S110",
+]

@@ -10,13 +10,16 @@ import os
 import time
 from contextlib import asynccontextmanager
 
-import helpers.common as _common
-import helpers.stats as _stats
 import uvicorn
 import yaml
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
+
+import helpers.common as _common
+import helpers.stats as _stats
 from middleware.security import SecurityHeadersMiddleware
 from routes.injuries import CBS_INJURIES_FILE
 from routes.injuries import router as injuries_router
@@ -24,8 +27,6 @@ from routes.players import router as players_router
 from routes.scores import router
 from routes.season import router as season_router
 from routes.trades import router as trades_router
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.gzip import GZipMiddleware
 
 logger = logging.getLogger(__name__)
 _perf_logger = logging.getLogger("perf")

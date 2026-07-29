@@ -2,10 +2,11 @@ import asyncio
 
 import requests
 from fastapi import APIRouter, HTTPException
+
 from helpers.common import CACHE_TTL, STATS_PROXY, STATS_TIMEOUT, TEAMS, cache
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
-from helpers.stats import with_retry, load_players_dict
+from helpers.stats import load_players_dict, with_retry
 
 router = APIRouter()
 

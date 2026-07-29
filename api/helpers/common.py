@@ -1,11 +1,11 @@
 # Cache TTLs (in seconds)
 import atexit
+import heapq
 import os
 import threading
 import time
-import heapq
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, Optional
+from typing import Any
 
 CACHE_TTL = {
     "scoreboard": 30,  # 30 seconds - live scores change frequently
@@ -29,7 +29,7 @@ class SimpleCache:
     _MAX_EVICT_PER_OP = 100  # Safety limit to prevent infinite loops
 
     def __init__(self, maxsize: int = _DEFAULT_MAXSIZE):
-        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._cache: dict[str, dict[str, Any]] = {}
         self._heap = []  # (expires, key)
         self._lock = threading.Lock()
         self._maxsize = maxsize
@@ -47,7 +47,7 @@ class SimpleCache:
             ):  # pragma: no cover - keep the sweeper alive on unexpected errors
                 pass
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         with self._lock:
             entry = self._cache.get(key)
             if entry is None:

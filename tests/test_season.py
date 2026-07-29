@@ -4,8 +4,9 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from conftest import PLAYER_ID
 from fastapi.testclient import TestClient
+
+from conftest import PLAYER_ID
 from main import app
 
 

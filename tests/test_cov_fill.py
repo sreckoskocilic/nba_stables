@@ -7,15 +7,15 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
 
-import helpers.stats as hs  # noqa: E402
-from conftest import PLAYER_ID  # noqa: E402
+import helpers.stats as hs
+from conftest import PLAYER_ID
 from helpers.common import (
-    SimpleCache,  # noqa: E402
-    cache,  # noqa: E402
+    SimpleCache,
+    cache,
 )
-from helpers.stats import get_current_season  # noqa: E402
-from helpers.logger import log_exceptions, logger  # noqa: E402
-from main import app  # noqa: E402
+from helpers.logger import log_exceptions, logger
+from helpers.stats import get_current_season
+from main import app
 
 
 @pytest.fixture(scope="module")
@@ -294,9 +294,8 @@ def test_lifespan_warns_invalid_workers(monkeypatch, caplog):
     import helpers.common as _common
 
     monkeypatch.setattr(_common, "_DEFAULT_WORKERS", 0)
-    with caplog.at_level(logging.WARNING, logger="main"):
-        with TestClient(app):
-            pass
+    with caplog.at_level(logging.WARNING, logger="main"), TestClient(app):
+        pass
     assert "EXECUTOR_WORKERS" in caplog.text
     assert "outside reasonable range" in caplog.text
 
@@ -308,9 +307,8 @@ def test_lifespan_warns_invalid_timeout(monkeypatch, caplog):
     import helpers.common as _common
 
     monkeypatch.setattr(_common, "STATS_TIMEOUT", 0)
-    with caplog.at_level(logging.WARNING, logger="main"):
-        with TestClient(app):
-            pass
+    with caplog.at_level(logging.WARNING, logger="main"), TestClient(app):
+        pass
     assert "STATS_TIMEOUT" in caplog.text
     assert "must be >= 1" in caplog.text
 
@@ -320,9 +318,8 @@ def test_lifespan_warns_missing_injuries_file(monkeypatch, caplog):
     import logging
 
     monkeypatch.setattr("main.os.path.exists", lambda _: False)
-    with caplog.at_level(logging.WARNING, logger="main"):
-        with TestClient(app):
-            pass
+    with caplog.at_level(logging.WARNING, logger="main"), TestClient(app):
+        pass
     assert "CBS injuries file not found" in caplog.text
 
 
@@ -364,9 +361,10 @@ def test_player_profile_404_when_bio_and_career_both_fail(client, monkeypatch):
 
 
 def test_scoreboard_skips_phantom_scheduled_games(client, monkeypatch):
-    from conftest import make_live_game, make_scoreboard_v3
     from datetime import date
     from unittest.mock import patch
+
+    from conftest import make_live_game, make_scoreboard_v3
 
     real_game = make_live_game(gameStatusText="Final")
     phantom = make_live_game(

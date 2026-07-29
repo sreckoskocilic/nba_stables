@@ -7,6 +7,18 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import requests
+from curl_cffi import requests as curl_requests
+from nba_api.library.http import NBAHTTP
+from nba_api.live.nba.endpoints import boxscore as live_boxscore
+from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
+from nba_api.live.nba.library.http import NBALiveHTTP
+from nba_api.stats.endpoints import (
+    boxscoretraditionalv3,
+    commonallplayers,
+    scoreboardv3,
+)
+from nba_api.stats.library.http import NBAStatsHTTP
+
 from constants import (
     CAP_DISPLAY_LAST_COMMA_FIRST,
     CAP_PERSON_ID,
@@ -21,7 +33,6 @@ from constants import (
     GL_TEAM_ID,
     STATUS_SCHEDULED,
 )
-from curl_cffi import requests as curl_requests
 from helpers.common import (
     CACHE_TTL,
     SEASON_CUTOFF_DAY,
@@ -31,16 +42,6 @@ from helpers.common import (
     cache,
 )
 from helpers.logger import log_exceptions
-from nba_api.library.http import NBAHTTP
-from nba_api.live.nba.endpoints import boxscore as live_boxscore
-from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
-from nba_api.live.nba.library.http import NBALiveHTTP
-from nba_api.stats.endpoints import (
-    boxscoretraditionalv3,
-    commonallplayers,
-    scoreboardv3,
-)
-from nba_api.stats.library.http import NBAStatsHTTP
 
 # CDN now requires Referer header (returns 403 without it)
 NBALiveHTTP.headers["Referer"] = "https://www.nba.com/"

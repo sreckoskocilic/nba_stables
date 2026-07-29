@@ -23,13 +23,12 @@ from conftest import (
     make_live_boxscore,
     make_live_game,
     make_scoreboard_v3,
-    make_v3_boxscore,
     make_standings_row,
+    make_v3_boxscore,
     make_wnba_live_boxscore,
     make_wnba_standings_row,
 )
 from main import app
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures

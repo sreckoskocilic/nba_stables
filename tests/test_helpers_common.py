@@ -165,12 +165,14 @@ class TestSimpleCache:
             if call_count[0] >= 1:
                 raise SystemExit
 
-        with patch("helpers.common.time.sleep", fake_sleep):
-            with patch.object(self.cache, "_evict_expired", fake_evict):
-                try:
-                    self.cache._evict_loop()
-                except SystemExit:
-                    pass
+        with (
+            patch("helpers.common.time.sleep", fake_sleep),
+            patch.object(self.cache, "_evict_expired", fake_evict),
+        ):
+            try:
+                self.cache._evict_loop()
+            except SystemExit:
+                pass
 
         assert call_count[0] >= 1
 

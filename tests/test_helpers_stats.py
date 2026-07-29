@@ -2,8 +2,9 @@
 
 from datetime import date
 from datetime import datetime as real_datetime
-from zoneinfo import ZoneInfo
+from typing import ClassVar
 from unittest.mock import MagicMock, patch
+from zoneinfo import ZoneInfo
 
 from helpers.stats import (
     convert_et_to_cet,
@@ -16,7 +17,6 @@ from helpers.stats import (
     parse_iso_minutes,
     reformat_player_minutes,
 )
-
 
 # ---------------------------------------------------------------------------
 # reformat_player_minutes
@@ -355,11 +355,14 @@ class TestGetGamesList:
         assert self._call([]) == []
 
     def test_returns_empty_on_api_exception(self):
-        with patch(
-            "helpers.stats.scoreboardv3.ScoreboardV3", side_effect=Exception("network")
+        with (
+            patch(
+                "helpers.stats.scoreboardv3.ScoreboardV3",
+                side_effect=Exception("network"),
+            ),
+            patch("helpers.stats.log_exceptions"),
         ):
-            with patch("helpers.stats.log_exceptions"):
-                assert get_games_list(1) == []
+            assert get_games_list(1) == []
 
     def test_returns_list_type(self):
         result = self._call([_game_row("001", 2)])
@@ -418,11 +421,14 @@ class TestGetGamesLeadersList:
         assert result["001"][0][0] == original
 
     def test_returns_empty_dict_on_api_exception(self):
-        with patch(
-            "helpers.stats.scoreboardv3.ScoreboardV3", side_effect=Exception("timeout")
+        with (
+            patch(
+                "helpers.stats.scoreboardv3.ScoreboardV3",
+                side_effect=Exception("timeout"),
+            ),
+            patch("helpers.stats.log_exceptions"),
         ):
-            with patch("helpers.stats.log_exceptions"):
-                assert get_games_leaders_list(1) == {}
+            assert get_games_leaders_list(1) == {}
 
     def test_returns_dict_type(self):
         result = self._call([], [])
@@ -573,7 +579,7 @@ class TestFetchSingleBoxscore:
 
 
 class TestFindCategoryLeaders:
-    _CATS = [("pts", "Points"), ("reb", "Rebounds"), ("ast", "Assists")]
+    _CATS: ClassVar = [("pts", "Points"), ("reb", "Rebounds"), ("ast", "Assists")]
 
     def _item(self, name, pts, reb, ast):
         return {"name": name, "pts": pts, "reb": reb, "ast": ast}

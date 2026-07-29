@@ -2,6 +2,8 @@ import asyncio
 import heapq
 
 from fastapi import APIRouter, HTTPException, Path, Query
+from nba_api.stats.endpoints import leaguedashplayerstats, leaguegamelog, playergamelog
+
 from helpers.common import CACHE_TTL, cache
 from helpers.decorators import route_error_handler
 from helpers.stats import (
@@ -13,7 +15,6 @@ from helpers.stats import (
     get_wnba_current_season,
     load_players_dict,
 )
-from nba_api.stats.endpoints import leaguedashplayerstats, leaguegamelog, playergamelog
 
 router = APIRouter()
 

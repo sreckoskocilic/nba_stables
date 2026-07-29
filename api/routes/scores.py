@@ -1,7 +1,7 @@
 import asyncio
 
 from fastapi import APIRouter, Query
-from nba_api.stats.endpoints import leaguestandings, LeagueGameFinder
+from nba_api.stats.endpoints import LeagueGameFinder, leaguestandings
 from nba_api.stats.library.http import NBAStatsHTTP
 
 from constants import (
@@ -11,7 +11,6 @@ from constants import (
     GH_GAME_ID,
     GH_GAME_STATUS,
     GH_STATUS_TEXT,
-    STATUS_SCHEDULED,
     GL_AST,
     GL_GAME_ID,
     GL_PLAYER_NAME,
@@ -36,8 +35,9 @@ from constants import (
     ST_RANK,
     ST_STREAK,
     ST_TEAM_ID,
-    ST_WINS,
     ST_WIN_PCT,
+    ST_WINS,
+    STATUS_SCHEDULED,
 )
 from helpers.common import (
     CACHE_TTL,
@@ -570,7 +570,7 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
             }
             g1_winner = g1_loser = g2_winner = None
 
-            for gid, team_pts in games.items():
+            for team_pts in games.values():
                 t_ids = set(team_pts)
                 if not t_ids.issubset(all_ids) or len(t_ids) != 2:
                     continue
