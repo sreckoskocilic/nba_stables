@@ -1,7 +1,7 @@
 nba_api==1.11.4
 fastapi==0.141.1
-uvicorn[standard]==0.52.3
+uvicorn[standard]==0.52.4
 requests[socks]==2.34.2
-curl_cffi==0.16.0
+curl_cffi==0.16.1
 PyYAML==6.0.3
 tzdata==2026.3
