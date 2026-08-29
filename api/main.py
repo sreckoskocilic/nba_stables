@@ -53,15 +53,10 @@ class TimingMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting NBA Stables API...")
-    # Validate env var bounds
+    # Validate env var bounds (_safe_int_env already floors both at 1)
     workers = _common._DEFAULT_WORKERS
-    if not (1 <= workers <= 100):
-        logger.warning(
-            "EXECUTOR_WORKERS=%d is outside reasonable range [1, 100]", workers
-        )
-    timeout = _common.STATS_TIMEOUT
-    if timeout < 1:
-        logger.warning("STATS_TIMEOUT=%d must be >= 1", timeout)
+    if workers > 100:
+        logger.warning("EXECUTOR_WORKERS=%d is above the maximum 100", workers)
     # Warn if injuries data file is missing
     if not os.path.exists(CBS_INJURIES_FILE):
         logger.warning("CBS injuries file not found at startup: %s", CBS_INJURIES_FILE)
@@ -128,6 +123,22 @@ async def analytics_stub():  # pragma: no cover
     return Response(content="", media_type="application/javascript")
 
 
+@app.get("/sw.js")
+async def serve_service_worker():  # pragma: no cover
+    """Serve the service worker from the root — a worker's scope is its own
+    directory, so /web/sw.js could never control the app served at /."""
+    sw_path = os.path.join(static_dir, "sw.js")
+    if os.path.exists(sw_path):
+        return FileResponse(
+            sw_path,
+            media_type="application/javascript",
+            # Always revalidate: a cached worker script keeps serving its old
+            # version, so a fix here would never reach an existing install.
+            headers={"Cache-Control": "no-cache"},
+        )
+    raise HTTPException(status_code=404, detail="Service worker not found")
+
+
 @app.get("/sitemap.xml")
 async def serve_sitemap():  # pragma: no cover
     """Serve sitemap.xml"""
@@ -150,5 +161,7 @@ if __name__ == "__main__":  # pragma: no cover
         "main:app",
         host="0.0.0.0",
         port=8000,
-        workers=4,
+        # One worker: SimpleCache is in-process, so each extra worker is a
+        # separate cache and another multiplier on stats.nba.com calls.
+        workers=1,
     )

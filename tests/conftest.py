@@ -23,7 +23,19 @@ def _patch_lgf_playoffs():
     """
     m = MagicMock()
     m.return_value.get_dict.return_value = {
-        "resultSets": [{"headers": ["GAME_ID", "TEAM_ID", "WL", "PTS"], "rowSet": []}]
+        "resultSets": [
+            {
+                "headers": [
+                    "GAME_ID",
+                    "GAME_DATE",
+                    "MATCHUP",
+                    "TEAM_ID",
+                    "WL",
+                    "PTS",
+                ],
+                "rowSet": [],
+            }
+        ]
     }
     with patch("routes.scores.LeagueGameFinder", m):
         yield
@@ -70,9 +82,40 @@ TEAM_ID_LAL = 1610612747
 TEAM_ID_BOS = 1610612738
 
 FAKE_PLAYERS = [
-    [PLAYER_ID, "LeBron James", TEAM_ID_LAL],
-    [1629029, "Jayson Tatum", TEAM_ID_BOS],
+    [PLAYER_ID, "LeBron James"],
+    [1629029, "Jayson Tatum"],
 ]
+
+
+def make_cap_row(person_id, name, roster_status=1, to_year="2026"):
+    """A CommonAllPlayers row: 16 columns, PERSON_ID 0, DISPLAY_LAST_COMMA_FIRST 1,
+    ROSTERSTATUS 3, TO_YEAR 5."""
+    row = [None] * 16
+    row[0] = person_id
+    row[1] = name
+    row[3] = roster_status
+    row[5] = to_year
+    return row
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _block_player_fetch():
+    """Keep the lifespan's player warm-up off the network.
+
+    main.lifespan calls load_players_file() on every TestClient(app) entry, so
+    without this the suite issues real CommonAllPlayers requests. Session scope
+    so it is in place before the module-scoped `client` fixtures. Tests that
+    exercise _fetch_players override it with their own patch.
+    """
+    import helpers.stats as hs
+
+    mock_cap = MagicMock()
+    mock_cap.common_all_players.get_dict.return_value = {
+        "data": [make_cap_row(pid, name) for pid, name in FAKE_PLAYERS]
+    }
+    with patch.object(hs.commonallplayers, "CommonAllPlayers", lambda **_: mock_cap):
+        yield
+
 
 CAREER_HEADERS = [
     "PLAYER_ID",
@@ -134,11 +177,13 @@ def make_live_player_stats(**kw):
     return stats
 
 
-def make_live_player(person_id=PLAYER_ID, name="LeBron James", **stats_kw):
+def make_live_player(
+    person_id=PLAYER_ID, name="LeBron James", status="ACTIVE", **stats_kw
+):
     return {
         "personId": person_id,
         "name": name,
-        "status": "ACTIVE",
+        "status": status,
         "statistics": make_live_player_stats(**stats_kw),
     }
 

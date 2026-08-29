@@ -18,7 +18,7 @@ on:
       - "requirements-scraper.txt"
       - "ruff.toml"
       - ".env.example"
-      - "dependabot.yml"
+      - ".github/dependabot.yml"
     branches: [main]
   workflow_dispatch: # allow manual trigger
 
@@ -26,6 +26,7 @@ on:
 jobs:
   run-tests:
     uses: ./.github/workflows/tests.yml
+    secrets: inherit
 
   deploy:
     name: Deploy Application
@@ -45,7 +46,7 @@ jobs:
             cd /opt/nba_stables
             git pull origin main
             find . -depth \( -type f -name "*.py[co]" -o -type d -name "__pycache__" \) -delete || true
-            docker compose --profile prod build
+            docker compose --profile prod build --pull
             docker compose --profile prod up -d --wait
             docker image prune -f
             if ! diff -q /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile >/dev/null 2>&1; then

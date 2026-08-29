@@ -6,6 +6,8 @@ from typing import ClassVar
 from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from helpers.stats import (
     convert_et_to_cet,
     fetch_single_boxscore,
@@ -698,8 +700,6 @@ class TestLoadPlayersFile:
     def test_uses_stale_cache_on_error(self):
         import helpers.stats as hs
 
-        hs._players_cache = {}
-        hs._players_cache_expires = {}
         with patch("helpers.stats._fetch_players") as fetch_mock:
             fetch_mock.side_effect = [[[1, "Player One", 1]], RuntimeError("boom")]
             first = hs.load_players_file()
@@ -708,3 +708,198 @@ class TestLoadPlayersFile:
         assert fetch_mock.call_count == 2
         assert first == [[1, "Player One", 1]]
         assert second == [[1, "Player One", 1]]
+
+
+# ---------------------------------------------------------------------------
+# _reset_nba_stats_http_session
+# ---------------------------------------------------------------------------
+
+
+class TestResetNbaStatsHttpSession:
+    def test_closes_and_clears_the_shared_session(self):
+        from nba_api.library.http import NBAHTTP
+        from nba_api.stats.library.http import NBAStatsHTTP
+
+        import helpers.stats as hs
+
+        class FakeSession:
+            def __init__(self):
+                self.closed = False
+
+            def close(self):
+                self.closed = True
+
+        live_sess, stats_sess = FakeSession(), FakeSession()
+        NBAHTTP._session = live_sess
+        NBAStatsHTTP._session = stats_sess
+        try:
+            hs._reset_nba_stats_http_session()
+            assert live_sess.closed is True
+            assert stats_sess.closed is True
+            assert NBAHTTP._session is None
+            assert NBAStatsHTTP._session is None
+        finally:
+            NBAHTTP._session = None
+            NBAStatsHTTP._session = None
+
+
+# ---------------------------------------------------------------------------
+# Player side-caches
+# ---------------------------------------------------------------------------
+
+
+class TestPlayerSideCaches:
+    def test_dict_and_lower_track_the_fetched_rows(self):
+        import helpers.stats as hs
+
+        rows = [[1, "Alpha One"], [2, "Beta Two"]]
+        with patch("helpers.stats._fetch_players", return_value=rows) as fetch:
+            assert hs.load_players_dict() == {1: rows[0], 2: rows[1]}
+            assert hs.load_players_with_lower() == [
+                (rows[0], "alpha one"),
+                (rows[1], "beta two"),
+            ]
+        # second call is served from the 12h cache, not refetched
+        fetch.assert_called_once()
+
+    def test_side_caches_are_keyed_per_league(self):
+        import helpers.stats as hs
+
+        nba = [[1, "NBA Player"]]
+        wnba = [[9, "WNBA Player"]]
+        with patch(
+            "helpers.stats._fetch_players",
+            side_effect=lambda league_id="00": wnba if league_id == "10" else nba,
+        ):
+            assert hs.load_players_dict() == {1: nba[0]}
+            assert hs.load_players_dict(league_id="10") == {9: wnba[0]}
+            assert hs.load_players_with_lower(league_id="10") == [
+                (wnba[0], "wnba player")
+            ]
+
+
+# ---------------------------------------------------------------------------
+# get_cached_scoreboard
+# ---------------------------------------------------------------------------
+
+
+class TestGetCachedScoreboard:
+    def test_nba_overrides_the_cdn_endpoint_url(self):
+        import helpers.stats as hs
+        from helpers.common import CACHE_TTL
+
+        sb = MagicMock()
+        sb.games.data = [{"gameId": "0022300001"}]
+        with (
+            patch("helpers.stats.live_scoreboard.ScoreBoard", return_value=sb),
+            patch("helpers.stats.cache.set") as set_mock,
+        ):
+            out = hs.get_cached_scoreboard()
+        assert out == [{"gameId": "0022300001"}]
+        assert sb.endpoint_url == "scoreboard/todaysScoreboard_00.json"
+        sb.get_request.assert_called_once()
+        assert set_mock.call_args.args[2] == CACHE_TTL["scoreboard"]
+
+    def test_wnba_goes_through_the_wnba_cdn_helper(self):
+        import helpers.stats as hs
+
+        with patch(
+            "helpers.stats._fetch_wnba_live_scoreboard",
+            return_value=[{"gameId": "1022600001"}],
+        ) as fetch:
+            out = hs.get_cached_scoreboard(league_id="10")
+        assert out == [{"gameId": "1022600001"}]
+        fetch.assert_called_once()
+
+    def test_second_call_is_served_from_cache(self):
+        import helpers.stats as hs
+
+        with patch(
+            "helpers.stats._fetch_wnba_live_scoreboard", return_value=[]
+        ) as fetch:
+            hs.get_cached_scoreboard(league_id="10")
+            hs.get_cached_scoreboard(league_id="10")
+        fetch.assert_called_once()
+
+    def test_failure_resets_the_session_and_reraises(self):
+        import helpers.stats as hs
+
+        with (
+            patch(
+                "helpers.stats.live_scoreboard.ScoreBoard",
+                side_effect=RuntimeError("cdn down"),
+            ),
+            patch("helpers.stats._reset_nba_stats_http_session") as reset,
+            pytest.raises(RuntimeError),
+        ):
+            hs.get_cached_scoreboard()
+        reset.assert_called()
+
+
+# ---------------------------------------------------------------------------
+# get_cached_live_boxscore — TTL depends on whether the game is final
+# ---------------------------------------------------------------------------
+
+
+class TestGetCachedLiveBoxscore:
+    @staticmethod
+    def _payload(status):
+        return {"game": {"gameStatusText": status}}
+
+    def _run(self, status):
+        import helpers.stats as hs
+
+        data = self._payload(status)
+        box = MagicMock()
+        box.return_value.get_dict.return_value = data
+        with (
+            patch("helpers.stats.live_boxscore.BoxScore", box),
+            patch("helpers.stats.cache.set") as set_mock,
+        ):
+            out = hs.get_cached_live_boxscore("0022300001")
+        assert out == data
+        return set_mock.call_args.args[2]
+
+    def test_final_game_gets_the_24h_ttl(self):
+        from helpers.common import CACHE_TTL
+
+        assert self._run("Final") == CACHE_TTL["historical"]
+
+    def test_live_game_gets_the_short_ttl(self):
+        from helpers.common import CACHE_TTL
+
+        assert self._run("Q3 05:12") == CACHE_TTL["boxscores"]
+
+    def test_second_call_is_served_from_cache(self):
+        import helpers.stats as hs
+
+        box = MagicMock()
+        box.return_value.get_dict.return_value = self._payload("Final")
+        with patch("helpers.stats.live_boxscore.BoxScore", box):
+            hs.get_cached_live_boxscore("0022300001")
+            hs.get_cached_live_boxscore("0022300001")
+        box.assert_called_once()
+
+    def test_wnba_goes_through_the_wnba_cdn_helper(self):
+        import helpers.stats as hs
+
+        with patch(
+            "helpers.stats._fetch_wnba_live_boxscore",
+            return_value=self._payload("Final"),
+        ) as fetch:
+            hs.get_cached_live_boxscore("1022600001", league_id="10")
+        fetch.assert_called_once_with("1022600001")
+
+    def test_failure_resets_the_session_and_reraises(self):
+        import helpers.stats as hs
+
+        with (
+            patch(
+                "helpers.stats.live_boxscore.BoxScore",
+                side_effect=RuntimeError("cdn down"),
+            ),
+            patch("helpers.stats._reset_nba_stats_http_session") as reset,
+            pytest.raises(RuntimeError),
+        ):
+            hs.get_cached_live_boxscore("0022300001")
+        reset.assert_called()

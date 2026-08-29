@@ -41,33 +41,6 @@ def client():
         yield c
 
 
-def make_boxscore_team_row(team_id, city, name, score=100):
-    """Build a BoxScoreTraditionalV3 team_stats row (len=26, score at [-2])."""
-    row = [None] * 26
-    row[1] = team_id
-    row[2] = city
-    row[3] = name
-    row[7] = 40
-    row[8] = 80
-    row[9] = 0.500
-    row[10] = 10
-    row[11] = 25
-    row[12] = 0.400
-    row[13] = 15
-    row[14] = 20
-    row[15] = 0.750
-    row[16] = 5
-    row[17] = 30
-    row[18] = 35
-    row[19] = 20
-    row[20] = 5
-    row[21] = 3
-    row[22] = 10
-    row[23] = 15
-    row[24] = score  # row[-2]
-    return row
-
-
 def make_player_stats_row(person_id=PLAYER_ID, minutes="28:00"):
     """Build a BoxScoreTraditionalV3 player_stats row."""
     row = [None] * 33
@@ -156,6 +129,23 @@ class TestDates:
         for d in client.get("/api/dates").json()["dates"]:
             assert isinstance(d, str) and len(d) > 0
 
+    def test_has_games_reflects_each_offset(self, client):
+        with patch(
+            "routes.scores.get_games_list",
+            side_effect=lambda i, league_id="00": ["g"] if i in (0, 2) else [],
+        ):
+            body = client.get("/api/dates").json()
+        assert body["hasGames"] == [
+            True,
+            False,
+            True,
+            False,
+            False,
+            False,
+            False,
+            False,
+        ]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # /api/injuries
@@ -207,10 +197,14 @@ class TestInjuries:
         try:
             with patch("routes.injuries.CBS_INJURIES_FILE", tmp):
                 r1 = client.get("/api/injuries")
+                # Delete the source: only a real cache hit can still answer
+                os.unlink(tmp)
                 r2 = client.get("/api/injuries")
-            assert r1.json() == r2.json()
+            assert r2.status_code == 200
+            assert r2.json() == r1.json()
         finally:
-            os.unlink(tmp)
+            if os.path.exists(tmp):
+                os.unlink(tmp)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -250,6 +244,17 @@ class TestScoreboard:
         assert g["homeTeam"]["tricode"] == "LAL"
         assert g["awayTeam"]["tricode"] == "BOS"
         assert g["status"] == "Final"
+
+    def test_wnba_skips_series_attachment(self, client):
+        # league_id "10" bypasses the playoff-series lookup entirely
+        with (
+            self._patch_sb([make_live_game(gameStatusText="Final")]),
+            patch("routes.scores._get_playoff_series_cached") as series_mock,
+        ):
+            r = client.get("/api/scoreboard?league=wnba")
+        assert r.status_code == 200
+        assert "series" not in r.json()["games"][0]
+        series_mock.assert_not_called()
 
     def test_et_time_converted(self, client):
         with self._patch_sb([make_live_game(gameStatusText="7:30 pm ET")]):
@@ -560,6 +565,31 @@ class TestLeaders:
         assert leaders["points"]["value"] == 35
         assert leaders["points"]["players"][0]["name"] == "LeBron James"
 
+    def test_inactive_player_excluded(self, client):
+        bs = self._bs_dict()
+        bs["game"]["homeTeam"]["players"].append(
+            {
+                "status": "INACTIVE",
+                "name": "Injured Star",
+                "statistics": {
+                    "points": 99,
+                    "reboundsTotal": 99,
+                    "assists": 99,
+                    "blocks": 99,
+                    "steals": 99,
+                    "threePointersMade": 99,
+                },
+            }
+        )
+        with (
+            patch("routes.scores.get_games_list", return_value=[GAME_ID]),
+            patch("routes.scores.get_cached_live_boxscore", return_value=bs),
+        ):
+            leaders = client.get("/api/leaders?days_offset=1").json()["leaders"]
+        assert leaders["points"]["value"] == 35
+        names = [p["name"] for cat in leaders.values() for p in cat["players"]]
+        assert "Injured Star" not in names
+
     def test_all_categories_present(self, client):
         with (
             patch("routes.scores.get_games_list", return_value=[GAME_ID]),
@@ -679,7 +709,8 @@ class TestPlayerSearch:
             return_value=[(p, p[1].lower()) for p in many],
         ):
             r = client.get("/api/players/search?q=Player")
-        assert len(r.json()["players"]) <= 20
+        assert len(r.json()["players"]) == 20
+        assert r.json()["total"] == 30
 
     def test_total_counts_all_matches_not_just_page(self, client):
         many = [[i, f"Player {i:02d}", 0] for i in range(30)]
@@ -907,7 +938,7 @@ class TestLastNGames:
     def _gamelog(self):
         m = MagicMock()
         m.player_game_log.get_dict.return_value = {
-            "data": [[None, None, GAME_ID, "2025-02-27", "LAL vs BOS"]]
+            "data": [[None, None, GAME_ID, "FEB 27, 2025", "LAL vs BOS"]]
         }
         return m
 

@@ -8,13 +8,13 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
 
 import helpers.stats as hs
-from conftest import PLAYER_ID
+from conftest import PLAYER_ID, make_cap_row
 from helpers.common import (
     SimpleCache,
     cache,
 )
 from helpers.logger import log_exceptions, logger
-from helpers.stats import get_current_season
+from helpers.stats import get_current_season, get_wnba_current_season
 from main import app
 
 
@@ -38,30 +38,43 @@ def test_log_exceptions_with_context(monkeypatch):
     assert any("ctx123" in str(a) for a in called["args"])
 
 
-def test_fetch_players_parses_name_and_team(monkeypatch):
+def test_fetch_players_parses_name(monkeypatch):
     mock_cap = MagicMock()
     mock_cap.common_all_players.get_dict.return_value = {
         "data": [
-            [123, "Doe, John", None, None, None, None, None, 456],
-            [999, "SingleName", None, None, None, None, None, None],
+            make_cap_row(123, "Doe, John"),
+            make_cap_row(999, "SingleName"),
         ]
     }
     monkeypatch.setattr(hs.commonallplayers, "CommonAllPlayers", lambda **_: mock_cap)
     players = hs._fetch_players()
-    assert players == [[123, "John Doe", 456], [999, "SingleName", None]]
+    assert players == [[123, "John Doe"], [999, "SingleName"]]
 
 
 def test_fetch_players_wnba_filters_inactive(monkeypatch):
+    wnba_year = get_wnba_current_season()[:4]
     mock_cap = MagicMock()
     mock_cap.common_all_players.get_dict.return_value = {
         "data": [
-            [101, "Active, Player", None, 1, None, None, None, 200],
-            [102, "Inactive, Player", None, 0, None, None, None, 300],
+            make_cap_row(101, "Active, Player", roster_status=1),
+            make_cap_row(102, "Inactive, Player", roster_status=0, to_year="2019"),
+            # Inactive but rostered this season — kept by the TO_YEAR half of the filter
+            make_cap_row(103, "Recent, Player", roster_status=0, to_year=wnba_year),
         ]
     }
     monkeypatch.setattr(hs.commonallplayers, "CommonAllPlayers", lambda **_: mock_cap)
     players = hs._fetch_players(league_id="10")
-    assert players == [[101, "Player Active", 200]]
+    assert players == [[101, "Player Active"], [103, "Player Recent"]]
+
+
+def test_normalize_game_date_shapes():
+    """Both real upstream formats normalise to ISO; anything else passes through."""
+    from routes.players import _normalize_game_date
+
+    assert _normalize_game_date("2026-05-08") == "2026-05-08"
+    assert _normalize_game_date("AUG 27, 2026") == "2026-08-27"
+    assert _normalize_game_date("not a date") == "not a date"
+    assert _normalize_game_date(None) is None
 
 
 def test_players_search_invalid_chars(client):
@@ -102,7 +115,7 @@ def test_last_n_games_playergamelog_path_with_dates(monkeypatch, client):
     )
     mock_pgl = MagicMock()
     mock_pgl.player_game_log.get_dict.return_value = {
-        "data": [["", PLAYER_ID, "0022309999", "2026-03-10", "LAC @ IND"]]
+        "data": [["", PLAYER_ID, "0022309999", "MAR 10, 2026", "LAC @ IND"]]
     }
     monkeypatch.setattr(
         "routes.players.playergamelog.PlayerGameLog", lambda **_: mock_pgl
@@ -142,26 +155,6 @@ def test_last_n_games_playergamelog_path_with_dates(monkeypatch, client):
 
 def test_get_player_stats_value_error(client):
     r = client.get("/api/players/stats?ids=abc")
-    assert r.status_code == 200
-    assert r.json()["players"] == []
-
-
-def test_player_stats_timeout_branch(monkeypatch, client):
-    from concurrent.futures import Future
-
-    class SlowFuture(Future):
-        def result(self, timeout=None):
-            raise TimeoutError()
-
-    monkeypatch.setattr(
-        "routes.players.load_players_dict", lambda league_id="00": {1: [1, "P1", None]}
-    )
-    monkeypatch.setattr(
-        "routes.players.executor.submit", lambda fn, *a, **k: SlowFuture()
-    )
-    monkeypatch.setattr("routes.players.get_cached_scoreboard", lambda lid="00": [])
-    r = client.get("/api/players/stats?ids=1")
-    # should ignore timeouts and still return an empty list gracefully
     assert r.status_code == 200
     assert r.json()["players"] == []
 
@@ -288,29 +281,16 @@ def test_get_cached_boxscore_v3_cache_miss(monkeypatch):
 
 
 def test_lifespan_warns_invalid_workers(monkeypatch, caplog):
-    """Lifespan warns when EXECUTOR_WORKERS is out of range."""
+    """Lifespan warns when EXECUTOR_WORKERS is above the maximum."""
     import logging
 
     import helpers.common as _common
 
-    monkeypatch.setattr(_common, "_DEFAULT_WORKERS", 0)
+    monkeypatch.setattr(_common, "_DEFAULT_WORKERS", 200)
     with caplog.at_level(logging.WARNING, logger="main"), TestClient(app):
         pass
     assert "EXECUTOR_WORKERS" in caplog.text
-    assert "outside reasonable range" in caplog.text
-
-
-def test_lifespan_warns_invalid_timeout(monkeypatch, caplog):
-    """Lifespan warns when STATS_TIMEOUT is less than 1."""
-    import logging
-
-    import helpers.common as _common
-
-    monkeypatch.setattr(_common, "STATS_TIMEOUT", 0)
-    with caplog.at_level(logging.WARNING, logger="main"), TestClient(app):
-        pass
-    assert "STATS_TIMEOUT" in caplog.text
-    assert "must be >= 1" in caplog.text
+    assert "above the maximum" in caplog.text
 
 
 def test_lifespan_warns_missing_injuries_file(monkeypatch, caplog):

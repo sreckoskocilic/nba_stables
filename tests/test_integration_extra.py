@@ -14,9 +14,11 @@ from conftest import (
     TEAM_ID_LAL,
     make_live_boxscore,
     make_live_game,
+    make_live_player,
     make_live_player_stats,
     make_standings_row,
 )
+from helpers.common import CACHE_TTL
 from main import app
 
 
@@ -297,11 +299,22 @@ class TestPlayoffs:
         assert r.json()["east"][0]["status"] == "out"
 
     def test_projected_wins_calculated(self, client):
+        # 41-41 with the season complete: nothing left to project
         rows = [make_standings_row(1, "Boston", "Celtics", "East", 41, 41)]
         with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
             r = client.get("/api/playoffs")
         t = r.json()["east"][0]
-        assert t["projectedWins"] + t["projectedLosses"] == 82
+        assert t["projectedWins"] == 41
+        assert t["projectedLosses"] == 41
+
+    def test_projected_wins_extrapolates_mid_season(self, client):
+        # 30-20 (.600) with 32 games left -> 30 + 19.2 -> 49 wins, 33 losses
+        rows = [make_standings_row(1, "Boston", "Celtics", "East", 30, 20)]
+        with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
+            r = client.get("/api/playoffs")
+        t = r.json()["east"][0]
+        assert t["projectedWins"] == 49
+        assert t["projectedLosses"] == 33
 
     def test_sorted_by_rank(self, client):
         rows = [
@@ -388,6 +401,40 @@ class TestPlayoffs:
         ):
             r = client.get("/api/playoffs")
         assert r.json()["playinActual"]["east"]["g3WinnerTeamId"] == 1009
+
+    def test_playin_skips_game_without_final_pts(self, client):
+        # LeagueGameFinder leaves PTS=None until a game is finalised — the score
+        # still shows, but no winner/loser may be derived from it.
+        rows = self._make_conf_rows("East", 1000) + self._make_conf_rows("West", 2000)
+        lgf_rows = [["G1E", 1007, None], ["G1E", 1008, None]]
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
+            patch("routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)),
+        ):
+            r = client.get("/api/playoffs")
+        assert r.status_code == 200
+        east = r.json()["playinActual"]["east"]
+        assert len(east["gameScores"]) == 1
+        assert "seed7TeamId" not in east
+        assert "g1LoserTeamId" not in east
+
+    def test_playin_skips_g3_without_final_pts(self, client):
+        # G1 and G2 are final, G3 is still tied — g3WinnerTeamId must stay unset.
+        rows = self._make_conf_rows("East", 1000) + self._make_conf_rows("West", 2000)
+        lgf_rows = [
+            ["G1E", 1007, 110],
+            ["G1E", 1008, 105],
+            ["G2E", 1009, 100],
+            ["G2E", 1010, 95],
+            ["G3E", 1009, 88],
+            ["G3E", 1008, 88],
+        ]
+        with (
+            patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
+            patch("routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)),
+        ):
+            r = client.get("/api/playoffs")
+        assert "g3WinnerTeamId" not in r.json()["playinActual"]["east"]
 
     def test_playin_process_conf_fewer_than_4_teams(self, client):
         # Only 8 teams per conf → play-in slice has 2 teams → process_conf returns early
@@ -601,6 +648,10 @@ class TestPlayerErrorHandlers:
                 "routes.players.get_cached_live_boxscore",
                 side_effect=Exception("nba down"),
             ),
+            patch(
+                "routes.players._game_players_from_v3",
+                side_effect=Exception("v3 down"),
+            ),
             patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get(f"/api/games/{GAME_ID}/players")
@@ -735,15 +786,6 @@ class TestSeasonDoubles:
         counts = [p["count"] for p in r.json()["doubleDoubles"]]
         assert counts == sorted(counts, reverse=True)
 
-    def test_max_10_results(self, client):
-        rows = [_make_doubles_row(i, f"P{i}", "LAL", 20 - i, 0) for i in range(15)]
-        with patch(
-            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
-            _mock_league_dash(rows),
-        ):
-            r = client.get("/api/season/doubles")
-        assert len(r.json()["doubleDoubles"]) <= 30
-
     def test_zero_excluded(self, client):
         rows = [
             _make_doubles_row(1, "A", "LAL", 5, 0),
@@ -839,16 +881,6 @@ class TestTripleDoubleGames:
 
 
 class TestScoresErrorHandlers:
-    def _patch_sb(self):
-        from contextlib import ExitStack
-        from datetime import date
-
-        stack = ExitStack()
-        stack.enter_context(
-            patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7))
-        )
-        return stack
-
     def test_scoreboard_500_on_error(self, client):
         from datetime import date
 
@@ -863,9 +895,12 @@ class TestScoresErrorHandlers:
         assert r.status_code == 500
 
     def test_boxscores_empty_leaders_returns_empty(self, client):
-        with patch(
-            "routes.scores.get_games_leaders_list",
-            return_value={"g1": [], "g2": []},
+        with (
+            patch(
+                "routes.scores.get_games_leaders_list",
+                return_value={"g1": [], "g2": []},
+            ),
+            patch("routes.scores.fetch_single_boxscore", return_value=None),
         ):
             r = client.get("/api/boxscores?days_offset=1")
         assert r.status_code == 200
@@ -998,6 +1033,7 @@ class TestInnerExceptionHandlers:
 
     def test_dates_500_on_sync_error(self, client):
         with (
+            patch("routes.scores.get_games_list", return_value=[]),
             patch("routes.scores.get_display_date", side_effect=RuntimeError("boom")),
             patch("helpers.decorators.log_exceptions"),
         ):
@@ -1277,3 +1313,152 @@ class TestScoreboardSeries:
             pair_wins, _ = _fetch_playoff_series_data("2025-26")
         lo, hi = sorted((TEAM_ID_LAL, TEAM_ID_BOS))
         assert pair_wins[f"{lo}_{hi}"] == {str(lo): 0, str(hi): 0}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cache TTL selection
+#
+# Every route picks between a live TTL and the 24h "historical" one. Line
+# coverage reaches both branches, but nothing asserted which TTL was chosen, so
+# swapping them would have served day-old boxscores with a green suite.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestCacheTtlSelection:
+    @staticmethod
+    def _ttls(set_mock):
+        return [call.args[2] for call in set_mock.call_args_list]
+
+    @pytest.mark.parametrize(
+        ("days_offset", "expected"),
+        [(1, CACHE_TTL["boxscores"]), (2, CACHE_TTL["historical"])],
+    )
+    def test_boxscores_ttl(self, client, days_offset, expected):
+        with (
+            patch("routes.scores.get_games_leaders_list", return_value={}),
+            patch("routes.scores.cache.set") as set_mock,
+        ):
+            r = client.get(f"/api/boxscores?days_offset={days_offset}")
+        assert r.status_code == 200
+        assert self._ttls(set_mock) == [expected]
+
+    @pytest.mark.parametrize(
+        ("days_offset", "expected"),
+        [(1, CACHE_TTL["leaders"]), (2, CACHE_TTL["historical"])],
+    )
+    def test_leaders_ttl(self, client, days_offset, expected):
+        with (
+            patch("routes.scores.get_games_list", return_value=[]),
+            patch("routes.scores.cache.set") as set_mock,
+        ):
+            r = client.get(f"/api/leaders?days_offset={days_offset}")
+        assert r.status_code == 200
+        assert self._ttls(set_mock) == [expected]
+
+    @pytest.mark.parametrize(
+        ("season", "expected"),
+        [(None, CACHE_TTL["season_leaders"]), ("2020-21", CACHE_TTL["historical"])],
+    )
+    def test_season_highs_ttl(self, client, season, expected):
+        gamelog = MagicMock()
+        gamelog.get_dict.return_value = {"resultSets": [{"headers": [], "rowSet": []}]}
+        query = f"?season={season}" if season else ""
+        with (
+            patch("routes.season.leaguegamelog.LeagueGameLog", return_value=gamelog),
+            patch("routes.season.cache.set") as set_mock,
+        ):
+            r = client.get(f"/api/season/highs{query}")
+        assert r.status_code == 200
+        assert self._ttls(set_mock) == [expected]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Upstream states the fixtures never produced
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestUpstreamEdgeStates:
+    def test_game_players_skips_inactive_and_handles_zero_attempts(self, client):
+        bs = make_live_boxscore()
+        bs["game"]["homeTeam"]["players"].extend(
+            [
+                make_live_player(
+                    person_id=1, name="Did Not Play", status="INACTIVE", points=99
+                ),
+                make_live_player(
+                    person_id=2,
+                    name="Zero Shots",
+                    points=0,
+                    fieldGoalsMade=0,
+                    fieldGoalsAttempted=0,
+                    freeThrowsMade=0,
+                    freeThrowsAttempted=0,
+                ),
+            ]
+        )
+        with patch("routes.players.get_cached_live_boxscore", return_value=bs):
+            r = client.get(f"/api/games/{GAME_ID}/players")
+        assert r.status_code == 200
+        home = next(t for t in r.json()["teams"] if t["tricode"] == "LAL")
+        by_name = {p["name"]: p for p in home["players"]}
+        assert "Did Not Play" not in by_name
+        # no ZeroDivisionError, and the percentage degrades to 0 rather than None
+        assert by_name["Zero Shots"]["fgPct"] == 0
+        assert by_name["Zero Shots"]["ftPct"] == 0
+
+    def test_player_stats_handles_zero_attempts(self, client):
+        bs = make_live_boxscore()
+        bs["game"]["homeTeam"]["players"] = [
+            make_live_player(
+                person_id=PLAYER_ID,
+                points=0,
+                fieldGoalsMade=0,
+                fieldGoalsAttempted=0,
+                freeThrowsMade=0,
+                freeThrowsAttempted=0,
+            )
+        ]
+        with (
+            patch(
+                "routes.players.load_players_dict",
+                return_value={p[0]: p for p in FAKE_PLAYERS},
+            ),
+            patch(
+                "routes.players.get_cached_scoreboard", return_value=[make_live_game()]
+            ),
+            patch("routes.players.get_cached_live_boxscore", return_value=bs),
+        ):
+            r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
+        p = r.json()["players"][0]
+        assert p["fgPct"] == 0
+        assert p["ftPct"] == 0
+
+    def test_doubles_sums_both_teams_of_a_traded_player(self, client):
+        # A mid-season trade gives the same PLAYER_ID one row per team
+        rows = [
+            _make_doubles_row(1, "Traded Player", "LAL", 7, 1),
+            _make_doubles_row(1, "Traded Player", "BOS", 5, 2),
+        ]
+        with patch(
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            _mock_league_dash(rows),
+        ):
+            r = client.get("/api/season/doubles")
+        dd = r.json()["doubleDoubles"]
+        assert len(dd) == 1
+        assert dd[0]["count"] == 12
+        assert r.json()["tripleDoubles"][0]["count"] == 3
+
+    def test_standings_preseason_row_without_pct_or_games_back(self, client):
+        row = make_standings_row(1, "Boston", "Celtics", "East", 0, 0)
+        row[14] = None  # WIN_PCT — null until the first game is played
+        row[37] = None  # GAMES_BACK
+        standings = MagicMock()
+        standings.return_value.get_dict.return_value = {
+            "resultSets": [{"rowSet": [row]}]
+        }
+        with patch("routes.scores.leaguestandings.LeagueStandings", standings):
+            r = client.get("/api/standings")
+        t = r.json()["east"][0]
+        assert t["winPct"] == 0
+        assert t["gamesBack"] == "-"

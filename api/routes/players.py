@@ -1,7 +1,7 @@
 import asyncio
 import json
 import re
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from nba_api.stats.endpoints import (
@@ -54,12 +54,19 @@ router = APIRouter()
 
 
 def _normalize_game_date(date_str: str | None) -> str | None:
+    """Normalise a game date to ISO. Handles both upstream shapes: LeagueGameLog
+    and GAME_DATE_EST serve '2026-05-08', PlayerGameLog serves 'AUG 27, 2026'."""
     if not date_str:
         return None
+    raw = str(date_str)
     try:
-        return date.fromisoformat(str(date_str)[:10]).isoformat()
-    except ValueError:  # pragma: no cover
-        return date_str
+        return date.fromisoformat(raw[:10]).isoformat()
+    except ValueError:
+        pass
+    try:
+        return datetime.strptime(raw, "%b %d, %Y").date().isoformat()  # noqa: DTZ007
+    except ValueError:
+        return raw
 
 
 def _avg_pct(row, h, gp):
@@ -138,9 +145,7 @@ async def search_players(
         for player, player_lower in players:
             if query in player_lower:
                 if total >= offset and len(results) < limit:
-                    results.append(
-                        {"id": player[0], "name": player[1], "teamId": player[2]}
-                    )
+                    results.append({"id": player[0], "name": player[1]})
                 total += 1
 
         return {"players": results, "total": total, "limit": limit, "offset": offset}

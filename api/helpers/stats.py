@@ -22,7 +22,6 @@ from nba_api.stats.library.http import NBAStatsHTTP
 from constants import (
     CAP_DISPLAY_LAST_COMMA_FIRST,
     CAP_PERSON_ID,
-    CAP_TEAM_ID,
     GH_GAME_ID,
     GH_GAME_STATUS,
     GL_AST,
@@ -273,8 +272,7 @@ def _fetch_players(league_id: str = "00") -> list:
             else:
                 name = name_raw
 
-            team_id = row[CAP_TEAM_ID] if len(row) > CAP_TEAM_ID else None
-            players.append([person_id, fix_encoding(name), team_id])
+            players.append([person_id, fix_encoding(name)])
 
         return players
     finally:
@@ -311,13 +309,13 @@ def load_players_file(league_id: str = "00") -> list:  # pragma: no cover
         return _players_cache[league_id]
 
 
-def load_players_dict(league_id: str = "00") -> dict:  # pragma: no cover
+def load_players_dict(league_id: str = "00") -> dict:
     """Return {player_id: player_row} dict for O(1) lookups."""
     load_players_file(league_id)
     return _players_dict_cache.get(league_id, {})
 
 
-def load_players_with_lower(league_id: str = "00") -> list:  # pragma: no cover
+def load_players_with_lower(league_id: str = "00") -> list:
     """Return cached list of (player_row, lowercase_name) tuples."""
     load_players_file(league_id)
     return _players_cache_lower.get(league_id, [])
@@ -342,11 +340,11 @@ def _fetch_wnba_live_scoreboard() -> list:  # pragma: no cover
     return data["scoreboard"]["games"]
 
 
-def get_cached_scoreboard(league_id: str = "00") -> Any:  # pragma: no cover
+def get_cached_scoreboard(league_id: str = "00") -> Any:
     """Return cached live ScoreBoard().games.data."""
     sb_key = f"raw_scoreboard_{league_id}_{scoreboard_date().isoformat()}"
     cached = cache.get(sb_key)
-    if cached is not None:  # pragma: no cover
+    if cached is not None:
         return cached
     try:
         if league_id == "10":
@@ -377,7 +375,7 @@ def _fetch_wnba_live_boxscore(game_id: str) -> dict:  # pragma: no cover
 def get_cached_live_boxscore(
     game_id: str,
     league_id: str = "00",
-) -> dict | None:  # pragma: no cover
+) -> dict | None:
     """Return a cached live BoxScore response dict for the given game_id."""
     cache_key = f"raw_live_boxscore_{game_id}"
     cached = cache.get(cache_key)
@@ -419,7 +417,10 @@ def get_scoreboard_v3_by_date(
 ) -> Any:
     """Return a cached ScoreboardV3 object for a specific date."""
     date_str = game_date.strftime("%Y-%m-%d")
-    cache_key = f"raw_scoreboard_v3_{league_id}_{date_str}"
+    # historical belongs in the key: between ~06:00 and 13:00 CET both callers
+    # resolve to the same ET date with different TTLs, and whichever misses
+    # first would otherwise pin its TTL on the other.
+    cache_key = f"raw_scoreboard_v3_{league_id}_{date_str}_{int(historical)}"
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached

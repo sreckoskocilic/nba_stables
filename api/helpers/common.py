@@ -62,29 +62,26 @@ class SimpleCache:
     def set(self, key: str, data: Any, ttl_seconds: int):
         with self._lock:
             expires = time.time() + ttl_seconds
+            # Re-insert so dict order tracks write recency, not first-seen order
+            self._cache.pop(key, None)
             self._cache[key] = {"data": data, "expires": expires}
             heapq.heappush(self._heap, (expires, key))
 
-            # Evict expired first, then oldest if still over maxsize
+            # Evict expired first, then coldest if still over maxsize
             self._evict_expired()
             if len(self._cache) > self._maxsize:
                 self._evict_oldest()
 
     def _evict_oldest(self):
-        """Evict TTL-ordered entries when cache exceeds maxsize."""
+        """Evict least-recently-written entries when cache exceeds maxsize.
+
+        Insertion order tracks write recency because set() re-inserts the key,
+        so the first dict key is always the coldest one. Evicting by heap order
+        instead would drop the shortest-lived entry, which is the one just set.
+        """
         evicted = 0
-        while (
-            len(self._cache) > self._maxsize
-            and self._heap
-            and evicted < self._MAX_EVICT_PER_OP
-        ):
-            exp, oldest_key = heapq.heappop(self._heap)
-            entry = self._cache.get(oldest_key)
-            if entry is None:
-                continue
-            if entry["expires"] != exp:
-                continue
-            self._cache.pop(oldest_key)
+        while len(self._cache) > self._maxsize and evicted < self._MAX_EVICT_PER_OP:
+            self._cache.pop(next(iter(self._cache)))
             evicted += 1
 
     def _evict_expired(self):

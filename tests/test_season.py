@@ -431,7 +431,7 @@ TD_GAMES_HEADERS = ["GAME_DATE", "MATCHUP", "PTS", "REB", "AST", "STL", "BLK"]
 
 
 def _td_game_row(
-    date="2024-01-15", matchup="LAL vs. BOS", pts=0, reb=0, ast=0, stl=0, blk=0
+    date="JAN 15, 2024", matchup="LAL vs. BOS", pts=0, reb=0, ast=0, stl=0, blk=0
 ):
     h = {k: i for i, k in enumerate(TD_GAMES_HEADERS)}
     row = [None] * len(TD_GAMES_HEADERS)

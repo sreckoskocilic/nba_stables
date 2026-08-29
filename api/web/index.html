@@ -509,13 +509,6 @@
             font-weight: 500;
         }
 
-        /* Compact grid for scoreboard */
-        .cards-grid-compact {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 14px;
-        }
-
         .card {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -1573,7 +1566,7 @@
                     Live Scoreboard
                     <button class="refresh-btn" data-action="loadScoreboard" title="Refresh scoreboard" aria-label="Refresh scoreboard">&#8635; Refresh</button>
                 </div>
-                <div id="scoreboardContent" class="cards-grid-compact">
+                <div id="scoreboardContent">
                     <div class="loading"><div class="spinner"></div> Loading games...</div>
                 </div>
             </section>

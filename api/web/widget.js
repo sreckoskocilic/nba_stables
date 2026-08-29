@@ -173,3 +173,15 @@ document.getElementById("leagueToggle").addEventListener("click", e => {
 
 renderChips();
 if (tracked.length) loadStats();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .getRegistrations()
+    .then((regs) => {
+      // sw.js used to live at /web/sw.js; that narrower scope would still
+      // shadow the root worker on /web/ pages, so drop it first.
+      regs.forEach((r) => r.scope.endsWith("/web/") && r.unregister());
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    })
+    .catch(() => {});
+}

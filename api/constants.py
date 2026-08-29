@@ -8,7 +8,6 @@ ET_SUFFIX = "ET"  # Eastern Time marker in NBA game status text (e.g. "7:30 pm E
 # CommonAllPlayers columns
 CAP_PERSON_ID = 0
 CAP_DISPLAY_LAST_COMMA_FIRST = 1
-CAP_TEAM_ID = 7
 
 # BoxScoreTraditionalV3 player_stats columns
 BS_PLAYER_ID = 6

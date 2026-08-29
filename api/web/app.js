@@ -1606,7 +1606,7 @@ function renderSeasonDoubles() {
   const tbl = (title, list, isTd) => {
     if (!list || list.length === 0)
       return `<div class="card" style="overflow-x:auto;"><h3 style="padding:15px 20px;background:var(--bg-secondary);margin:0;border-bottom:1px solid var(--border);">${title}</h3><table class="doubles-table"><thead><tr><th>Rank</th><th style="text-align:left;">Player</th><th>Team</th><th>Count</th>${isTd ? "<th>Details</th>" : ""}</tr></thead><tbody><tr><td></td><td style="text-align:left;color:var(--text-secondary);">No ${isTd ? "triple" : "double"}-doubles yet</td><td></td><td></td>${isTd ? "<td></td>" : ""}</tr></tbody></table></div>`;
-    return `<div class="card" style="overflow-x:auto;"><h3 style="padding:15px 20px;background:var(--bg-secondary);margin:0;border-bottom:1px solid var(--border);">${title}</h3><table class="doubles-table"><thead><tr><th>Rank</th><th style="text-align:left;">Player</th><th>Team</th><th>Count</th>${isTd ? "<th>Details</th>" : ""}</tr></thead><tbody>${list.map((p) => `<tr id="td-row-${p.playerId}"><td>${p.rank}</td><td style="text-align:left;font-weight:500;">${esc(p.name)}</td><td>${esc(p.team)}</td><td class="highlight">${p.playoff ? `${p.count}/${p.playoff}` : p.count}</td>${isTd ? `<td><button class="refresh-btn" style="font-size:0.75rem;padding:2px 8px;" data-action="toggleTdGames" data-player-id="${p.playerId}">Details</button></td>` : ""}</tr>${isTd ? `<tr id="td-details-${p.playerId}" style="display:none;"><td colspan="5"><div id="td-games-${p.playerId}" style="padding:8px;"></div></td></tr>` : ""}`).join("")}</tbody></table></div>`;
+    return `<div class="card" style="overflow-x:auto;"><h3 style="padding:15px 20px;background:var(--bg-secondary);margin:0;border-bottom:1px solid var(--border);">${title}</h3><table class="doubles-table"><thead><tr><th>Rank</th><th style="text-align:left;">Player</th><th>Team</th><th>Count</th>${isTd ? "<th>Details</th>" : ""}</tr></thead><tbody>${list.map((p) => `<tr><td>${p.rank}</td><td style="text-align:left;font-weight:500;">${esc(p.name)}</td><td>${esc(p.team)}</td><td class="highlight">${p.playoff ? `${p.count}/${p.playoff}` : p.count}</td>${isTd ? `<td><button class="refresh-btn" style="font-size:0.75rem;padding:2px 8px;" data-action="toggleTdGames" data-player-id="${p.playerId}">Details</button></td>` : ""}</tr>${isTd ? `<tr id="td-details-${p.playerId}" style="display:none;"><td colspan="5"><div id="td-games-${p.playerId}" style="padding:8px;"></div></td></tr>` : ""}`).join("")}</tbody></table></div>`;
   };
   const hasPlayoff = [...(d.doubleDoubles || []), ...(d.tripleDoubles || [])].some((p) => p.playoff);
   el.innerHTML = `${hasPlayoff ? `<p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:8px;">Count format: total/playoff</p>` : ""}<div class="season-doubles-grid">${tbl("Double-Doubles", d.doubleDoubles ? d.doubleDoubles.slice(0, 20) : [], false)}${tbl("Triple-Doubles", d.tripleDoubles ? d.tripleDoubles.slice(0, 20) : [], true)}</div>`;
@@ -1643,7 +1643,6 @@ async function toggleTdGames(playerId, btn) {
 
 async function loadScoreboard() {
   const content = document.getElementById("scoreboardContent");
-  content.classList.remove("cards-grid-compact");
   content.classList.add("scoreboard-table-shell");
   content.innerHTML =
     '<div class="loading"><div class="spinner"></div> Loading games...</div>';
@@ -1676,7 +1675,7 @@ async function loadScoreboard() {
       const parsed = parseInt(value, 10);
       return Number.isFinite(parsed) ? parsed : null;
     };
-    const renderTable = (items, startIndex) => `
+    const renderTable = (items) => `
             <div class="card scoreboard-table-wrap">
                 <table class="scoreboard-table">
                     <thead>
@@ -1762,8 +1761,8 @@ async function loadScoreboard() {
 
     content.innerHTML = `
             <div class="scoreboard-split">
-                ${renderTable(leftGames, 0)}
-                ${rightGames.length ? renderTable(rightGames, splitAt) : ""}
+                ${renderTable(leftGames)}
+                ${rightGames.length ? renderTable(rightGames) : ""}
             </div>
         `;
   } catch (e) {
@@ -2480,19 +2479,15 @@ async function loadInjuries() {
 
 // === Delegated click dispatcher (replaces former inline on* handlers) ===
 const _ACTIONS = {
-  openCookieSettings: (_t, e) => {
-    e.preventDefault();
-    window.openCookieSettings && window.openCookieSettings();
-  },
   loadScoreboard: () => loadScoreboard(),
   loadBoxscores: () => loadBoxscores(),
   loadLeaders: () => loadLeaders(),
   loadTrackedStats: () => loadTrackedStats(),
-  loadStandings: () => loadStandings(),
+  loadStandings: () => loadStandings(true),
   loadInjuries: () => loadInjuries(),
   loadPlayerProfile: () => loadPlayerProfile(),
   showProfileTab: (t) => showProfileTab(t.dataset.profileTab),
-  loadPlayoffs: () => loadPlayoffs(),
+  loadPlayoffs: () => loadPlayoffs(true),
   loadTrades: () => loadTrades(true),
   loadSeasonDoubles: () => loadSeasonDoubles(true),
   loadSeasonHighs: () => loadSeasonHighs(true),
@@ -2590,5 +2585,14 @@ document.querySelectorAll("#leagueToggle [data-league]").forEach((btn) => {
 });
 _applyLeagueToggle();
 
-"serviceWorker" in navigator &&
-  navigator.serviceWorker.register("/web/sw.js").catch(() => {});
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .getRegistrations()
+    .then((regs) => {
+      // sw.js used to live at /web/sw.js; that narrower scope would still
+      // shadow the root worker on /web/ pages, so drop it first.
+      regs.forEach((r) => r.scope.endsWith("/web/") && r.unregister());
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    })
+    .catch(() => {});
+}

@@ -559,6 +559,21 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
                 games[gid] = {}
             games[gid][row[team_id_idx]] = row[pts_idx]
 
+        def decisive_winner_loser(team_pts: dict):
+            """Winner/loser ids, or (None, None) when PTS aren't decisive yet.
+
+            LeagueGameFinder serves PTS=None while a game is unfinished, and a tie
+            means no result — comparing either would raise.
+            """
+            pts = list(team_pts.values())
+            if (
+                len(pts) != 2
+                or not all(isinstance(p, (int, float)) for p in pts)
+                or pts[0] == pts[1]
+            ):
+                return None, None
+            return max(team_pts, key=team_pts.get), min(team_pts, key=team_pts.get)
+
         def process_conf(conf_playin: list) -> dict:
             if len(conf_playin) < 4:
                 return {"gameScores": {}}
@@ -579,8 +594,9 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
                 sorted_ids = sorted(t_ids)
                 key = f"{sorted_ids[0]}_{sorted_ids[1]}"
                 conf["gameScores"][key] = {str(k): v for k, v in team_pts.items()}
-                winner = max(team_pts, key=team_pts.get)
-                loser = min(team_pts, key=team_pts.get)
+                winner, loser = decisive_winner_loser(team_pts)
+                if winner is None:
+                    continue
                 if seeds == {7, 8}:
                     g1_winner, g1_loser = winner, loser
                 elif seeds == {9, 10}:
@@ -596,7 +612,9 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
                 g3_ids = {g1_loser, g2_winner}
                 for team_pts in games.values():
                     if set(team_pts) == g3_ids:
-                        conf["g3WinnerTeamId"] = max(team_pts, key=team_pts.get)
+                        g3_winner, _ = decisive_winner_loser(team_pts)
+                        if g3_winner is not None:
+                            conf["g3WinnerTeamId"] = g3_winner
                         break
 
             return conf
