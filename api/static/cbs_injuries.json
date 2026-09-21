@@ -186,6 +186,12 @@
           "status": "Questionable for start of season"
         },
         {
+          "name": "Brandon Ingram",
+          "updated": "Tue, Sep 8",
+          "injury": "Heel",
+          "status": "Questionable for start of season"
+        },
+        {
           "name": "Jordan Miller",
           "updated": "Tue, Sep 8",
           "injury": "Shoulder",
@@ -197,16 +203,16 @@
       "team": "Memphis",
       "players": [
         {
+          "name": "Adama-Alpha Bal",
+          "updated": "Fri, Sep 18",
+          "injury": "Ankle",
+          "status": "Probable for start of season"
+        },
+        {
           "name": "Walter Clayton Jr.",
           "updated": "Tue, Sep 8",
           "injury": "Knee",
           "status": "Questionable for start of season"
-        },
-        {
-          "name": "Adama-Alpha Bal",
-          "updated": "Tue, Sep 8",
-          "injury": "Ankle",
-          "status": "Probable for start of season"
         },
         {
           "name": "Richie Saunders",
@@ -277,12 +283,6 @@
     {
       "team": "Minnesota",
       "players": [
-        {
-          "name": "Trey Kaufman-Renn",
-          "updated": "Mon, Sep 14",
-          "injury": "Transfer Portal",
-          "status": "—"
-        },
         {
           "name": "Donte DiVincenzo",
           "updated": "Tue, Sep 8",
@@ -384,6 +384,17 @@
       ]
     },
     {
+      "team": "Philadelphia",
+      "players": [
+        {
+          "name": "Adem Bona",
+          "updated": "Thu, Sep 17",
+          "injury": "Foot",
+          "status": "Questionable for start of season"
+        }
+      ]
+    },
+    {
       "team": "Phoenix",
       "players": [
         {
@@ -479,12 +490,6 @@
           "status": "Questionable for start of season"
         },
         {
-          "name": "Brandon Ingram",
-          "updated": "Tue, Sep 8",
-          "injury": "Heel",
-          "status": "Questionable for start of season"
-        },
-        {
           "name": "Alijah Martin",
           "updated": "Tue, Sep 8",
           "injury": "Knee",
@@ -534,5 +539,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "September 14, 2026 16:08 UTC"
+  "lastUpdated": "September 21, 2026 16:10 UTC"
 }
