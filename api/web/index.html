@@ -1,1755 +1,597 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBA Stables - Live NBA Scores, Stats & Player Tracker</title>
-    <meta name="description" content="Free live NBA scores, box scores, standings, injury reports and player tracking. No ads.">
-    <meta name="keywords" content="NBA, basketball, live scores, NBA stats, player tracker, box scores, standings, injury report, NBA API">
-    <meta name="author" content="NBA Stables">
-    <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://nbastables.com/">
-
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://nbastables.com/">
-    <meta property="og:title" content="NBA Stables - Live NBA Scores & Stats">
-    <meta property="og:description" content="Free live NBA scores, box scores, standings, injury reports and player tracking. Real-time stats with no ads.">
-    <meta property="og:image" content="https://nbastables.com/web/og-image.png">
-    <meta property="og:site_name" content="NBA Stables">
-
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://nbastables.com/">
-    <meta name="twitter:title" content="NBA Stables - Live NBA Scores & Stats">
-    <meta name="twitter:description" content="Free live NBA scores, box scores, standings, injury reports and player tracking. Real-time stats with no ads.">
-    <meta name="twitter:image" content="https://nbastables.com/web/og-image.png">
-
-    <!-- PWA -->
-    <meta name="theme-color" content="#ff6b35">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="/web/manifest.json">
-    <link rel="apple-touch-icon" href="/web/icon-192.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/web/icon-192.png">
-
-    <!-- JSON-LD Structured Data -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "NBA Stables",
-      "description": "Free live NBA scores, box scores, standings, injury reports and player tracking",
-      "url": "https://nbastables.com/",
-      "applicationCategory": "SportsApplication",
-      "operatingSystem": "Any",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
-      "featureList": [
-        "Live NBA Scores",
-        "Box Scores",
-        "Player Tracker",
-        "Standings",
-        "Injury Reports",
-        "Desktop Widgets",
-        "Android Widget"
-      ]
-    }
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Russo+One&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #12121a;
-            --bg-card: #1a1a24;
-            --bg-hover: #22222e;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0b0;
-            --accent: #ff6b35;
-            --accent-light: #ff8c5a;
-            --success: #4ade80;
-            --border: #232637;
-            --gradient-1: linear-gradient(135deg, #ff6b35 0%, #ff8c5a 100%);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'JetBrains Mono', monospace;
-            background:
-                radial-gradient(1150px 520px at 50% -140px, rgba(255, 107, 53, 0.16), transparent 62%),
-                radial-gradient(700px 360px at 16% 12%, rgba(59, 159, 232, 0.08), transparent 68%),
-                var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            line-height: 1.5;
-        }
-
-        .container {
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        /* Header */
-        header {
-            background:
-                linear-gradient(180deg, rgba(120, 53, 15, .30) 0%, rgba(10, 10, 15, 0) 100%),
-                radial-gradient(1100px 520px at 50% -200px, rgba(255, 107, 53, .20), transparent 70%),
-                radial-gradient(700px 360px at 88% 100%, rgba(27, 208, 193, .10), transparent 70%),
-                var(--bg-secondary);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            overflow: hidden;
-            min-height: 128px;
-            /* Flex column tako da .container možemo gurnuti uz bottom (margin-top: auto) */
-            display: flex;
-            flex-direction: column;
-        }
-
-        header > .container {
-            position: relative;
-            z-index: 2;
-            margin-top: auto;        /* push title bar uz bottom border */
-            padding-top: 0;
-            padding-bottom: 6px;     /* breathing room od accent linije */
-            width: 100%;
-        }
-
-        /* Stat stream pattern (5 layered rows) */
-        .header-stream {
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            pointer-events: none;
-            user-select: none;
-            font-family: 'Russo One', sans-serif;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 6px 0;
-            transform: rotate(-2deg);
-            overflow: hidden;
-            /* Master opacity — jedna ručica za cijeli pattern */
-            opacity: 0.5;
-        }
-
-        .header-stream .row {
-            white-space: nowrap;
-            display: flex;
-        }
-
-        .header-stream .row span {
-            margin-right: 22px;
-            display: inline-block;
-        }
-
-        .header-stream .o { color: rgba(255, 107, 53, .18); }
-        .header-stream .t { color: rgba(27, 208, 193, .16); }
-        .header-stream .w { color: rgba(255, 255, 255, .07); }
-        .header-stream .acc { color: rgba(255, 140, 90, .22); font-style: italic; }
-
-        .header-stream .r1 { font-size: 42px; line-height: 1; opacity: .9; }
-        .header-stream .r2 { font-size: 22px; line-height: 1; letter-spacing: 6px; opacity: .85; }
-        .header-stream .r3 { font-size: 34px; line-height: 1; letter-spacing: 3px; opacity: .85; margin-left: 80px; }
-        .header-stream .r4 { font-size: 18px; line-height: 1; letter-spacing: 8px; opacity: .7; margin-left: 40px; }
-        .header-stream .r5 { font-size: 30px; line-height: 1; letter-spacing: 5px; opacity: .8; }
-
-        /* Dotted grid overlay (above pattern, below content) */
-        header::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background-image: radial-gradient(circle, rgba(255, 255, 255, .06) 1px, transparent 1.5px);
-            background-size: 20px 20px;
-            mask-image: linear-gradient(180deg, rgba(0, 0, 0, .85), transparent 92%);
-            -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, .85), transparent 92%);
-            z-index: 1;
-            pointer-events: none;
-        }
-
-        /* Bottom accent gradient line */
-        header::after {
-            content: '';
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--accent-light) 50%, var(--accent) 70%, transparent);
-            opacity: .65;
-            z-index: 3;
-            pointer-events: none;
-        }
-
-        /* Live ticker — track je direktni child <header>-a (header.overflow:hidden clipa) */
-        .ticker-track {
-            position: relative;
-            z-index: 2;
-            display: flex;
-            width: max-content;
-            gap: 18px;
-            align-items: center;
-            white-space: nowrap;
-            padding: 6px 40px 6px 20px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: .72rem;
-            color: var(--text-secondary);
-            text-shadow: 0 0 4px rgba(10, 10, 15, .85), 0 0 2px rgba(10, 10, 15, .85);
-            animation: tickerScroll 60s linear infinite;
-        }
-
-        .ticker-track:hover {
-            animation-play-state: paused;
-        }
-
-        .ticker-track.is-paused {
-            animation-play-state: paused !important;
-        }
-
-        @keyframes tickerScroll {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
-        }
-
-        /* Subtle pause / resume button (sibling of .ticker-track, sits over right edge) */
-        .ticker-toggle {
-            position: absolute;
-            top: 4px;
-            right: 8px;
-            z-index: 4;
-            width: 22px;
-            height: 22px;
-            padding: 0;
-            border: 1px solid rgba(255, 255, 255, .08);
-            background: rgba(10, 10, 15, .55);
-            color: var(--text-secondary);
-            border-radius: 4px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(2px);
-            transition: border-color .15s ease, color .15s ease, background .15s ease, opacity .15s ease;
-            opacity: .8;
-        }
-
-        .ticker-toggle:hover,
-        .ticker-toggle:focus-visible {
-            border-color: var(--accent);
-            color: var(--accent);
-            background: rgba(10, 10, 15, .8);
-            opacity: 1;
-            outline: none;
-        }
-
-        .ticker-toggle[aria-pressed="true"] {
-            opacity: .85;
-            border-color: rgba(255, 107, 53, .4);
-            color: var(--accent-light);
-        }
-
-        .ticker-toggle svg {
-            width: 9px;
-            height: 9px;
-            display: block;
-            fill: currentColor;
-        }
-
-        .ticker-toggle .icon-play { display: none; }
-        .ticker-toggle[aria-pressed="true"] .icon-pause { display: none; }
-        .ticker-toggle[aria-pressed="true"] .icon-play { display: block; }
-
-        .ticker-track .pill {
-            background: rgba(255, 107, 53, .14);
-            color: #ffb38f;
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-weight: 600;
-            letter-spacing: .5px;
-        }
-
-        .ticker-track .pill.live {
-            background: rgba(239, 68, 68, .18);
-            color: #fca5a5;
-        }
-
-        .ticker-track .score { color: #fff; font-weight: 600; }
-        .ticker-track .delta-up { color: #4ade80; }
-        .ticker-track .sep { opacity: .4; }
-
-        @media (prefers-reduced-motion: reduce) {
-            .ticker-track { animation: none; }
-        }
-
-        .header-content {
-            display: flex;
-            align-items: flex-end;
-            gap: 4px;
-            justify-content: space-between;
-        }
-
-        .module-header-bar {
-            display: flex;
-            align-items: flex-end;
-            min-height: 38px;
-            padding: 0;
-        }
-
-        .module-header-bar .section-title {
-            margin: 0;
-            font-size: 1.26rem;
-            gap: 8px;
-        }
-
-        .content-area > .section > .section-title {
-            display: none;
-        }
-
-        .nav-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            width: 100%;
-            justify-content: flex-start;
-            align-items: center;
-        }
-
-        .nav-tab {
-            padding: 6px 10px;
-            background: #1b2a3f;
-            border: 1px solid #4a5f78;
-            border-radius: 9px;
-            color: #dbe8f5;
-            cursor: pointer;
-            font-size: 0.77rem;
-            font-weight: 600;
-            transition: all 0.2s;
-            white-space: nowrap;
-            text-align: center;
-            min-width: 106px;
-            width: auto;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
-        }
-
-        .nav-tab:hover {
-            background: #24364f;
-            border-color: #617892;
-            color: #ffffff;
-            transform: translateY(-1px);
-            box-shadow: 0 5px 14px rgba(0, 0, 0, 0.3);
-        }
-
-        .nav-tab.active {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: #111217;
-            font-weight: 700;
-            box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15), 0 4px 10px rgba(255, 107, 53, 0.28);
-        }
-
-        .nav-tab:active {
-            transform: translateY(0);
-        }
-
-        /* Logo: apsolutno pozicioniran, stretch od top:0 do bottom:0 (puna visina headera), iza tickera (z:1 < ticker z:2) */
-        .header-logo {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            right: max(20px, calc(50vw - 680px));
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            line-height: 0;
-        }
-
-        /* Soft radial backdrop oko loga — daje suptilni "spotlight" preko pattern-a */
-        .header-logo::before {
-            content: '';
-            position: absolute;
-            inset: -8px;
-            background: radial-gradient(
-                ellipse at center,
-                rgba(10, 10, 15, .50) 0%,
-                rgba(10, 10, 15, .20) 50%,
-                transparent 80%
-            );
-            border-radius: 50%;
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        .header-logo img {
-            height: 100%;     /* prati visinu headera (od top do bottom bordera) */
-            width: auto;
-            display: block;
-            filter:
-                drop-shadow(0 4px 14px rgba(255, 107, 53, .25))
-                drop-shadow(0 0 8px rgba(0, 0, 0, .45));
-            transition: transform 0.3s ease, filter 0.3s ease;
-        }
-
-        .header-logo img:hover {
-            transform: scale(1.05);
-            filter:
-                drop-shadow(0 6px 20px rgba(255, 107, 53, .42))
-                drop-shadow(0 0 10px rgba(0, 0, 0, .55));
-        }
-
-        /* Main Content */
-        main {
-            padding: 8px 0 14px;
-        }
-
-        .app-shell {
-            display: grid;
-            grid-template-columns: 176px minmax(0, 1fr);
-            gap: 14px;
-            align-items: start;
-        }
-
-        .sidebar-nav {
-            position: sticky;
-            top: 72px;
-            align-self: start;
-            padding: 6px;
-            background: rgba(12, 18, 30, 0.76);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            backdrop-filter: blur(4px);
-        }
-
-        .sidebar-nav .nav-grid {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .sidebar-nav .nav-tab {
-            min-width: 100%;
-        }
-
-        .legal-inline {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid var(--border);
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .legal-inline p {
-            margin: 0;
-        }
-
-        .legal-inline .legal-links {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .legal-inline a {
-            color: #8f9cb5;
-            text-decoration: none;
-        }
-
-        .legal-inline a:hover {
-            color: var(--accent);
-        }
-
-        .content-area {
-            min-width: 0;
-        }
-
-        .section {
-            display: none;
-        }
-
-        .section.active {
-            display: block;
-            animation: sectionIn 0.2s ease;
-        }
-
-        @keyframes sectionIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-top: 0;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .section-title .badge {
-            background: var(--accent);
-            color: white;
-            font-size: 0.75rem;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-weight: 500;
-        }
-
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 13px;
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            border-color: rgba(255, 107, 53, 0.22);
-        }
-
-        /* Data table containers shouldn't bounce — they're not action cards */
-        .scoreboard-table-wrap:hover,
-        .leaders-table-wrap:hover,
-        .boxscore-card:hover {
-            transform: none;
-        }
-
-        .game-local-time {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-        }
-
-        .game-status {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 20px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .game-status.live {
-            background: #ef4444;
-            color: white;
-            animation: pulse 2s infinite;
-            will-change: opacity, box-shadow;
-        }
-
-        .game-status.final {
-            background: #16a34a;
-            color: white;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(239, 68, 68, 0.6); }
-            50%       { opacity: 0.75; box-shadow: 0 0 12px rgba(239, 68, 68, 0.9); }
-        }
-
-        .scoreboard-table-shell {
-            display: block;
-            overflow-x: auto;
-        }
-
-        .scoreboard-split {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-            width: 100%;
-            align-items: start;
-        }
-
-        .scoreboard-table-wrap {
-            width: 100%;
-            min-width: 0;
-        }
-
-        .scoreboard-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.8rem;
-            table-layout: auto;
-        }
-
-        .scoreboard-table td:last-child {
-            white-space: normal;
-            word-break: break-word;
-        }
-
-        .scoreboard-table th,
-        .scoreboard-table td {
-            padding: 6px 8px;
-            border-bottom: 1px solid var(--border);
-            vertical-align: middle;
-        }
-
-        .scoreboard-table th {
-            text-align: left;
-            font-size: 0.68rem;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
-            color: var(--text-secondary);
-            background: var(--bg-secondary);
-        }
-
-        .scoreboard-game-meta td {
-            background: rgba(255, 255, 255, 0.02);
-            border-top: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-            padding-top: 8px;
-            padding-bottom: 8px;
-        }
-
-        .scoreboard-game-meta td:first-child {
-            white-space: nowrap;
-        }
-
-        .scoreboard-game-meta-label {
-            text-align: right;
-            color: var(--text-secondary);
-            font-size: 0.72rem;
-            letter-spacing: 0.02em;
-            text-transform: uppercase;
-        }
-
-        .series-badge {
-            display: inline-block;
-            margin-left: 8px;
-            padding: 2px 8px;
-            border: 1px solid var(--accent);
-            border-radius: 10px;
-            color: var(--accent-light);
-            font-size: 0.68rem;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        .scoreboard-table th:first-child,
-        .scoreboard-table td:first-child {
-            width: fit-content;
-            white-space: nowrap;
-        }
-
-        .scoreboard-table th:last-child {
-            text-align: right;
-        }
-
-        .scoreboard-team {
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        .scoreboard-team code {
-            margin-right: 6px;
-            font-size: 0.7rem;
-            padding: 1px 4px;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            color: var(--text-secondary);
-            background: var(--bg-hover);
-            font-family: inherit;
-        }
-
-        .scoreboard-team-name {
-            display: inline-block;
-            vertical-align: bottom;
-        }
-
-        .scoreboard-score {
-            text-align: center;
-            color: var(--accent);
-            font-weight: 700;
-            width: 56px;
-            white-space: nowrap;
-        }
-
-        .scoreboard-team-row.winner .scoreboard-team {
-            color: #ffffff;
-        }
-
-        .scoreboard-team-row.winner .scoreboard-score {
-            color: #ffb08f;
-        }
-
-        .scoreboard-leader {
-            color: var(--text-secondary);
-            white-space: nowrap;
-            width: fit-content;
-            text-align: right;
-            font-size: 0.75rem;
-        }
-
-        /* Box Score */
-        .boxscore-card {
-            overflow-x: auto;
-        }
-
-        .boxscore-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.82rem;
-        }
-
-        .boxscore-table th,
-        .boxscore-table td {
-            padding: 4px 6px;
-            text-align: center;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .boxscore-table th {
-            background: var(--bg-secondary);
-            color: var(--text-secondary);
-            font-weight: 500;
-            font-size: 0.72rem;
-            text-transform: uppercase;
-        }
-
-        .boxscore-table td:first-child {
-            text-align: left;
-            font-weight: 600;
-        }
-
-        .boxscore-table tr:hover td {
-            background: var(--bg-hover);
-        }
-
-        .highlight {
-            color: var(--success);
-            font-weight: 600;
-        }
-
-        .stat-elite {
-            color: #f59e0b;
-            font-weight: 700;
-        }
-
-        .stat-great {
-            color: #4ade80;
-            font-weight: 600;
-        }
-
-        .stat-good {
-            color: #38bdf8;
-            font-weight: 500;
-        }
-
-        .stat-pinned {
-            color: #4ade80 !important;
-            font-weight: 700;
-        }
-
-        .player-stats-table td[data-stat] {
-            cursor: pointer;
-        }
-
-        /* Leaders Section */
-        .leaders-grid {
-            display: block;
-        }
-
-        .leaders-table-wrap {
-            overflow-x: auto;
-            padding: 0;
-            width: fit-content;
-            max-width: 100%;
-        }
-
-        .leaders-table {
-            width: max-content;
-            border-collapse: collapse;
-            font-size: 0.96rem;
-            line-height: 1.25;
-        }
-
-        .leaders-table th,
-        .leaders-table td {
-            padding: 8px 7px;
-            border-bottom: 0.5px solid var(--border);
-            text-align: left;
-            vertical-align: top;
-        }
-
-        .leaders-table th {
-            background: var(--bg-secondary);
-            color: var(--text-secondary);
-            font-size: 0.72rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-            white-space: nowrap;
-        }
-
-        .leaders-table td:nth-child(2) {
-            text-align: center;
-            font-weight: 700;
-            color: var(--accent);
-            white-space: nowrap;
-        }
-
-        .leaders-table td:nth-child(3) {
-            color: var(--text-primary);
-            font-weight: 500;
-        }
-
-        .leaders-table td:nth-child(4) {
-            color: var(--text-secondary);
-            white-space: nowrap;
-        }
-
-        /* Player Tracker */
-        .player-search {
-            margin-bottom: 30px;
-        }
-
-        .search-container {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
-        .lastn-search-row {
-            align-items: center;
-            gap: 12px;
-            flex-wrap: nowrap;
-        }
-
-        .lastn-search-wrap {
-            flex: 0 1 860px;
-            max-width: 860px;
-        }
-
-        .lastn-get-btn {
-            padding: 12px 24px;
-            min-width: 118px;
-        }
-
-        .search-input-wrapper {
-            flex: 1;
-            min-width: 300px;
-            position: relative;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 15px 20px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            color: var(--text-primary);
-            font-size: 1rem;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-
-        .search-input::placeholder {
-            color: var(--text-secondary);
-        }
-
-        .search-results {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            margin-top: 5px;
-            max-height: 300px;
-            overflow-y: auto;
-            z-index: 50;
-            display: none;
-        }
-
-        .search-results.show {
-            display: block;
-        }
-
-        .search-result-item {
-            padding: 12px 20px;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .search-result-item:hover,
-        .search-result-item.active {
-            background: var(--bg-hover);
-        }
-
-        .search-result-item.active {
-            border-left: 2px solid var(--accent);
-        }
-
-        .search-result-item:last-child {
-            border-bottom: none;
-        }
-
-        .tracked-players {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .player-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 15px;
-            background: var(--bg-card);
-            border: 1px solid var(--accent);
-            border-radius: 20px;
-            font-size: 0.9rem;
-            width: fit-content;
-        }
-
-        .player-chip-remove {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            cursor: pointer;
-            font-size: 1.2rem;
-            line-height: 1;
-        }
-
-        .player-chip-remove:hover {
-            color: #ef4444;
-        }
-
-        .btn {
-            padding: 15px 30px;
-            background: var(--gradient-1);
-            border: none;
-            border-radius: 10px;
-            color: white;
-            font-size: 1rem;
-            font-weight: 600;
-            min-width: 140px;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(255, 107, 53, 0.3);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .player-stats-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.92rem;
-        }
-
-        .player-stats-table th,
-        .player-stats-table td {
-            padding: 4px 6px;
-            text-align: center;
-            border: 1px solid #2a3a4a;
-            white-space: nowrap;
-            width: 1%;
-        }
-
-        .player-stats-table th {
-            background: #1a2a3a;
-            color: #8aaccc;
-            font-weight: 600;
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-        }
-
-        .player-stats-table tbody tr:nth-child(even) td {
-            background: #13131c;
-        }
-
-        .player-stats-table td:first-child,
-        .player-stats-table th:first-child {
-            text-align: left;
-            white-space: nowrap;
-            width: 1%;
-            padding: 4px 8px 4px 10px;
-        }
-
-        .player-stats-table tbody tr:hover td {
-            background: #1e2e40 !important;
-        }
-
-        #lastngames .player-stats-table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            box-shadow: inset 0 -1px 0 #2a3a4a;
-        }
-
-        .lastn-table-wrap {
-            overflow: auto;
-            max-height: 560px;
-        }
-
-        #lastngames .dnp-row td {
-            background: rgba(19, 23, 35, 0.92);
-            color: #7f90a7;
-        }
-
-        #lastngames .dnp-row .dnp-cell {
-            text-align: center;
-            font-style: italic;
-            letter-spacing: 0.02em;
-        }
-
-        .playoff-row td {
-            background: rgb(133 136 38 / 0.5);
-        }
-
-        /* Doubles & Triples table */
-        #seasonDoublesContent {
-            width: 100%;
-        }
-
-        .season-doubles-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 320px) minmax(0, 460px);
-            gap: 16px;
-            align-items: start;
-            justify-content: start;
-        }
-
-        .doubles-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.82rem;
-        }
-
-        .doubles-table th,
-        .doubles-table td {
-            padding: 3px 5px;
-            text-align: center;
-            border: 1px solid #2a3a4a;
-            white-space: nowrap;
-        }
-
-        .doubles-table th {
-            background: #1a2a3a;
-            color: #8aaccc;
-            font-weight: 600;
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-        }
-
-        .doubles-table tbody tr:nth-child(even) td {
-            background: #13131c;
-        }
-
-        .doubles-table tbody tr:hover td {
-            background: #1e2e40 !important;
-        }
-
-        /* Rank, Count — fit-content + 5px extra */
-        .doubles-table th:nth-child(1),
-        .doubles-table td:nth-child(1),
-        .doubles-table th:nth-child(4),
-        .doubles-table td:nth-child(4) {
-            width: 1%;
-            white-space: nowrap;
-            padding-left: 5px;
-            padding-right: 5px;
-        }
-
-        /* Team — fit-content + 5px extra */
-        .doubles-table th:nth-child(3),
-        .doubles-table td:nth-child(3) {
-            width: 1%;
-            white-space: nowrap;
-            padding-left: 5px;
-            padding-right: 5px;
-        }
-
-        /* Player name — fill remaining space with extra right breathing room */
-        .doubles-table th:nth-child(2),
-        .doubles-table td:nth-child(2) {
-            width: auto;
-            text-align: left;
-            white-space: nowrap;
-            padding-right: 8px;
-        }
-
-        /* Details column — fit-content, centered */
-        .doubles-table th:nth-child(5),
-        .doubles-table td:nth-child(5) {
-            width: 1%;
-            text-align: center;
-        }
-
-        .doubles-table td:nth-child(5) .refresh-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Standings table larger font */
-        #standings .boxscore-table {
-            font-size: 0.95rem;
-        }
-
-        #standings .boxscore-table th {
-            font-size: 0.82rem;
-        }
-
-        #standingsContent {
-            width: 100%;
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            align-items: start;
-        }
-
-        /* Standings playoff position coloring */
-        #standings .playoff-row {
-            background: rgba(74, 222, 128, 0.08);
-        }
-
-        #standings .playoff-row td:first-child {
-            border-left: 3px solid #4ade80;
-            color: #4ade80;
-        }
-
-        #standings .playin-row {
-            background: rgba(255, 107, 53, 0.08);
-        }
-
-        #standings .playin-row td:first-child {
-            border-left: 3px solid #ff6b35;
-            color: #ff6b35;
-        }
-
-        /* Trades table compact */
-        #trades .player-stats-table th,
-        #trades .player-stats-table td {
-            padding: 3px 5px;
-        }
-        #trades .player-stats-table th,
-        #trades .player-stats-table th:first-child {
-            text-align: center;
-        }
-        #trades .player-stats-table td,
-        #trades .player-stats-table td:first-child {
-            text-align: left;
-        }
-        #trades .player-stats-table th:nth-child(1),
-        #trades .player-stats-table td:nth-child(1),
-        #trades .player-stats-table th:nth-child(4),
-        #trades .player-stats-table td:nth-child(4) {
-            text-align: center;
-            padding: 3px 0;
-        }
-
-        /* Loading State */
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 60px;
-            color: var(--text-secondary);
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid var(--border);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 15px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        @keyframes fadeIn {
-            0% { opacity: 0; transform: translateY(-10px); }
-            100% { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-secondary);
-        }
-
-        .empty-state-icon {
-            font-size: 4rem;
-            margin-bottom: 20px;
-        }
-
-        .empty-state-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 10px;
-        }
-
-        /* Refresh Button */
-        .refresh-btn {
-            background: transparent;
-            border: 1px solid #4d627b;
-            border-radius: 8px;
-            color: #dbe8f4;
-            padding: 8px 12px;
-            cursor: pointer;
-            min-width: 40px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            transition: all 0.2s;
-        }
-
-        .refresh-btn:hover {
-            color: #ffffff;
-            border-color: #667e98;
-            background: rgba(40, 59, 87, 0.4);
-            transform: translateY(-1px);
-        }
-
-        .refresh-btn:active {
-            transform: translateY(0);
-        }
-
-        footer a {
-            color: #8f9cb5;
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        footer a:hover {
-            color: var(--accent);
-        }
-
-        /* Date Selector */
-        .date-selector {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-bottom: 20px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-            padding-bottom: 5px;
-        }
-
-        .date-selector::-webkit-scrollbar {
-            display: none;
-        }
-
-        .date-btn {
-            padding: 8px 16px;
-            background: #1b2a3f;
-            border: 1px solid #4b6079;
-            border-radius: 8px;
-            color: #dce8f4;
-            cursor: pointer;
-            font-size: 0.85rem;
-            white-space: nowrap;
-            flex-shrink: 0;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-            transition: all 0.2s;
-        }
-
-        .date-btn:hover {
-            background: #273a56;
-            border-color: #637a94;
-            color: #ffffff;
-            transform: translateY(-1px);
-        }
-
-        .date-btn.active {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: white;
-            box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.16), 0 4px 10px rgba(255, 107, 53, 0.26);
-        }
-
-        .date-btn:active {
-            transform: translateY(0);
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .container {
-                padding: 0 12px;
-            }
-
-            .leaders-table {
-                font-size: 0.86rem;
-            }
-
-            .leaders-table th,
-            .leaders-table td {
-                padding: 7px 8px;
-            }
-
-            .scoreboard-table {
-                font-size: 0.8rem;
-            }
-
-            .scoreboard-table th,
-            .scoreboard-table td {
-                padding: 5px 6px;
-            }
-
-            .scoreboard-split {
-                grid-template-columns: 1fr;
-                width: 100%;
-            }
-
-            .scoreboard-table-wrap {
-                width: 100%;
-            }
-
-            .header-content {
-                gap: 10px;
-            }
-
-            header > .container {
-                padding-top: 6px;
-            }
-
-            .header-stream { padding: 4px 0; }
-            .header-stream .r1 { font-size: 28px; }
-            .header-stream .r2 { font-size: 14px; letter-spacing: 4px; }
-            .header-stream .r3 { font-size: 22px; margin-left: 30px; letter-spacing: 2px; }
-            .header-stream .r4 { font-size: 13px; margin-left: 20px; letter-spacing: 5px; }
-            .header-stream .r5 { font-size: 20px; letter-spacing: 3px; }
-
-            .ticker-track {
-                font-size: .68rem;
-                padding: 5px 32px 5px 12px;
-                gap: 12px;
-            }
-
-            .ticker-toggle {
-                width: 20px;
-                height: 20px;
-                top: 3px;
-                right: 4px;
-            }
-
-            .app-shell {
-                display: block;
-            }
-
-            .sidebar-nav {
-                position: static;
-                margin-bottom: 10px;
-                padding: 0;
-                border: 0;
-                background: transparent;
-                backdrop-filter: none;
-            }
-
-            .nav-grid {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 4px;
-                justify-content: flex-start;
-            }
-
-            .nav-tab {
-                min-width: 0;
-                width: auto;
-                padding: 6px 10px;
-                font-size: 0.72rem;
-            }
-
-            .legal-inline {
-                margin-top: 6px;
-                padding-top: 6px;
-                font-size: 0.72rem;
-            }
-
-            .legal-inline .legal-links {
-                gap: 6px;
-            }
-
-            .module-header-bar .section-title {
-                font-size: 1.05rem;
-                flex-wrap: wrap;
-                row-gap: 6px;
-            }
-
-            header {
-                min-height: 0;
-            }
-
-            .header-logo {
-                right: 12px;
-            }
-
-            .header-logo::before {
-                inset: -4px;
-            }
-
-            .header-logo img {
-                height: 44px;
-            }
-
-            #standingsContent,
-            #seasonDoublesContent {
-                width: 100%;
-            }
-
-            #standingsContent {
-                grid-template-columns: 1fr !important;
-            }
-
-            .season-doubles-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .section-title {
-                font-size: 1.2rem;
-                flex-wrap: wrap;
-            }
-
-            main {
-                padding: 8px 0 12px;
-            }
-
-            .search-container {
-                flex-direction: column;
-            }
-
-            .lastn-search-row {
-                flex-wrap: wrap;
-            }
-
-            .lastn-search-wrap {
-                max-width: 100%;
-            }
-
-            .lastn-get-btn {
-                width: 100%;
-            }
-
-            .search-input-wrapper {
-                min-width: 100%;
-            }
-
-            .search-input {
-                padding: 12px 16px;
-            }
-
-            .btn {
-                padding: 12px 20px;
-                width: 100%;
-            }
-
-            .boxscore-table th,
-            .boxscore-table td {
-                padding: 3px 4px;
-                font-size: 0.72rem;
-            }
-
-            .player-stats-table th,
-            .player-stats-table td {
-                padding: 3px 4px;
-                font-size: 0.77rem;
-            }
-
-            .player-stats-table td:first-child,
-            .player-stats-table th:first-child {
-                padding: 3px 6px 3px 8px;
-            }
-
-            .date-btn {
-                padding: 6px 12px;
-                font-size: 0.8rem;
-            }
-
-            .loading {
-                padding: 30px;
-            }
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="darkreader-lock">
+<title>NBA Stables - Live NBA Scores, Stats & Player Tracker</title>
+<meta name="description" content="Free live NBA scores, box scores, standings, injury reports and player tracking. No ads.">
+<meta name="keywords" content="NBA, basketball, live scores, NBA stats, player tracker, box scores, standings, injury report, NBA API">
+<meta name="author" content="NBA Stables">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://nbastables.com/">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://nbastables.com/">
+<meta property="og:title" content="NBA Stables - Live NBA Scores & Stats">
+<meta property="og:description" content="Free live NBA scores, box scores, standings, injury reports and player tracking. Real-time stats with no ads.">
+<meta property="og:image" content="https://nbastables.com/web/og-image.png">
+<meta property="og:site_name" content="NBA Stables">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://nbastables.com/">
+<meta name="twitter:title" content="NBA Stables - Live NBA Scores & Stats">
+<meta name="twitter:description" content="Free live NBA scores, box scores, standings, injury reports and player tracking. Real-time stats with no ads.">
+<meta name="twitter:image" content="https://nbastables.com/web/og-image.png">
+
+<meta name="theme-color" content="#121714">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/web/manifest.json">
+<link rel="apple-touch-icon" href="/web/icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/web/icon-192.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "NBA Stables",
+  "description": "Free live NBA scores, box scores, standings, injury reports and player tracking",
+  "url": "https://nbastables.com/",
+  "applicationCategory": "SportsApplication",
+  "operatingSystem": "Any",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "featureList": [
+    "Live NBA Scores",
+    "Box Scores",
+    "Player Tracker",
+    "Standings",
+    "Injury Reports",
+    "Desktop Widgets",
+    "Android Widget"
+  ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1311;
+  --side: #121714;
+  --hair: #1e2621;
+  --panel: #151b17;
+  --line: #2c362f;
+  --head: #1b231e;
+  --btn: #1c231e;
+  --btn-h: #242d27;
+  --active: #1d2d24;
+  --text: #d7e0da;
+  --text-2: #b4c0b8;
+  --muted: #8a978f;
+  --label: #7fbf98;
+  --mint: #3ecf8e;
+  --warm: #d9b77c;
+
+  --t-good: #8ab499;
+  --t-great: #00ffd9;
+  --th: #ff9700;
+  --t-elite: #ffff00;
+  --pin: #3ecf8e;
+  --side-w: max-content;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 400 18px/1.4 var(--mono);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+p { margin: 0; }
+:focus-visible { outline: 2px solid var(--mint); outline-offset: 1px; border-radius: 2px; }
+[hidden] { display: none !important; }
+.m { color: var(--muted); }
+.b { font-weight: 600; }
+.sm { font-size: .85em; }
+.nw { white-space: nowrap; }
+.hl, .t td.hl { color: var(--label); font-weight: 600; }
+.z { color: var(--muted); }
+
+.app {
+  display: grid;
+  grid-template-columns: var(--side-w) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "top top" "side main";
+  height: 100vh; height: 100dvh;
+}
+
+.tabline {
+  grid-area: top; display: flex; align-items: stretch;
+  height: 34px; background: var(--side); border-bottom: 1px solid var(--hair);
+  min-width: 0;
+}
+.brand { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-right: 1px solid var(--hair); flex: none; }
+.logo { width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--line); background: var(--active); color: var(--mint); display: grid; place-items: center; font-weight: 800; font-size: .875rem; }
+.wordmark { font-weight: 700; font-size: .975rem; white-space: nowrap; }
+.wordmark span { color: var(--muted); font-weight: 400; }
+.ico { width: 7px; height: 7px; border-radius: 2px; flex: none; }
+.f-today { background: #3f9a70; }
+.f-season { background: #7a9a62; }
+.f-players { background: #5f8f8a; }
+.league { align-self: center; margin: 0 8px; flex: none; }
+.help-btn { align-self: center; margin: 0 8px 0 auto; flex: none; }
+.help-btn[aria-expanded="true"] { color: var(--text); background: var(--active); }
+body.wnba .nba-only { display: none !important; }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; max-width: 100%; overflow-x: auto; scrollbar-width: none; flex: none; }
+.seg::-webkit-scrollbar { display: none; }
+.seg:not(:has(> button:not([hidden]))) { display: none; }
+.seg button { height: 28px; padding: 0 12px; font-size: .975rem; color: var(--text-2); white-space: nowrap; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button:hover { color: var(--text); background: var(--btn-h); }
+.seg button.on { background: var(--active); color: var(--mint); font-weight: 600; }
+.league button { height: 24px; font-size: .895rem; font-weight: 600; padding: 0 12px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px; font-size: .975rem; color: var(--text); flex: none; }
+.btn:hover { background: var(--btn-h); border-color: #3d4b42; }
+.btn-p { height: 36px; padding: 0 20px; border-radius: 4px; font-size: 1.125rem; font-weight: 600; color: var(--mint); background: var(--active); border: 1px solid #2f5a44; flex: none; }
+.btn-p:hover { background: #22372b; }
+.mini { font-size: .875rem; padding: 1px 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--text-2); }
+.mini:hover { color: var(--text); background: var(--btn-h); }
+.badge-s { font-size: .875rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: var(--active); color: var(--label); border: 1px solid var(--line); }
+
+.side { grid-area: side; background: var(--side); border-right: 1px solid var(--hair); overflow-y: auto; padding: 6px 0 10px; display: flex; flex-direction: column; min-width: 0; }
+.tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+.frow { display: flex; align-items: center; gap: 4px; height: 24px; padding: 0 10px; font-size: .895rem; font-weight: 700; color: var(--label); }
+.chev { color: var(--muted); font-size: .775rem; width: 12px; }
+.folder ul { margin-left: 16px; border-left: 1px solid var(--line); }
+.row { display: flex; align-items: center; gap: 7px; width: 100%; height: 25px; padding: 0 8px 0 10px; font-size: .895rem; font-weight: 600; color: var(--text-2); white-space: nowrap; position: relative; text-align: left; }
+.row:hover { background: var(--panel); color: var(--text); }
+.row.on { background: var(--active); color: var(--text); }
+.row.on::before { content: ""; position: absolute; left: -1px; top: 0; bottom: 0; width: 2px; background: var(--mint); opacity: .7; }
+.side-foot { width: 0; min-width: 100%; margin-top: auto; padding: 10px 12px 0; border-top: 1px solid var(--hair); font-size: .75rem; color: var(--muted); display: grid; gap: 6px; }
+.legal { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.legal a:hover { color: var(--text); text-decoration: underline; }
+
+.main { grid-area: main; overflow: auto; min-width: 0; padding: 0 8px 12px; container-type: inline-size; container-name: main; }
+.view { display: none; }
+.view.on { display: block; }
+.vh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 0; }
+.vh h1 { font-size: 1.385rem; font-weight: 700; margin: 0 4px 0 0; line-height: 1.2; }
+.vh .seg { margin-left: 6px; }
+.vh-date { color: var(--text-2); font-weight: 600; }
+.note { font-size: .875rem; color: var(--muted); margin: 0 0 8px; }
+.note.inl { margin: 0 0 0 6px; font-size: .925rem; }
+.wrap { overflow-x: auto; min-width: 0; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.card { background: var(--panel); border: 1px solid var(--hair); border-radius: 4px; min-width: 0; }
+.card-h { margin: 0; padding: 6px 10px; font-size: 1.175rem; font-weight: 700; background: var(--head); border-bottom: 1px solid var(--line); }
+.card-h.sm-h { font-size: 1.045rem; }
+.card-h .nb { font-weight: 400; font-size: .975rem; margin-left: 8px; }
+.empty { text-align: center; padding: 48px 16px; color: var(--muted); }
+.empty-t { font-size: 1.375rem; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+
+.t { border-collapse: separate; border-spacing: 0; }
+.t th { font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--th); background: var(--head); text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.t td { border-bottom: 1px solid var(--hair); color: var(--text); }
+.t tbody tr:last-child td { border-bottom: 0; }
+.t .n { text-align: right; }
+.t .c { text-align: center; }
+.t tbody tr:hover > td { background: var(--active); }
+.t .rk { color: var(--muted); background: var(--side); border-right: 1px solid var(--hair); text-align: right; }
+.t tbody tr:hover .rk { color: var(--mint); font-weight: 700; }
+
+.v { display: inline-block; padding: 0 3px; margin: 0 -3px; border-radius: 3px; }
+.t-good { color: var(--t-good); font-weight: 600; }
+.t-great { color: var(--t-great); font-weight: 700; }
+.t-elite { color: var(--t-elite); font-weight: 800; }
+.pin { color: var(--text); font-weight: 700; }
+.pins td:has(> .v.pin) { outline: 1px solid var(--pin); outline-offset: -4px; border-radius: 3px; }
+.fl-body .pin { outline: 1px solid var(--pin); outline-offset: 2px; margin: 0 4px 0 2px; }
+.t.pins td[data-stat="pts"], .t.pins td[data-stat="reb"], .t.pins td[data-stat="ast"], .t.pins td[data-stat="blk"], .t.pins td[data-stat="stl"], .t.pins td[data-stat="pf"],
+.t.pins th:nth-child(4), .t.pins th:nth-child(n+8) { text-align: center; }
+.pins td[data-stat] { cursor: pointer; }
+
+.sb { font-size: .925rem; width: auto; min-width: 640px; }
+.sb th { font-size: .805rem; padding: 5px 8px; }
+.sb td { padding: 3px 8px; white-space: nowrap; vertical-align: middle; }
+.sb tr.g1 > td { border-top: 1px solid var(--line); }
+.sb tbody:first-of-type tr.g1 > td { border-top: 0; }
+.sb tbody:hover td { background: var(--active); }
+.sb .stc { line-height: 1.3; }
+.st { display: inline-block; font-size: .775rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.st-live { color: var(--mint); }
+.st-live::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--mint); margin-right: 5px; vertical-align: 1px; animation: pulse 2.4s ease-in-out infinite; }
+.st-final { color: var(--text-2); }
+.st-sched { color: var(--label); }
+@keyframes pulse { 50% { opacity: .35; } }
+.sb .tm { font-weight: 600; color: var(--text-2); }
+.sb .sc { font-weight: 700; color: var(--text-2); }
+.sb tr.win .tm, .sb tr.win .sc { color: var(--text); }
+.sb tr.win .sc { color: var(--label); }
+.sb tr.lose .sc, .sb tr.lose .tm { color: var(--muted); }
+.sb .ldn { font-size: .875rem; color: var(--text-2); }
+.sb td.n:not(.sc) { font-size: .875rem; color: var(--text-2); min-width: 30px; }
+
+.bx-list { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+@container main (min-width: 2300px) { .bx-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.bxg { cursor: pointer; border: 1px solid var(--hair); border-radius: 4px; background: var(--panel); min-width: 0; }
+.bx-top { display: flex; align-items: stretch; min-width: 0; }
+.grow { flex: 1; }
+.bxg:not(.open) .bx-det { display: none; }
+.bxs { width: 100%; min-width: 1150px; table-layout: fixed; font-size: .945rem; }
+.bxs th { font-size: .845rem; padding: 4px 5px; }
+.bxs td { padding: 4px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bxs .tm { font-weight: 600; }
+.bxs .sc { font-weight: 700; color: var(--label); }
+.bxs .ldn { color: var(--text-2); text-align: right; padding-right: 16px; }
+.bxs th.ldh { text-align: right; padding-right: 16px; }
+.bx-more { text-align: center; padding: 5px 6px 3px; line-height: 1; color: var(--text-2); font-size: .875rem; }
+.bxg.open .bx-more { border-bottom: 1px solid var(--line); }
+.bx-det { border-top: 1px solid var(--line); }
+.bx-strip { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 8px; align-items: flex-start; border-bottom: 1px solid var(--hair); }
+.dt-s { font-size: .845rem; }
+.dt-s th { font-size: .845rem; padding: 3px 6px; }
+.dt-s td { padding: 3px 6px; white-space: nowrap; }
+.dt-s.info td.k { color: var(--muted); }
+.dt-s.info td { white-space: normal; }
+.bx-meta { display: flex; flex-wrap: wrap; gap: 8px 40px; align-items: flex-start; min-width: 0; }
+.bx-teams { display: grid; }
+.bx-teams .pt + .pt { border-top: 1px solid var(--line); }
+.pt { min-width: 0; }
+.pt-cap { padding: 4px 8px; font-size: .875rem; font-weight: 700; color: var(--label); background: var(--head); border-bottom: 1px solid var(--line); }
+.dt-p { width: 100%; min-width: 110ch; table-layout: fixed; font-size: .845rem; }
+.dt-p th { font-size: .845rem; padding: 4px 4px; }
+.dt-p td { padding: 3px 4px; white-space: nowrap; }
+.dt-p th.n, .dt-p td.n { text-align: center; }
+.dt-p tbody tr:hover td { background: var(--active); }
+.dt-p th:first-child, .dt-p td:first-child { padding-left: 8px; }
+.dt-p .pl { font-weight: 600; }
+.dt-p th.reb-h { letter-spacing: 0; }
+.dt-p .m2 { color: var(--text-2); }
+.od { color: var(--muted); }
+@container main (min-width: 1340px) {
+  .bx-teams { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bx-teams .pt + .pt { border-top: 0; border-left: 1px solid var(--line); }
+  .dt-p { min-width: 0; table-layout: auto; }
+}
+
+.lt-t { font-size: 1.085rem; line-height: 1.25; width: max-content; max-width: 100%; }
+.lt-t th { font-size: .845rem; padding: 6px 10px; }
+.lt-t td { padding: 5px 10px; vertical-align: top; }
+.lt-t td.sm { font-size: .945rem; }
+.card > .wrap > .t, .card > .t { width: 100%; }
+.wrap > .lt-t { border: 1px solid var(--hair); border-radius: 4px; background: var(--panel); }
+
+.ps { font-size: 1.045rem; width: max-content; }
+.ps th { font-size: .905rem; padding: 5px 8px; }
+.ps td { padding: 4px 8px; white-space: nowrap; }
+.wrap > .ps { border: 1px solid var(--hair); border-radius: 4px; background: var(--panel); }
+.search-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; }
+.search { flex: 0 1 520px; min-width: 0; }
+.inp { width: 100%; height: 36px; padding: 0 12px; font: inherit; font-size: 1.125rem; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+.inp::placeholder { color: var(--muted); }
+.inp:focus { outline: none; border-color: #2f5a44; box-shadow: 0 0 0 2px rgba(62, 207, 142, .12); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 12px; font-size: 1.025rem; border: 1px solid #2f5a44; background: var(--panel); border-radius: 999px; }
+.chip-x { font-size: 1.325rem; line-height: 1; color: var(--muted); padding: 0 4px; }
+.chip-x:hover { color: var(--warm); }
+
+.bio { padding: 8px 12px; margin-bottom: 10px; }
+.bio-n { font-size: 1.525rem; font-weight: 800; color: var(--label); }
+.bio-l1 { font-size: 1.025rem; margin-top: 2px; }
+.bio-l2 { font-size: .945rem; color: var(--muted); }
+.bio-l3 { font-size: .905rem; color: var(--muted); }
+.prof { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 620px), max-content)); align-items: start; }
+.prof .card .ps { width: 100%; }
+.ps tr.avg td { background: var(--head); }
+.ps tr.sa td { border-top: 1px solid #2f5a44; }
+.sa-s { color: var(--label); font-size: .875rem; font-weight: 700; }
+.sa-g { font-size: .825rem; margin-left: 4px; }
+tr.dnp td { color: var(--muted); background: #121714; }
+.dnp-c { text-align: center; font-style: italic; }
+
+.two { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr)); align-items: start; }
+.st-t { font-size: .97rem; width: 100%; }
+.st-t th { font-size: .85rem; padding: 5px 8px; }
+#v-standings .card-h { font-size: 1.06rem; }
+.st-t td { padding: 3px 8px; white-space: nowrap; }
+.st-t .rk { width: 38px; text-align: center; }
+.st-t tr.po td { background: rgba(62, 207, 142, .045); }
+.st-t tr.po td.rk { box-shadow: inset 3px 0 0 #3a9c70; color: var(--label); }
+.st-t tr.pi td { background: rgba(217, 183, 124, .045); }
+.st-t tr.pi td.rk { box-shadow: inset 3px 0 0 #a88b58; color: var(--warm); }
+.st-t tbody tr:hover > td { background: var(--active); }
+
+.inj-cols { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); align-items: start; }
+.inj-l { width: 100%; table-layout: fixed; font-size: 12px; }
+.inj-l th { font-size: 11px; padding: 4px 6px; }
+.inj-l td { padding: 3px 6px; }
+.inj-l .el { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.s-out { color: var(--warm); font-weight: 600; }
+.s-gtd { color: var(--mint); font-weight: 600; }
+.s-date { color: #c9d69a; font-weight: 600; }
+.inj-grp { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(450px, 100%), 1fr)); align-items: start; }
+.inj-g { font-size: 1.045rem; width: 100%; }
+.inj-g th { font-size: .845rem; padding: 4px 8px; }
+.inj-g td { padding: 4px 8px; }
+
+.bracket-wrap { padding: 4px 0 8px; }
+.bracket { position: relative; }
+.bh { position: absolute; top: 0; text-align: center; font-size: 1.025rem; font-weight: 700; color: var(--muted); letter-spacing: .04em; }
+.slot { position: absolute; width: 320px; height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 5px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+.slot.ph .sn { color: var(--muted); }
+.slot.mid { justify-content: center; }
+.slot.mid .sn { font-size: .905rem; }
+.slot.cf { border-color: #2f5a44; }
+.slot.cf .sn { color: var(--label); font-weight: 700; }
+.sd { flex: none; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 3px; font-size: .905rem; font-weight: 700; }
+.sd-po { color: var(--label); background: rgba(62, 207, 142, .1); }
+.sd-pi { color: var(--warm); background: rgba(217, 183, 124, .1); }
+.sn { flex: 1; min-width: 0; font-size: 1.045rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr { font-size: .945rem; color: var(--muted); }
+.br { position: absolute; border: 1px solid #3a463e; border-left: 0; }
+.hz { position: absolute; height: 0; border-top: 1px solid #3a463e; }
+.playin { margin-top: 8px; }
+.pi-h { font-size: 1.025rem; font-weight: 700; color: var(--warm); margin-bottom: 6px; }
+.pi-g { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 26px; }
+.pig { display: grid; gap: 4px; width: 320px; }
+.pig .slot { position: static; }
+.pig-l { font-size: .905rem; font-weight: 700; color: var(--muted); }
+.pig-r { font-size: .905rem; color: var(--warm); }
+
+.tr-t { width: 100%; }
+.tr-t td { padding: 3px 6px; }
+.tr-t th { padding: 5px 6px; }
+.tr-t .desc { color: var(--text-2); font-size: .945rem; white-space: normal; min-width: 320px; }
+.mv { display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: .825rem; font-weight: 700; border: 1px solid transparent; }
+.mv-trade { color: #8fd3c7; border-color: #2e5750; background: rgba(143, 211, 199, .06); }
+.mv-sign { color: var(--mint); border-color: #2f5a44; background: rgba(62, 207, 142, .06); }
+.mv-waive { color: var(--warm); border-color: #5c4c32; background: rgba(217, 183, 124, .06); }
+.mv-conv { color: #c9d69a; border-color: #4c5436; background: rgba(201, 214, 154, .06); }
+.mv-other { color: var(--text-2); border-color: var(--line); }
+.kw-a, .kw-m, .kw-s, .kw-x, .kw-t { font-weight: 600; }
+.kw-a { color: var(--warm); }
+.kw-m { color: var(--mint); }
+.kw-s { color: #b5c98f; }
+.kw-x { color: var(--text-2); }
+.kw-t { color: #8fd3c7; }
+
+.dbl { display: grid; gap: 12px; grid-template-columns: minmax(0, 420px) minmax(0, 560px); align-items: start; }
+.db-t { font-size: .945rem; width: 100%; }
+.db-t th { font-size: .845rem; padding: 4px 6px; }
+.db-t td { padding: 3px 6px; white-space: nowrap; }
+.db-t .rk { width: 48px; text-align: center; }
+.tdd > td { background: var(--side) !important; padding: 4px 6px 6px 48px; }
+.tdg { width: auto; }
+
+
+.float {
+  position: fixed; right: 12px; top: 40px; z-index: 50; width: 390px; max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 90px); overflow: auto;
+  background: var(--panel); border: 1px solid #3a463e; border-radius: 6px; box-shadow: 0 12px 40px rgba(0, 0, 0, .55);
+  font-size: .925rem; color: var(--text-2);
+}
+.fl-title { position: sticky; top: 0; padding: 4px 10px; font-weight: 700; color: var(--label); background: var(--head); border-bottom: 1px solid var(--line); }
+.fl-body { padding: 6px 12px 10px; display: grid; gap: 4px; }
+.fl-h { margin-top: 6px; font-weight: 700; color: var(--text); }
+.fl-h .m { font-weight: 400; margin-left: 6px; }
+.fl-body p { line-height: 1.6; }
+.lg { font-size: .925rem; }
+.lg th { font-size: .845rem; padding: 2px 8px; }
+.lg td { padding: 2px 8px; border-bottom: 1px solid var(--hair); }
+.lg tbody tr:hover > td { background: transparent; }
+.mk { display: inline-block; width: 18px; height: 12px; margin-right: 8px; vertical-align: -1px; border-radius: 2px; }
+.mk-po { background: rgba(62, 207, 142, .09); box-shadow: inset 3px 0 0 #3a9c70; }
+.mk-pi { background: rgba(217, 183, 124, .09); box-shadow: inset 3px 0 0 #a88b58; }
+.mk-pg { background: rgba(201, 214, 154, .16); }
+.mk-dnp { background: #121714; border: 1px solid var(--line); }
+
+
+
+.loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 48px 16px; color: var(--muted); }
+.loading.inl { justify-content: flex-start; padding: 10px 12px; font-size: .875rem; }
+.spin { width: 14px; height: 14px; flex: none; border: 2px solid var(--line); border-top-color: var(--mint); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.det-msg { padding: 10px 12px; }
+.btn-p:disabled { opacity: .45; cursor: not-allowed; }
+.btn-p:disabled:hover { background: var(--active); }
+.search { position: relative; }
+.sr-list { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 40; max-height: 320px; overflow-y: auto; background: var(--panel); border: 1px solid #3a463e; border-radius: 4px; box-shadow: 0 12px 40px rgba(0, 0, 0, .55); }
+.sr-item { display: flex; justify-content: space-between; gap: 12px; padding: 6px 12px; font-size: 1.025rem; cursor: pointer; border-bottom: 1px solid var(--hair); }
+.sr-item:last-child { border-bottom: 0; }
+.sr-item:hover, .sr-item.on { background: var(--active); }
+.sr-id { color: var(--muted); font-size: .875rem; }
+.sb .ser { display: block; font-size: .775rem; font-weight: 600; color: var(--muted); }
+tr.pg > td { background: rgba(201, 214, 154, .16); }
+.dt-p .pl { overflow: hidden; text-overflow: ellipsis; }
+.slot.piw { border-color: #a88b58; }
+
+.fin { display: grid; gap: 8px; }
+.fin-h { display: flex; justify-content: center; align-items: flex-end; gap: 16px; padding: 12px 16px; max-width: 720px; }
+.fin-t { text-align: center; min-width: 120px; }
+.fin-c { font-size: .775rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.fin-n { font-weight: 700; margin-top: 2px; }
+.fin-s { font-size: 1.385rem; font-weight: 800; color: var(--label); letter-spacing: 2px; }
+.fin-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; padding: 8px 12px; }
+.fin-gn { min-width: 16ch; font-weight: 600; color: var(--text-2); }
+.fin-gn .m { margin-left: 8px; font-weight: 400; font-size: .875rem; }
+.fin-sc { font-weight: 600; }
+.fin-sc b { color: var(--label); }
+
+.bxm { padding: 8px 10px; }
+.bxm + .bxm { border-top: 1px solid var(--hair); }
+.bxm-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.bxm-h .tm { font-weight: 600; }
+.bxm-h .sc { font-size: 1.375rem; font-weight: 700; color: var(--label); }
+.bxm-s { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 4px; font-size: .845rem; color: var(--muted); }
+.bxm-l { margin-top: 4px; font-size: .875rem; color: var(--text-2); }
+.bxm-l span { color: var(--label); }
+
+.cookie { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 60; display: none; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; background: var(--panel); border: 1px solid #3a463e; border-radius: 6px; box-shadow: 0 12px 40px rgba(0, 0, 0, .55); font-size: .925rem; color: var(--text-2); }
+.cookie-b { display: flex; gap: 8px; flex: none; }
+.btn-a { color: var(--mint); background: var(--active); border-color: #2f5a44; }
+
+@media (max-width: 860px) {
+  body { --side-w: 0px; }
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: "top" "side" "main"; }
+  .brand { border-right: 0; padding: 0 8px; height: 34px; }
+  .league { margin-left: auto; }
+  .help-btn { margin-left: 0; }
+  .side { border-right: 0; border-bottom: 1px solid var(--hair); overflow: visible; padding: 6px 8px; }
+  .tree { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tree li, .tree ul { display: contents; }
+  .frow { display: none; }
+  .row { width: auto; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px; }
+  .row.on::before { display: none; }
+  .side-foot { margin-top: 8px; }
+  .main { padding: 0 8px 8px; }
+  .sb { min-width: 0; }
+  .dbl { grid-template-columns: minmax(0, 1fr); }
+  .vh .seg { margin-left: 0; }
+  .inj-l { font-size: 12px; }
+}
+@media (max-width: 768px) {
+  .lt-t { font-size: .985rem; }
+  .dt-s td, .dt-p td { font-size: .845rem; }
+  .ps td { font-size: .895rem; padding: 3px 4px; }
+  .ps th { padding: 4px; }
+  .seg button { font-size: .925rem; padding: 0 10px; }
+  .btn-p { width: 100%; }
+  .search { flex-basis: 100%; }
+}
+@media (max-width: 520px) {
+  .vh h1 { font-size: 1.175rem; }
+  .wordmark span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before { animation: none !important; transition: none !important; }
+}
+</style>
 </head>
 <body>
-    <header>
-        <div class="header-stream" aria-hidden="true">
-            <div class="row r1"><span class="o">LAL</span><span class="w">BOS</span><span class="t">GSW</span><span class="o">MIA</span><span class="w">DEN</span><span class="t">MIL</span><span class="o">NYK</span><span class="w">PHX</span><span class="t">DAL</span><span class="o">PHI</span><span class="w">CLE</span><span class="t">OKC</span><span class="o">MIN</span><span class="w">SAC</span><span class="t">NOP</span></div>
-            <div class="row r2"><span class="t">47.8%</span><span class="o">38.2%</span><span class="w">89.5%</span><span class="t">52.1%</span><span class="o">41.3%</span><span class="w">55.4%</span><span class="t">36.7%</span><span class="o">82.9%</span><span class="w">61.0%</span><span class="t">44.5%</span><span class="o">39.2%</span></div>
-            <div class="row r3"><span class="o">112-108</span><span class="w">98-94</span><span class="acc">FINAL</span><span class="t">121-117</span><span class="o">#23</span><span class="w">#30</span><span class="t">OT</span><span class="acc">Q4 2:34</span><span class="o">W 4-2</span><span class="w">#34</span><span class="t">HALFTIME</span><span class="o">105-99</span></div>
-            <div class="row r4"><span class="o">PPG</span><span class="w">REB</span><span class="t">AST</span><span class="o">3PT%</span><span class="w">FG%</span><span class="t">BLK</span><span class="o">STL</span><span class="w">TO</span><span class="t">DD2</span><span class="o">TD3</span><span class="w">USG</span><span class="t">EFF</span><span class="o">MIN</span><span class="w">FT%</span></div>
-            <div class="row r5"><span class="t">30.5</span><span class="o">25.2</span><span class="w">12.7</span><span class="t">8.4</span><span class="o">6.3</span><span class="w">1.8</span><span class="t">2.1</span><span class="o">28.9</span><span class="w">11.4</span><span class="t">9.2</span><span class="o">35.7</span><span class="w">14.6</span></div>
-        </div>
-        <a href="https://github.com/sreckoskocilic/nba_stables" target="_blank" rel="noopener" class="header-logo">
-            <img src="/web/logo.png" alt="NBA Stables">
-        </a>
-        <div class="ticker-track" id="tickerTrack" aria-label="Live games ticker">
-            <span class="pill">Loading…</span>
-        </div>
-        <button id="tickerToggle" class="ticker-toggle" type="button" aria-pressed="false" aria-label="Pause ticker" title="Pause ticker">
-            <svg class="icon-pause" viewBox="0 0 8 10" aria-hidden="true"><rect x="0" y="0" width="3" height="10" rx="0.5"/><rect x="5" y="0" width="3" height="10" rx="0.5"/></svg>
-            <svg class="icon-play" viewBox="0 0 8 10" aria-hidden="true"><polygon points="0,0 8,5 0,10"/></svg>
-        </button>
-        <div class="container">
-            <div class="header-content">
-                <div id="moduleHeaderBar" class="module-header-bar"></div>
-            </div>
-        </div>
-    </header>
+<div class="app">
+<header class="tabline">
+<a class="brand" href="https://github.com/sreckoskocilic/nba_stables" target="_blank" rel="noopener" title="NBA Stables on GitHub"><span class="logo" aria-hidden="true">N</span><span class="wordmark">nbastables<span>.com</span></span></a>
+<div class="league seg" role="group" aria-label="League"><button class="on" data-league="nba" aria-pressed="true">NBA</button><button data-league="wnba" aria-pressed="false">WNBA</button></div>
+<button class="btn help-btn" id="helpBtn" aria-expanded="false" aria-controls="help">Help</button>
+</header>
+<aside class="side" id="side" aria-label="Explorer">
+<ul class="tree"><li class="folder"><div class="frow"><span class="chev">▾</span>today/</div><ul><li><button class="row on" data-view="scoreboard" aria-current="page"><span class="ico f-today"></span>Live Scoreboard</button></li><li><button class="row" data-view="boxscores"><span class="ico f-today"></span>Box Scores</button></li><li><button class="row" data-view="leaders"><span class="ico f-today"></span>Daily Leaders</button></li><li><button class="row" data-view="tracker"><span class="ico f-today"></span>Player Tracker</button></li></ul></li><li class="folder"><div class="frow"><span class="chev">▾</span>season/</div><ul><li><button class="row" data-view="standings"><span class="ico f-season"></span>Standings</button></li><li><button class="row" data-view="playoffs"><span class="ico f-season"></span>Playoffs</button></li><li><button class="row" data-view="seasonDoubles"><span class="ico f-season"></span>Doubles &amp; Triples</button></li><li><button class="row" data-view="seasonHighs"><span class="ico f-season"></span>Season Highs</button></li></ul></li><li class="folder"><div class="frow"><span class="chev">▾</span>players/</div><ul><li><button class="row" data-view="lastngames"><span class="ico f-players"></span>Player Profile</button></li><li><button class="row nba-only" data-view="injuries"><span class="ico f-players"></span>Injuries</button></li><li><button class="row nba-only" data-view="trades"><span class="ico f-players"></span>Trades</button></li></ul></li></ul>
+<div class="side-foot">
+<p>© 2026 NBA Stables. Not affiliated with the NBA.</p>
+<p class="legal"><a href="/web/about.html">About</a><a href="/web/privacy.html">Privacy</a><a href="/web/cookies.html">Cookies</a><a href="/web/terms.html">Terms</a><a href="#" data-action="openCookieSettings">Cookie Settings</a></p>
+</div>
+</aside>
+<main class="main" id="main">
 
-    <main>
-        <div class="container">
-            <div class="app-shell">
-                <aside class="sidebar-nav">
-                    <div id="leagueToggle" style="display:flex; gap:4px; margin-bottom:8px;">
-                        <button class="nav-tab active" data-league="nba" style="min-width:0; flex:1;">NBA</button>
-                        <button class="nav-tab" data-league="wnba" style="min-width:0; flex:1;">WNBA</button>
-                    </div>
-                    <div class="nav-grid">
-                        <button class="nav-tab active" data-section="scoreboard">Live Scoreboard</button>
-                        <button class="nav-tab" data-section="boxscores">Box Scores</button>
-                        <button class="nav-tab" data-section="leaders">Daily Leaders</button>
-                        <button class="nav-tab" data-section="tracker">Player Tracker</button>
-                        <button class="nav-tab" data-section="standings">Standings</button>
-                        <button class="nav-tab" data-section="injuries">Injuries</button>
-                        <button class="nav-tab" data-section="lastngames">Player Profile</button>
-                        <button class="nav-tab" data-section="playoffs">Playoffs</button>
-                        <button class="nav-tab" data-section="trades">Trades</button>
-                        <button class="nav-tab" data-section="seasonDoubles">Doubles &amp; Triples</button>
-                        <button class="nav-tab" data-section="seasonHighs">Season Highs</button>
-                    </div>
-                    <div class="legal-inline">
-                        <p>&copy; 2026 NBA Stables. Not affiliated with the NBA.</p>
-                        <p class="legal-links">
-                            <a href="/web/about.html">About</a>
-                            <a href="/web/privacy.html">Privacy</a>
-                            <a href="/web/cookies.html">Cookies</a>
-                            <a href="/web/terms.html">Terms</a>
-                            <a href="#" data-action="openCookieSettings">Cookie Settings</a>
-                        </p>
-                    </div>
-                </aside>
-                <div class="content-area">
-            <!-- Scoreboard Section -->
-            <section id="scoreboard" class="section active">
-                <div class="section-title">
-                    Live Scoreboard
-                    <button class="refresh-btn" data-action="loadScoreboard" title="Refresh scoreboard" aria-label="Refresh scoreboard">&#8635; Refresh</button>
-                </div>
-                <div id="scoreboardContent">
-                    <div class="loading"><div class="spinner"></div> Loading games...</div>
-                </div>
-            </section>
+<section class="view on" id="v-scoreboard">
+<div class="vh"><h1>Live Scoreboard</h1><button class="btn" data-action="loadScoreboard" title="Refresh"><span aria-hidden="true">↻</span> Refresh</button><span class="vh-date" id="sbDate"></span></div>
+<div id="scoreboardContent"><div class="loading"><span class="spin"></span>Loading games...</div></div>
+</section>
 
-            <!-- Box Scores Section -->
-            <section id="boxscores" class="section">
-                <div class="section-title">
-                    Box Scores
-                    <button class="refresh-btn" data-action="loadBoxscores">&#8635; Refresh</button>
-                </div>
-                <div class="date-selector">
-                    <button class="date-btn active" data-offset="0">Today</button>
-                    <button class="date-btn" data-offset="1">-1d</button>
-                    <button class="date-btn" data-offset="2">-2d</button>
-                    <button class="date-btn" data-offset="3">-3d</button>
-                    <button class="date-btn" data-offset="4">-4d</button>
-                    <button class="date-btn" data-offset="5">-5d</button>
-                    <button class="date-btn" data-offset="6">-6d</button>
-                    <button class="date-btn" data-offset="7">-7d</button>
-                </div>
-                <div id="boxscoresContent">
-                    <div class="loading"><div class="spinner"></div> Loading box scores...</div>
-                </div>
-            </section>
+<section class="view" id="v-boxscores">
+<div class="vh"><h1>Box Scores</h1><button class="btn" data-action="loadBoxscores" title="Refresh"><span aria-hidden="true">↻</span> Refresh</button><div class="seg" id="bxDates" role="group" aria-label="Box score date"><button class="on" aria-pressed="true" data-offset="0">Today</button><button aria-pressed="false" data-offset="1">-1d</button><button aria-pressed="false" data-offset="2">-2d</button><button aria-pressed="false" data-offset="3">-3d</button><button aria-pressed="false" data-offset="4">-4d</button><button aria-pressed="false" data-offset="5">-5d</button><button aria-pressed="false" data-offset="6">-6d</button><button aria-pressed="false" data-offset="7">-7d</button></div></div>
+<div id="boxscoresContent"><div class="loading"><span class="spin"></span>Loading box scores...</div></div>
+</section>
 
-            <!-- Leaders Section -->
-            <section id="leaders" class="section">
-                <div class="section-title">
-                    Daily Leaders
-                    <button class="refresh-btn" data-action="loadLeaders">&#8635; Refresh</button>
-                </div>
-                <div class="date-selector" id="leadersDateSelector">
-                    <button class="date-btn active" data-offset="0">Today</button>
-                    <button class="date-btn" data-offset="1">-1d</button>
-                    <button class="date-btn" data-offset="2">-2d</button>
-                    <button class="date-btn" data-offset="3">-3d</button>
-                    <button class="date-btn" data-offset="4">-4d</button>
-                    <button class="date-btn" data-offset="5">-5d</button>
-                    <button class="date-btn" data-offset="6">-6d</button>
-                    <button class="date-btn" data-offset="7">-7d</button>
-                </div>
-                <div id="leadersContent" class="leaders-grid">
-                    <div class="loading"><div class="spinner"></div> Loading leaders...</div>
-                </div>
-            </section>
+<section class="view" id="v-leaders">
+<div class="vh"><h1>Daily Leaders</h1><button class="btn" data-action="loadLeaders" title="Refresh"><span aria-hidden="true">↻</span> Refresh</button><div class="seg" id="ldDates" role="group" aria-label="Leaders date"><button class="on" aria-pressed="true" data-offset="0">Today</button><button aria-pressed="false" data-offset="1">-1d</button><button aria-pressed="false" data-offset="2">-2d</button><button aria-pressed="false" data-offset="3">-3d</button><button aria-pressed="false" data-offset="4">-4d</button><button aria-pressed="false" data-offset="5">-5d</button><button aria-pressed="false" data-offset="6">-6d</button><button aria-pressed="false" data-offset="7">-7d</button></div></div>
+<div id="leadersContent"><div class="loading"><span class="spin"></span>Loading leaders...</div></div>
+</section>
 
-            <!-- Player Tracker Section -->
-            <section id="tracker" class="section">
-                <div class="section-title">Player Tracker</div>
-                <div class="player-search">
-                    <div class="search-container">
-                        <div class="search-input-wrapper">
-                            <input type="text" class="search-input" id="playerSearch" placeholder="Search for a player..." autocomplete="off">
-                            <div class="search-results" id="searchResults"></div>
-                        </div>
-                        <button class="btn" id="trackBtn" data-action="loadTrackedStats" disabled>Get Live Stats</button>
-                    </div>
-                    <div class="tracked-players" id="trackedPlayers"></div>
-                </div>
-                <div id="trackerContent">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#127942;</div>
-                        <div class="empty-state-title">Player Tracker</div>
-                        <p>Search and select players to see live game stats</p>
-                    </div>
-                </div>
-            </section>
+<section class="view" id="v-tracker">
+<div class="vh"><h1>Player Tracker</h1></div>
+<div class="search-row">
+<div class="search"><input type="text" class="inp" id="playerSearch" placeholder="Search for a player..." autocomplete="off" aria-label="Search for a player"><div class="sr-list" id="searchResults" hidden></div></div>
+<button class="btn-p" id="trackBtn" data-action="loadTrackedStats" disabled>Get Live Stats</button>
+<div class="chips" id="trackedPlayers"></div>
+</div>
+<div id="trackerContent"><div class="empty"><div class="empty-t">Player Tracker</div><p>Search and select players to see live game stats</p></div></div>
+</section>
 
-            <!-- Standings Section -->
-            <section id="standings" class="section">
-                <div class="section-title">
-                    NBA Standings
-                    <button class="refresh-btn" data-action="loadStandings">&#8635; Refresh</button>
-                </div>
-                <div id="standingsContent" style="display: grid; gap: 20px;">
-                    <div class="loading"><div class="spinner"></div> Loading standings...</div>
-                </div>
-            </section>
+<section class="view" id="v-standings">
+<div class="vh"><h1>NBA Standings</h1><button class="btn" data-action="loadStandings" title="Refresh"><span aria-hidden="true">↻</span> Refresh</button></div>
+<div id="standingsContent"><div class="loading"><span class="spin"></span>Loading standings...</div></div>
+</section>
 
-            <!-- Injuries Section -->
-            <section id="injuries" class="section">
-                <div class="section-title">
-                    Injury Report
-                    <span class="badge" id="injuriesSourceBadge" style="background: #ef4444;">CBS</span>
-                    <button class="refresh-btn" data-action="loadInjuries">&#8635; Refresh</button>
-                </div>
-                <div style="margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap;">
-                    <div>
-                        <button class="date-btn active" id="injuriesListBtn" data-action="setInjuriesView" data-view="list">All Players</button>
-                        <button class="date-btn" id="injuriesGroupBtn" data-action="setInjuriesView" data-view="grouped">Group by Team</button>
-                    </div>
-                </div>
-                <div id="injuriesContent">
-                    <div class="loading"><div class="spinner"></div> Loading injury report...</div>
-                </div>
-            </section>
+<section class="view" id="v-injuries">
+<div class="vh"><h1>Injury Report</h1><span class="badge-s">CBS</span><button class="btn" data-action="loadInjuries" title="Refresh"><span aria-hidden="true">↻</span> Refresh</button>
+<div class="seg" id="injViews" role="group" aria-label="Injury view"><button class="on" aria-pressed="true" data-action="setInjuriesView" data-inj="list">All Players</button><button aria-pressed="false" data-action="setInjuriesView" data-inj="grouped">Group by Team</button></div></div>
+<div id="injuriesContent"><div class="loading"><span class="spin"></span>Loading injury report...</div></div>
+</section>
 
-            <!-- Player Profile Section -->
-            <section id="lastngames" class="section">
-                <div class="section-title">Player Profile</div>
-                <div class="player-search">
-                    <div class="search-container lastn-search-row">
-                        <div class="search-input-wrapper lastn-search-wrap">
-                            <input type="text" class="search-input" id="lastNSearch" placeholder="Search for a player..." autocomplete="off">
-                            <div class="search-results" id="lastNSearchResults"></div>
-                        </div>
-                        <button class="btn lastn-get-btn" id="lastNBtn" data-action="loadPlayerProfile" disabled>Load Profile</button>
-                    </div>
-                    <div id="lastNPlayerChip" style="margin-top: 10px;"></div>
-                </div>
-                <div id="lastNContent">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#128100;</div>
-                        <div class="empty-state-title">Player Profile</div>
-                        <p>Search for a player to view their profile, recent form, career stats and career highs</p>
-                    </div>
-                </div>
-            </section>
+<section class="view" id="v-lastngames">
+<div class="vh"><h1>Player Profile</h1></div>
+<div class="search-row">
+<div class="search"><input type="text" class="inp" id="lastNSearch" placeholder="Search for a player..." autocomplete="off" aria-label="Search for a player"><div class="sr-list" id="lastNSearchResults" hidden></div></div>
+<button class="btn-p" id="lastNBtn" data-action="loadPlayerProfile" disabled>Load Profile</button>
+<div class="chips" id="lastNPlayerChip"></div>
+</div>
+<div id="lastNContent"><div class="empty"><div class="empty-t">Player Profile</div><p>Search for a player to view their profile, recent form, career stats and career highs</p></div></div>
+</section>
 
-            <!-- Playoffs Section -->
-            <section id="playoffs" class="section">
-                <div class="section-title">
-                    Playoff Bracket
-                    <button class="refresh-btn" data-action="loadPlayoffs">&#8635; Refresh</button>
-                </div>
-                <div style="display:flex; gap:8px; margin-bottom:20px;">
-                    <button id="playoffEastBtn" class="nav-tab active" data-action="showConference" data-conference="east">Eastern Conference</button>
-                    <button id="playoffWestBtn" class="nav-tab" data-action="showConference" data-conference="west">Western Conference</button>
-                    <button id="playoffFinalsBtn" class="nav-tab" data-action="showFinals">Finals</button>
-                </div>
-                <div id="playoffsContent">
-                    <div class="loading"><div class="spinner"></div> Loading bracket...</div>
-                </div>
-            </section>
+<section class="view" id="v-playoffs">
+<div class="vh"><h1>Playoff Bracket</h1><button class="btn" data-action="loadPlayoffs" title="Refresh"><span aria-hidden="true">↻</span> Refresh</button>
+<div class="seg" id="poConfs" role="group" aria-label="Conference"><button class="on" aria-pressed="true" data-action="showConference" data-conference="east">Eastern Conference</button><button aria-pressed="false" data-action="showConference" data-conference="west">Western Conference</button><button aria-pressed="false" data-action="showFinals">Finals</button></div></div>
+<div id="playoffsContent"><div class="loading"><span class="spin"></span>Loading bracket...</div></div>
+</section>
 
-            <!-- Trades Section -->
-            <section id="trades" class="section">
-                <div class="section-title">
-                    Player Movement
-                    <span class="badge" id="tradesCount">0 Moves</span>
-                    <button class="refresh-btn" data-action="loadTrades">&#8635; Refresh</button>
-                </div>
-                <div class="date-selector" id="tradesMonthSelector"></div>
-                <div id="tradesContent">
-                    <div class="loading"><div class="spinner"></div> Loading transactions...</div>
-                </div>
-            </section>
+<section class="view" id="v-trades">
+<div class="vh"><h1>Player Movement</h1><span class="badge-s" id="tradesCount">0 Moves</span><button class="btn" data-action="loadTrades" title="Refresh"><span aria-hidden="true">↻</span> Refresh</button><div class="seg" id="tradesMonthSelector" role="group" aria-label="Month"></div></div>
+<div id="tradesContent"><div class="loading"><span class="spin"></span>Loading transactions...</div></div>
+</section>
 
-            <section id="seasonDoubles" class="section">
-                <div class="section-title">Season Doubles &amp; Triples
-                    <button class="refresh-btn" data-action="loadSeasonDoubles">&#8635; Refresh</button>
-                </div>
-                <div id="seasonDoublesContent">
-                    <div class="loading"><div class="spinner"></div> Loading season leaders...</div>
-                </div>
-            </section>
+<section class="view" id="v-seasonDoubles">
+<div class="vh"><h1>Season Doubles &amp; Triples</h1><button class="btn" data-action="loadSeasonDoubles" title="Refresh"><span aria-hidden="true">↻</span> Refresh</button></div>
+<div id="seasonDoublesContent"><div class="loading"><span class="spin"></span>Loading season leaders...</div></div>
+</section>
 
-            <!-- Season Highs Section -->
-            <section id="seasonHighs" class="section">
-                <div class="section-title">Season Highs
-                    <button class="refresh-btn" data-action="loadSeasonHighs">&#8635; Refresh</button>
-                </div>
-                <div id="seasonHighsContent">
-                    <div class="loading"><div class="spinner"></div> Loading season highs...</div>
-                </div>
-            </section>
+<section class="view" id="v-seasonHighs">
+<div class="vh"><h1>Season Highs</h1><button class="btn" data-action="loadSeasonHighs" title="Refresh"><span aria-hidden="true">↻</span> Refresh</button><span class="note inl" id="seasonHighsNote"></span></div>
+<div id="seasonHighsContent"><div class="loading"><span class="spin"></span>Loading season highs...</div></div>
+</section>
 
-            <!-- App Section -->
-                </div>
-            </div>
-        </div>
-    </main>
+</main>
 
-    <div id="cookieBanner" style="position: fixed; left: 16px; right: 16px; bottom: 16px; display: none; align-items: center; justify-content: space-between; gap: 12px; background: #12121a; border: 1px solid #2a2a3a; border-radius: 10px; padding: 12px 14px; z-index: 1000;">
-        <p style="margin: 0; font-size: 0.85rem; color: #a0a0b0;">We use privacy-friendly analytics cookies only if you accept.</p>
-        <div style="display: flex; gap: 8px; flex-shrink: 0;">
-            <button id="cookieReject" style="padding: 8px 10px; border-radius: 8px; border: 1px solid #2a2a3a; background: transparent; color: #fff; cursor: pointer;">Reject</button>
-            <button id="cookieAccept" style="padding: 8px 10px; border-radius: 8px; border: 1px solid #ff6b35; background: #ff6b35; color: #fff; cursor: pointer;">Accept</button>
-        </div>
-    </div>
+<div class="float" id="help" role="dialog" aria-labelledby="helpTitle" hidden>
+<div class="fl-title" id="helpTitle">Help</div>
+<div class="fl-body">
+<div class="fl-h">Scoreboard</div>
+<p>Top row of each game is the home team, bottom row the away team.</p>
+<div class="fl-h">Stat highlights <span class="m">value ≥ threshold</span></div>
+<table class="t lg"><thead><tr><th></th><th class="n">PTS</th><th class="n">REB</th><th class="n">AST</th><th class="n">STL</th><th class="n">BLK</th></tr></thead><tbody id="tierRows"></tbody></table>
+<div class="fl-h">Pinned stat</div>
+<p><span class="v pin">8</span> Player Tracker: click any stat cell to pin or unpin it. Pins are kept in this browser.</p>
+<div class="fl-h">Row marks</div>
+<p><span class="mk mk-po"></span>Standings: playoff seeds 1–6 <span class="m">(WNBA 1–8)</span><br>
+<span class="mk mk-pi"></span>Standings: play-in seeds 7–10<br>
+<span class="mk mk-pg"></span>Playoff games (Player Profile, Season Highs)<br>
+<span class="mk mk-dnp"></span>DNP: did not play</p>
+<div class="fl-h">Injuries</div>
+<p><span class="s-gtd b">GTD</span> Game Time Decision · <span class="s-out b">OUT</span> Season · <span class="s-date b">Feb 1</span> Return date</p>
+<div class="fl-h">Doubles &amp; Triples</div>
+<p>Count format: total/playoff (shown once playoff games exist)</p>
+</div>
+</div>
+</div>
 
-    <script defer src="/web/app.js"></script>
-    <script defer src="/web/module-header.js"></script>
-    <script defer src="/web/legal.js"></script>
+<div class="cookie" id="cookieBanner">
+<p>We use privacy-friendly analytics cookies only if you accept.</p>
+<div class="cookie-b"><button class="btn" id="cookieReject">Reject</button><button class="btn btn-a" id="cookieAccept">Accept</button></div>
+</div>
+
+<script defer src="/web/app.js"></script>
+<script defer src="/web/legal.js"></script>
 </body>
 </html>

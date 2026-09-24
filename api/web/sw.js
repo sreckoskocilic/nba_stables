@@ -1,10 +1,9 @@
 // Service Worker for NBA Stables PWA
-const CACHE_NAME = 'nba-stables-v2';
+const CACHE_NAME = 'nba-stables-v3';
 const SHELL_ASSETS = [
   '/',
   '/web/index.html',
   '/web/app.js',
-  '/web/module-header.js',
   '/web/legal.js',
   '/web/widget.html',
   '/web/widget.js',
