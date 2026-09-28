@@ -52,7 +52,6 @@ def _reset_nba_stats_http_session() -> None:
     Reusing one keep-alive connection across multiple stats.nba.com calls can hang
     subsequent requests in the same process (see nba_api issue #633).
     """
-    # Reset NBAHTTP (live) session
     try:
         sess = NBAHTTP._session
         if sess is not None:  # pragma: no cover
@@ -61,7 +60,6 @@ def _reset_nba_stats_http_session() -> None:
         pass
     NBAHTTP._session = None
 
-    # Reset NBAStatsHTTP session
     try:
         stats_sess = NBAStatsHTTP._session
         if stats_sess is not None:
@@ -105,7 +103,6 @@ def get_display_date(days_offset: int = 0) -> str:
 
 def get_current_season() -> str:
     today = _today_et()
-    # NBA regular season starts mid-October
     year = (
         today.year
         if (
@@ -187,14 +184,18 @@ def count_double_digits(pts: int, reb: int, ast: int, stl: int, blk: int) -> int
     return sum(1 for v in (pts, reb, ast, stl, blk) if v >= 10)
 
 
-def with_retry(fn, attempts: int = 3, delay: float = 0.2):
+_RETRY_ATTEMPTS = 3
+_RETRY_DELAY = 0.2
+
+
+def with_retry(fn):
     """Run `fn` with exponential backoff retry for transient errors.
 
     On transient errors (Timeout, ConnectionError), resets nba_api's cached
     session before backoff to mitigate nba_api issue #633.
     """
     last_err: Exception | None = None
-    for i in range(attempts):
+    for i in range(_RETRY_ATTEMPTS):
         try:
             return fn()
         except (
@@ -205,9 +206,9 @@ def with_retry(fn, attempts: int = 3, delay: float = 0.2):
         ) as ex:  # pragma: no cover - retry logic for network issues
             last_err = ex
             _reset_nba_stats_http_session()
-            if i == attempts - 1:
+            if i == _RETRY_ATTEMPTS - 1:
                 break
-            time.sleep(delay * (2**i))
+            time.sleep(_RETRY_DELAY * (2**i))
     if last_err:
         raise last_err
 
@@ -265,7 +266,6 @@ def _fetch_players(league_id: str = "00") -> list:
             person_id = row[CAP_PERSON_ID]
             name_raw = row[CAP_DISPLAY_LAST_COMMA_FIRST]
 
-            # Convert "Last, First" to "First Last" for friendlier search
             if "," in name_raw:
                 last, first = [part.strip() for part in name_raw.split(",", 1)]
                 name = f"{first} {last}"
@@ -485,7 +485,6 @@ def get_games_leaders_list(days_offset: int = 1, league_id: str = "00") -> dict:
         games = sb.game_header.get_dict()
         leaders = sb.game_leaders.get_dict()
 
-        # Get game IDs
         for g in games["data"]:
             if g[GH_GAME_STATUS] > STATUS_SCHEDULED:
                 g_dict[g[GH_GAME_ID]] = []
@@ -507,15 +506,14 @@ def get_games_leaders_list(days_offset: int = 1, league_id: str = "00") -> dict:
     return g_dict
 
 
-def get_cached_boxscore_v3(game_id: str, historical: bool = True) -> Any:
+def get_cached_boxscore_v3(game_id: str) -> Any:
     """Return a cached BoxScoreTraditionalV3 response for the given game_id."""
     cache_key = f"raw_boxscore_{game_id}"
     cached = cache.get(cache_key)
     if cached is not None:  # pragma: no cover
         return cached
     bs_stats = call_stats(boxscoretraditionalv3.BoxScoreTraditionalV3, game_id=game_id)
-    ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["boxscores"]
-    cache.set(cache_key, bs_stats, ttl)
+    cache.set(cache_key, bs_stats, CACHE_TTL["historical"])
     return bs_stats
 
 

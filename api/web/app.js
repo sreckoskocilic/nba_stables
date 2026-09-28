@@ -35,12 +35,12 @@ function leagueQuery() {
   return currentLeague === "wnba" ? "?league=wnba" : "";
 }
 const _abortControllers = {};
-function _fetchWithAbort(key, url, opts = {}, timeoutMs = 15e3) {
+function _fetchWithAbort(key, url) {
   _abortControllers[key] && _abortControllers[key].abort();
   const ctrl = new AbortController();
   _abortControllers[key] = ctrl;
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+  const timer = setTimeout(() => ctrl.abort(), 15e3);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
 }
 function isGameScheduled(status) {
   return /^(\d{1,2}:\d{2}(\s|$)|ppd|postponed|tbd)/i.test(status.trim());
@@ -78,7 +78,7 @@ const pct = (value, digits) => {
   const n = Number(value);
   return Number.isFinite(n) ? `${(n * 100).toFixed(digits)}%` : "-";
 };
-const safeVal = (value) => (value == null || value === "null" ? "-" : esc(value));
+const safeVal = (value) => (value == null ? "-" : esc(value));
 function _fmtPct(v) {
   return ((Number(v) || 0) * 100).toFixed(1) + "%";
 }
@@ -216,9 +216,9 @@ function initPlayerSearch(inputId, resultsId, onSelect, buttonId) {
       if (open) {
         const all = items();
         pick(idx >= 0 ? all[idx] : all[0]);
-      } else if (buttonId) {
+      } else {
         const btn = document.getElementById(buttonId);
-        btn && !btn.disabled && btn.click();
+        if (!btn.disabled) btn.click();
       }
     } else if (e.key === "Escape") close();
   });
@@ -247,7 +247,7 @@ function initPlayerSearch(inputId, resultsId, onSelect, buttonId) {
                     `<div class="sr-item" data-id="${escAttr(p.id)}" data-name="${escAttr(p.name)}"><span>${esc(p.name)}</span><span class="sr-id">ID: ${esc(p.id)}</span></div>`,
                 )
                 .join("");
-      } catch (err) {
+      } catch {
         list.innerHTML = '<div class="sr-item m">Error searching</div>';
       }
       list.hidden = false;
@@ -366,7 +366,7 @@ async function toggleGameDetails(gameId, card) {
     const r = await _fetchWithAbort("gameDetails_" + gameId, `/api/games/${encodeURIComponent(gameId)}/players`),
       d = await r.json();
     det.innerHTML = _renderTopRow(d) + `<div class="bx-teams">${d.teams.map(_renderTeamPlayers).join("")}</div>`;
-  } catch (e) {
+  } catch {
     det.innerHTML = '<p class="m det-msg">Error loading player stats</p>';
   }
 }
@@ -406,36 +406,6 @@ async function loadStandings(force = false) {
 }
 
 const _TEAM_CODES = {
-    hawks: "ATL",
-    celtics: "BOS",
-    nets: "BKN",
-    hornets: "CHA",
-    bulls: "CHI",
-    cavaliers: "CLE",
-    mavericks: "DAL",
-    nuggets: "DEN",
-    pistons: "DET",
-    warriors: "GSW",
-    rockets: "HOU",
-    pacers: "IND",
-    clippers: "LAC",
-    lakers: "LAL",
-    grizzlies: "MEM",
-    heat: "MIA",
-    bucks: "MIL",
-    timberwolves: "MIN",
-    pelicans: "NOP",
-    knicks: "NYK",
-    thunder: "OKC",
-    magic: "ORL",
-    "76ers": "PHI",
-    suns: "PHX",
-    "trail blazers": "POR",
-    kings: "SAC",
-    spurs: "SAS",
-    raptors: "TOR",
-    jazz: "UTA",
-    wizards: "WAS",
     atlanta: "ATL",
     boston: "BOS",
     brooklyn: "BKN",
@@ -467,7 +437,7 @@ const _TEAM_CODES = {
     utah: "UTA",
     washington: "WAS",
   },
-  _RETURN_DATE_RE = /Jan \d+|Feb \d+|Mar \d+|Apr \d+|May \d+/i;
+  _RETURN_DATE_RE = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+/i;
 let injuriesData = null,
   injuriesView = "list";
 function setInjuriesView(view) {
@@ -501,7 +471,6 @@ function renderInjuries() {
       if (statusLower.includes("out for") || statusLower === "suspension") shortStatus = "OUT";
       else if (statusLower.includes("expected") || statusLower.includes("return"))
         shortStatus = statusRaw.match(_RETURN_DATE_RE)?.[0] || "TBD";
-      else if (statusLower === "day-to-day" || statusLower === "game time decision") shortStatus = "GTD";
       else if (statusLower === "out") shortStatus = "OUT";
       const cls = shortStatus === "OUT" ? "s-out" : shortStatus === "GTD" ? "s-gtd" : "s-date";
       return { shortStatus: esc(shortStatus), cls };
@@ -631,8 +600,6 @@ async function loadPlayerProfile() {
     const avgMinutes = () => {
       if (!played.length) return "0.0";
       const toMinutes = (value) => {
-        if (value == null) return 0;
-        if (typeof value === "number") return value;
         const txt = String(value).trim();
         const m = txt.match(/^(\d+):(\d+)$/);
         if (m) return (Number(m[1]) || 0) + (Number(m[2]) || 0) / 60;
@@ -643,24 +610,20 @@ async function loadPlayerProfile() {
     const avgPairPct = (key) => {
       if (!played.length) return "-";
       let made = 0,
-        attempt = 0,
-        count = 0;
+        attempt = 0;
       played.forEach((g) => {
-        const m = String(g[key] ?? "").match(/^(\d+)\s*[\/-]\s*(\d+)$/);
+        const m = String(g[key] ?? "").match(/^(\d+)\/(\d+)$/);
         if (m) {
-          made += Number(m[1]) || 0;
-          attempt += Number(m[2]) || 0;
-          count += 1;
+          made += Number(m[1]);
+          attempt += Number(m[2]);
         }
       });
-      if (!count || !attempt) return "0.0%";
+      if (!attempt) return "0.0%";
       return `${((made / attempt) * 100).toFixed(1)}%`;
     };
     const pct1 = (value) => {
-      let v = Number(value);
-      if (!Number.isFinite(v)) return "-";
-      if (v <= 1) v *= 100;
-      return `${v.toFixed(1)}%`;
+      const v = Number(value);
+      return Number.isFinite(v) ? `${v.toFixed(1)}%` : "-";
     };
     const recentHtml = hasGames
       ? `<div class="wrap"><table class="t ps"><thead><tr><th>Matchup</th><th class="n">MIN</th><th class="n">PTS</th><th class="n">FG</th><th class="n">3 PT</th><th class="n">FT</th><th class="n">REB</th><th class="n">AST</th><th class="n">BLK</th><th class="n">STL</th><th class="n">PF</th></tr></thead><tbody>${a.games
@@ -682,7 +645,7 @@ async function loadPlayerProfile() {
     el.innerHTML =
       _renderProfileBio(profile, lastNSelectedPlayer.name) +
       `<div class="prof">${panel("Last 10 Games", recentHtml, "No recent games")}${panel("Career Stats", careerHtml, "No career data")}</div>`;
-  } catch (e) {
+  } catch {
     el.innerHTML = emptyHtml("Error Loading Stats", "Error loading stats");
   }
 }
@@ -716,7 +679,7 @@ function showConference(conf) {
   const seg = document.getElementById("poConfs");
   if (playoffsData.all) {
     seg.hidden = true;
-    el.innerHTML = drawBracket(playoffsData.all, "Playoff Bracket", {}, playoffsData.seriesResults || {}, { wnba: true });
+    el.innerHTML = drawBracket(playoffsData.all, "Playoff Bracket", {}, playoffsData.seriesResults || {}, true);
     return;
   }
   seg.hidden = false;
@@ -756,15 +719,13 @@ function showFinals() {
     .join("");
   el.innerHTML = `<div class="fin">${header}${games}</div>`;
 }
-function drawBracket(t, title, piActual, seriesResults, opts) {
+function drawBracket(t, title, piA, _sr, wnba = false) {
   const SW = 320,
     X = [0, 376, 752],
-    piA = piActual || {},
     seed7 = piA.seed7TeamId,
     g3w = piA.g3WinnerTeamId;
   const ts = [...t].sort((a, b) => a.rank - b.rank);
-  const wnba = opts && opts.wnba,
-    _wR1 = wnba ? 2 : 4,
+  const _wR1 = wnba ? 2 : 4,
     _wSF = wnba ? 3 : 4;
   const s7 = wnba
     ? ts[6]
@@ -777,7 +738,6 @@ function drawBracket(t, title, piActual, seriesResults, opts) {
       ? t.find((x) => x.teamId === g3w)
       : { rank: 8, name: "Game 3 Winner", wins: "", losses: "", teamId: null };
   const r = [ts[0], s8, ts[3], ts[4], ts[2], ts[5], ts[1], s7];
-  const _sr = seriesResults || {};
   const serMap = {};
   const pairs = [
     [0, 1],
@@ -893,7 +853,7 @@ function _drawPlayIn(o, piA) {
         : !team.losses || team.losses === "?"
           ? "—"
           : team.wins + "-" + team.losses;
-    return `<div class="slot pis${team.teamId ? "" : " ph"}${win ? " piw" : ""}"><span class="sd sd-pi">${esc(seed)}</span><span class="sn">${esc(team.name)}</span><span class="sr">${esc(rec)}</span></div>`;
+    return `<div class="slot${team.teamId ? "" : " ph"}${win ? " piw" : ""}"><span class="sd sd-pi">${esc(seed)}</span><span class="sn">${esc(team.name)}</span><span class="sr">${esc(rec)}</span></div>`;
   }
   const matchup = (top, bot, label, result, topWin, botWin) =>
     `<div class="pig"><div class="pig-l">${label}</div>${piSlot(top, topWin)}${piSlot(bot, botWin)}<div class="pig-r">${result}</div></div>`;
@@ -1106,7 +1066,7 @@ async function toggleTdGames(playerId, btn) {
           `<tr><td class="nw">${esc(g.date)}</td><td class="nw">${esc(g.matchup)}</td><td class="n">${statVal("points", g.points)}</td><td class="n">${statVal("rebounds", g.rebounds)}</td><td class="n">${statVal("assists", g.assists)}</td><td class="n">${statVal("steals", g.steals)}</td><td class="n">${statVal("blocks", g.blocks)}</td></tr>`,
       )
       .join("")}</tbody></table>`;
-  } catch (e) {
+  } catch {
     container.innerHTML = '<p class="s-out sm">Error loading games</p>';
   }
 }
@@ -1129,9 +1089,8 @@ async function loadScoreboard() {
       content.innerHTML = emptyHtml("No Games Today", "Check back later for live games");
       return;
     }
-    const hasLeader = (leader) => leader && leader.name && leader.name !== "null";
     const leaderCells = (leader) =>
-      hasLeader(leader)
+      leader && leader.name
         ? `<td class="ldn">${esc(leader.name)}</td><td class="n">${safeVal(leader.points)}</td><td class="n">${safeVal(leader.rebounds)}</td><td class="n">${safeVal(leader.assists)}</td>`
         : '<td class="ldn z">-</td><td class="n z">-</td><td class="n z">-</td><td class="n z">-</td>';
     const toNum = (value) => {
@@ -1332,7 +1291,7 @@ document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-action]");
   if (!t) return;
   const fn = _ACTIONS[t.dataset.action];
-  if (fn) fn(t, e);
+  if (fn) fn(t);
 });
 
 const _NBA_ONLY_TABS = ["injuries", "trades"];
@@ -1384,12 +1343,6 @@ function setLeague(league) {
       break;
     case "standings":
       loadStandings(true);
-      break;
-    case "tracker":
-      loadTrackedStats();
-      break;
-    case "lastngames":
-      if (lastNSelectedPlayer) loadPlayerProfile();
       break;
     case "playoffs":
       loadPlayoffs(true);

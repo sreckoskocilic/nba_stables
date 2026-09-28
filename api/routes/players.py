@@ -198,7 +198,6 @@ async def get_player_stats(
                 log_exceptions(ex, f"game_id={game_id}")
                 return None
 
-        # executor.map keeps submission overhead low and maintains order
         try:
             boxscores = list(
                 executor.map(

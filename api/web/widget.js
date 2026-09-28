@@ -4,10 +4,6 @@ function sc(t,v) { const s=TIERS[t]; return !s||v<=0?"":v>=s[0]?"stat-elite":v>=
 function safeParse(raw, fallback) { try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
 
 let _league = localStorage.getItem("widget_league") || "nba";
-if (localStorage.getItem("widget_tracked") && !localStorage.getItem("widget_tracked_nba")) {
-    localStorage.setItem("widget_tracked_nba", localStorage.getItem("widget_tracked"));
-    localStorage.removeItem("widget_tracked");
-}
 let tracked = safeParse(localStorage.getItem("widget_tracked_" + _league), []);
 let refreshTimer = null;
 const _pins = safeParse(localStorage.getItem("pinnedStats"), {});

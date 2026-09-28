@@ -71,17 +71,17 @@
     showBanner();
   }
 
-  window.openCookieSettings = function () {
+  function openCookieSettings() {
     localStorage.removeItem(CONSENT_KEY);
     showBanner();
-  };
+  }
 
   // Delegated handler — inline onclick is blocked by the page CSP (script-src 'self').
   document.addEventListener("click", function (event) {
     const trigger = event.target.closest('[data-action="openCookieSettings"]');
     if (trigger) {
       event.preventDefault();
-      window.openCookieSettings();
+      openCookieSettings();
     }
   });
 

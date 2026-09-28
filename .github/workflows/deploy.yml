@@ -20,7 +20,7 @@ on:
       - ".env.example"
       - ".github/dependabot.yml"
     branches: [main]
-  workflow_dispatch: # allow manual trigger
+  workflow_dispatch:
 
 
 jobs:

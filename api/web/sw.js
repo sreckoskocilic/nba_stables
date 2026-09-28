@@ -1,4 +1,3 @@
-// Service Worker for NBA Stables PWA
 const CACHE_NAME = 'nba-stables-v3';
 const SHELL_ASSETS = [
   '/',
@@ -9,7 +8,6 @@ const SHELL_ASSETS = [
   '/web/widget.js',
 ];
 
-// Install - cache shell assets for offline fallback
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
@@ -17,7 +15,6 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate - clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -26,14 +23,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch - network first, cache fallback for shell assets only
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // Leave cross-origin requests (Google Fonts) to the browser. Re-issuing them
   // from the worker counts as connect-src, which PAGE_CSP denies; loaded
   // directly they are allowed by style-src/font-src.
-  // API calls are skipped too - always fetch fresh.
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) {
     return;
   }
@@ -44,7 +39,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Only cache shell assets, not arbitrary GETs
         if (response.ok && isShellAsset) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
@@ -54,7 +48,6 @@ self.addEventListener('fetch', (event) => {
       .catch(async () => {
         const cached = await caches.match(event.request);
         if (cached) return cached;
-        // Offline navigation to a non-cached URL falls back to the app shell.
         if (event.request.mode === 'navigate') {
           return (
             (await caches.match('/')) ||

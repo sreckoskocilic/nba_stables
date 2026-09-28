@@ -1,6 +1,4 @@
-# Cache TTLs (in seconds)
 import atexit
-import heapq
 import os
 import threading
 import time
@@ -8,29 +6,26 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 CACHE_TTL = {
-    "scoreboard": 30,  # 30 seconds - live scores change frequently
-    "boxscores": 60,  # 1 minute
-    "leaders": 60,  # 1 minute - matches boxscores refresh rate
-    "standings": 3600,  # 1 hour - doesn't change often
-    "player_stats": 30,  # 30 seconds
-    "players": 12 * 3600,  # 12 hours - roster changes are infrequent
-    "historical": 86400,  # 24 hours - days_offset >= 2 never changes
-    "injuries": 7200,  # 2 hours - injury reports don't change often, avoid rate limits
-    "trades": 12 * 3600,  # 12 hours
-    "season_leaders": 3600,  # 1 hour
-    "playoffs": 60,  # 1 minute - play-in scores and series results change frequently
+    "scoreboard": 30,
+    "boxscores": 60,
+    "leaders": 60,
+    "standings": 3600,
+    "player_stats": 30,
+    "players": 12 * 3600,
+    "historical": 86400,
+    "injuries": 7200,
+    "trades": 12 * 3600,
+    "season_leaders": 3600,
+    "playoffs": 60,
 }
 
 
-# Simple in-memory cache
 class SimpleCache:
     _DEFAULT_MAXSIZE = 2000
-    _EVICT_INTERVAL = 60  # seconds between background eviction sweeps
-    _MAX_EVICT_PER_OP = 100  # Safety limit to prevent infinite loops
+    _EVICT_INTERVAL = 60
 
     def __init__(self, maxsize: int = _DEFAULT_MAXSIZE):
         self._cache: dict[str, dict[str, Any]] = {}
-        self._heap = []  # (expires, key)
         self._lock = threading.Lock()
         self._maxsize = maxsize
         self._evict_thread = threading.Thread(target=self._evict_loop, daemon=True)
@@ -54,9 +49,7 @@ class SimpleCache:
                 return None
             if time.time() < entry["expires"]:
                 return entry["data"]
-            # Clean up expired entry
             self._cache.pop(key, None)
-            # Mark this key as expired in heap by filtering later
             return None
 
     def set(self, key: str, data: Any, ttl_seconds: int):
@@ -65,31 +58,12 @@ class SimpleCache:
             # Re-insert so dict order tracks write recency, not first-seen order
             self._cache.pop(key, None)
             self._cache[key] = {"data": data, "expires": expires}
-            heapq.heappush(self._heap, (expires, key))
-
-            # Evict expired first, then coldest if still over maxsize
             self._evict_expired()
             if len(self._cache) > self._maxsize:
-                self._evict_oldest()
-
-    def _evict_oldest(self):
-        """Evict least-recently-written entries when cache exceeds maxsize.
-
-        Insertion order tracks write recency because set() re-inserts the key,
-        so the first dict key is always the coldest one. Evicting by heap order
-        instead would drop the shortest-lived entry, which is the one just set.
-        """
-        evicted = 0
-        while len(self._cache) > self._maxsize and evicted < self._MAX_EVICT_PER_OP:
-            self._cache.pop(next(iter(self._cache)))
-            evicted += 1
+                self._cache.pop(next(iter(self._cache)))
 
     def _evict_expired(self):
         now = time.time()
-        # Lazily pop heap entries whose time has passed (O(k log n) vs O(n log n))
-        while self._heap and self._heap[0][0] <= now:
-            heapq.heappop(self._heap)
-        # Remove expired entries from cache dict (handles keys updated after last push)
         expired_keys = [k for k, v in self._cache.items() if v["expires"] <= now]
         for key in expired_keys:
             self._cache.pop(key, None)
@@ -97,10 +71,8 @@ class SimpleCache:
     def clear(self):
         with self._lock:
             self._cache.clear()
-            self._heap.clear()
 
 
-# Named constants
 DAYS_OFFSET_MIN = 0
 DAYS_OFFSET_MAX = 7
 SEASON_CUTOFF_MONTH = 10
@@ -117,7 +89,6 @@ def _safe_int_env(name: str, default: int) -> int:
         return default
 
 
-# Shared singleton instances
 cache = SimpleCache()
 _DEFAULT_WORKERS = _safe_int_env("EXECUTOR_WORKERS", 10)
 executor = ThreadPoolExecutor(
@@ -128,7 +99,6 @@ atexit.register(executor.shutdown, wait=True, cancel_futures=True)
 STATS_PROXY = os.environ.get("STATS_PROXY", None)
 STATS_TIMEOUT = _safe_int_env("STATS_TIMEOUT", 30)
 
-# NBA team ID → (tricode, full name)
 TEAMS = {
     1610612737: ("ATL", "Atlanta Hawks"),
     1610612738: ("BOS", "Boston Celtics"),
@@ -160,7 +130,6 @@ TEAMS = {
     1610612761: ("TOR", "Toronto Raptors"),
     1610612762: ("UTA", "Utah Jazz"),
     1610612764: ("WAS", "Washington Wizards"),
-    # WNBA teams
     1611661313: ("NYL", "New York Liberty"),
     1611661317: ("PHX", "Phoenix Mercury"),
     1611661319: ("LVA", "Las Vegas Aces"),

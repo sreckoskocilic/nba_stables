@@ -73,14 +73,17 @@ router = APIRouter()
 
 _EMPTY_LEADER = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
 
-# Playoff status thresholds
-PLAYOFF_SEED_IN = 6  # Seeds 1-6 get automatic playoff berth
-PLAYOFF_SEED_PLAYIN = 10  # Seeds 7-10 make play-in tournament
+PLAYOFF_SEED_IN = 6
+PLAYOFF_SEED_PLAYIN = 10
 
 # Series counts only change after a playoff game ends; cache longer than scoreboard.
 _PLAYOFF_SERIES_TTL = 300
 
-_TRICODE_TO_TEAM_ID = {tri: tid for tid, (tri, _) in TEAMS.items() if tid < 1611661000}
+# Per league: NBA and WNBA share tricodes (MIN, IND, PHX, ...). WNBA IDs start 1611661.
+_TRICODE_TO_TEAM_ID = {
+    "00": {tri: tid for tid, (tri, _) in TEAMS.items() if tid < 1611661000},
+    "10": {tri: tid for tid, (tri, _) in TEAMS.items() if tid >= 1611661000},
+}
 
 
 def _sort_by_rank(teams: list) -> list:
@@ -180,14 +183,11 @@ async def get_scoreboard(league: str = Query(default="nba")):
                 live_by_id.get(g["gameId"], g) if g["gameId"] in started_ids else g
                 for g in games
             ]
-        if league_id == "00":
-            try:
-                series_wins, _ = _get_playoff_series_cached(
-                    get_current_season(),
-                )
-                _attach_series_to_games(games, series_wins)
-            except Exception as ex:  # pragma: no cover
-                log_exceptions(ex, "scoreboard_series_attach")
+        try:
+            series_wins, _ = _get_playoff_series_cached(league_id)
+            _attach_series_to_games(games, series_wins, league_id)
+        except Exception as ex:  # pragma: no cover
+            log_exceptions(ex, "scoreboard_series_attach")
         display_date = sb_date.strftime("%B %d, %Y")
         return {"games": games, "date": display_date}
 
@@ -273,13 +273,11 @@ def _scoreboard_from_v3(sb) -> list[dict]:
     header = sb.game_header.get_dict()
     line_score = sb.line_score.get_dict()
 
-    # Build tricode→(row, team_id) lookup grouped by game_id
     teams_by_game: dict[str, dict[str, tuple]] = {}
     for row in line_score["data"]:
         gid = row[LS_GAME_ID]
         teams_by_game.setdefault(gid, {})[row[LS_TRICODE]] = (row, row[LS_TEAM_ID])
 
-    # Build leaders lookup
     leaders_data = sb.game_leaders.get_dict()
     leaders_by = {(ld[GL_GAME_ID], ld[GL_TEAM_ID]): ld for ld in leaders_data["data"]}
 
@@ -629,15 +627,17 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
     return result
 
 
-def _get_playoff_series_cached(
-    season: str,
-    league_id: str = "00",
-) -> tuple[dict, dict]:
-    """Cached wrapper around _fetch_playoff_series_data.
+def _get_playoff_series_cached(league_id: str = "00") -> tuple[dict, dict]:
+    """Cached wrapper around _fetch_playoff_series_data for the current season.
 
     Returns (pair_wins, pair_games). Series counts only update when a playoff
     game ends, so we cache longer than the scoreboard.
     """
+    # LeagueGameFinder wants the WNBA season as a bare year ("2026");
+    # "2026-27" silently returns zero rows.
+    season = (
+        get_wnba_current_season()[:4] if league_id == "10" else get_current_season()
+    )
     cache_key = f"playoff_series_{league_id}_{season}"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -647,7 +647,11 @@ def _get_playoff_series_cached(
     return result
 
 
-def _attach_series_to_games(games: list[dict], series_data: dict) -> None:
+def _attach_series_to_games(
+    games: list[dict],
+    series_data: dict,
+    league_id: str = "00",
+) -> None:
     """Mutate scoreboard `games` to include a `series` field on playoff games.
 
     `series` shape: {"home": <home_wins>, "away": <away_wins>}.
@@ -655,11 +659,12 @@ def _attach_series_to_games(games: list[dict], series_data: dict) -> None:
     """
     if not series_data:
         return
+    tricode_to_id = _TRICODE_TO_TEAM_ID[league_id]
     for game in games:
         home_tri = (game.get("homeTeam") or {}).get("tricode") or ""
         away_tri = (game.get("awayTeam") or {}).get("tricode") or ""
-        home_id = _TRICODE_TO_TEAM_ID.get(home_tri)
-        away_id = _TRICODE_TO_TEAM_ID.get(away_tri)
+        home_id = tricode_to_id.get(home_tri)
+        away_id = tricode_to_id.get(away_tri)
         if not home_id or not away_id:
             continue
         lo, hi = sorted((home_id, away_id))
@@ -869,10 +874,7 @@ async def get_playoff_picture(league: str = Query(default="nba")):
             all_teams = _wnba_sorted_teams()
             for t in all_teams:
                 t["status"] = "in" if 1 <= t["rank"] <= 8 else "out"
-            series_results, _ = _get_playoff_series_cached(
-                get_wnba_current_season(),
-                league_id="10",
-            )
+            series_results, _ = _get_playoff_series_cached("10")
             return {"all": all_teams, "seriesResults": series_results}
 
         teams = _fetch_standings_teams()
@@ -892,7 +894,6 @@ async def get_playoff_picture(league: str = Query(default="nba")):
             projected_wins = round(wins + games_remaining * win_pct)
             projected_losses = NBA_REGULAR_SEASON_GAMES - projected_wins
 
-            # Determine status
             if 1 <= rank <= PLAYOFF_SEED_IN:
                 status = "in"
             elif rank <= PLAYOFF_SEED_PLAYIN:
@@ -917,7 +918,7 @@ async def get_playoff_picture(league: str = Query(default="nba")):
         east_sorted = _sort_by_rank(east)
         west_sorted = _sort_by_rank(west)
         playin_actual = _fetch_playin_data(east_sorted[6:10], west_sorted[6:10])
-        series_results, series_games = _get_playoff_series_cached(get_current_season())
+        series_results, series_games = _get_playoff_series_cached()
 
         finals = _build_finals_data(
             east_sorted,

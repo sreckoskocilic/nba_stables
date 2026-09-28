@@ -28,11 +28,6 @@ def client():
         yield c
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Cache-hit branches
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestCacheHits:
     def test_boxscores_served_from_cache(self, client):
         with patch("routes.scores.get_games_leaders_list", return_value={}) as mock:
@@ -109,11 +104,6 @@ class TestCacheHits:
             client.get(f"/api/players/{PLAYER_ID}/season-avg")
             client.get(f"/api/players/{PLAYER_ID}/season-avg")
         mock.assert_called_once()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/players/stats – advanced fields (double-double, triple-double, fg/ft%)
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestPlayerStatsAdvancedFields:
@@ -236,11 +226,6 @@ class TestPlayerStatsAdvancedFields:
         assert r.json()["players"][0]["isTripleDouble"] is True
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/playoffs
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestPlayoffs:
     def _mock(self, rows):
         m = MagicMock()
@@ -359,7 +344,6 @@ class TestPlayoffs:
 
     def test_playin_game_scores_populated(self, client):
         rows = self._make_conf_rows("East", 1000) + self._make_conf_rows("West", 2000)
-        # G1 East: team1007 beats team1008
         lgf_rows = [["G1E", 1007, 110], ["G1E", 1008, 105]]
         with (
             patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
@@ -386,7 +370,6 @@ class TestPlayoffs:
 
     def test_playin_rank_correction_seed8(self, client):
         rows = self._make_conf_rows("East", 1000) + self._make_conf_rows("West", 2000)
-        # G1: 1007 beats 1008; G2: 1009 beats 1010; G3: 1009 beats 1008
         lgf_rows = [
             ["G1E", 1007, 110],
             ["G1E", 1008, 105],
@@ -419,7 +402,7 @@ class TestPlayoffs:
         assert "g1LoserTeamId" not in east
 
     def test_playin_skips_g3_without_final_pts(self, client):
-        # G1 and G2 are final, G3 is still tied — g3WinnerTeamId must stay unset.
+        # G3 is still tied — g3WinnerTeamId must stay unset.
         rows = self._make_conf_rows("East", 1000) + self._make_conf_rows("West", 2000)
         lgf_rows = [
             ["G1E", 1007, 110],
@@ -521,7 +504,6 @@ class TestPlayoffs:
 
     def test_series_results_skips_incomplete_game(self, client):
         rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
-        # Game PG01 only has one team row → skipped (len(teams) != 2)
         lgf_rows = [["PG01", 100, "W", 110, "2026-05-20", "TEA vs. TEB"]]
         with (
             patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
@@ -625,11 +607,6 @@ class TestPlayoffs:
         assert result["games"] == []
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Error handler branches – players.py
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestPlayerErrorHandlers:
     def test_search_500_on_unexpected_error(self, client):
         with (
@@ -691,10 +668,6 @@ class TestPlayerErrorHandlers:
             r = client.get(f"/api/players/{PLAYER_ID}/season-avg")
         assert r.status_code == 500
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/season/doubles
-# ─────────────────────────────────────────────────────────────────────────────
 
 DOUBLES_HEADERS = [
     "PLAYER_ID",
@@ -875,11 +848,6 @@ class TestTripleDoubleGames:
         assert r.json()["games"] == []
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Error handlers – scores.py routes (500 on exception)
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestScoresErrorHandlers:
     def test_scoreboard_500_on_error(self, client):
         from datetime import date
@@ -947,11 +915,6 @@ class TestScoresErrorHandlers:
         assert r.status_code == 500
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Cache hits that aren't yet tested
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestMoreCacheHits:
     def test_player_stats_cached(self, client):
         with (
@@ -974,11 +937,6 @@ class TestMoreCacheHits:
         mock.assert_called_once()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Empty boxscore results in leaders
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestEmptyBoxscoreResults:
     def test_leaders_skips_empty_boxscore(self, client):
         with (
@@ -988,11 +946,6 @@ class TestEmptyBoxscoreResults:
             r = client.get("/api/leaders?days_offset=1")
         assert r.status_code == 200
         assert r.json()["leaders"] == {}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Inner exception handlers (fetch fails but endpoint continues)
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestInnerExceptionHandlers:
@@ -1028,7 +981,6 @@ class TestInnerExceptionHandlers:
         ):
             r = client.get("/api/dates")
         assert r.status_code == 200
-        # All hasGames should be False when exception occurs
         assert not any(r.json()["hasGames"])
 
     def test_dates_500_on_sync_error(self, client):
@@ -1039,11 +991,6 @@ class TestInnerExceptionHandlers:
         ):
             r = client.get("/api/dates")
         assert r.status_code == 500
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Season and trades error handlers
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestSeasonErrorHandlers:
@@ -1116,11 +1063,6 @@ class TestSeasonErrorHandlers:
             os.unlink(tmp)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# executor.map TimeoutError and scoreboard-fallback paths
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestExecutorTimeouts:
     def test_leaders_boxscore_failure_returns_empty(self, client):
         with (
@@ -1159,11 +1101,6 @@ class TestExecutorTimeouts:
             r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
         assert r.status_code == 200
         assert r.json()["players"] == []
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Scoreboard playoff series badge
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestScoreboardSeries:
@@ -1232,7 +1169,6 @@ class TestScoreboardSeries:
     def test_attach_helper_skips_unknown_tricode(self):
         from routes.scores import _attach_series_to_games
 
-        # Unknown tricode -> _TRICODE_TO_TEAM_ID lookup returns None -> continue.
         games = [{"homeTeam": {"tricode": "ZZZ"}, "awayTeam": {"tricode": "BOS"}}]
         _attach_series_to_games(games, {"1_2": {"1": 3, "2": 0}})
         assert "series" not in games[0]
@@ -1245,7 +1181,6 @@ class TestScoreboardSeries:
         assert "series" not in games[0]
 
     def test_scoreboard_includes_series(self, client):
-        # LeagueGameFinder rows: LAL beats BOS twice -> LAL leads 2-0
         lgf_rows = [
             ["PG01", TEAM_ID_LAL, "W", 110, "2026-05-20", "LAL vs. BOS"],
             ["PG01", TEAM_ID_BOS, "L", 100, "2026-05-20", "BOS @ LAL"],
@@ -1262,6 +1197,27 @@ class TestScoreboardSeries:
         # home=LAL, away=BOS by make_live_game defaults
         assert g["series"] == {"home": 2, "away": 0}
 
+    def test_wnba_scoreboard_includes_series(self, client):
+        # MIN is both Timberwolves and Lynx; WNBA lookup must pick the Lynx.
+        nyl, min_lynx = 1611661313, 1611661324
+        lgf_rows = [
+            ["WG01", nyl, "W", 80, "2026-09-27", "NYL @ MIN"],
+            ["WG01", min_lynx, "L", 75, "2026-09-27", "MIN vs. NYL"],
+        ]
+        game = make_live_game()
+        game["homeTeam"].update(teamTricode="MIN", teamId=min_lynx)
+        game["awayTeam"].update(teamTricode="NYL", teamId=nyl)
+        lgf = self._lgf_mock(lgf_rows)
+        with (
+            self._patch_sb([game]),
+            patch("routes.scores.get_wnba_current_season", return_value="2026-27"),
+            patch("routes.scores.LeagueGameFinder", lgf),
+        ):
+            r = client.get("/api/scoreboard?league=wnba")
+        assert r.json()["games"][0]["series"] == {"home": 0, "away": 1}
+        assert lgf.call_args.kwargs["season_nullable"] == "2026"
+        assert lgf.call_args.kwargs["league_id_nullable"] == "10"
+
     def test_scoreboard_no_series_outside_playoffs(self, client):
         # Default autouse fixture returns empty rowset -> no series data
         with self._patch_sb([make_live_game(gameStatusText="Final")]):
@@ -1277,8 +1233,8 @@ class TestScoreboardSeries:
             "routes.scores._fetch_playoff_series_data",
             return_value=val,
         ) as fetch_mock:
-            first = _get_playoff_series_cached("2025-26")
-            second = _get_playoff_series_cached("2025-26")
+            first = _get_playoff_series_cached()
+            second = _get_playoff_series_cached()
         assert first == second == val
         fetch_mock.assert_called_once()
 
@@ -1315,13 +1271,9 @@ class TestScoreboardSeries:
         assert pair_wins[f"{lo}_{hi}"] == {str(lo): 0, str(hi): 0}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Cache TTL selection
-#
 # Every route picks between a live TTL and the 24h "historical" one. Line
 # coverage reaches both branches, but nothing asserted which TTL was chosen, so
 # swapping them would have served day-old boxscores with a green suite.
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestCacheTtlSelection:
@@ -1372,11 +1324,6 @@ class TestCacheTtlSelection:
         assert self._ttls(set_mock) == [expected]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Upstream states the fixtures never produced
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestUpstreamEdgeStates:
     def test_game_players_skips_inactive_and_handles_zero_attempts(self, client):
         bs = make_live_boxscore()
@@ -1402,7 +1349,6 @@ class TestUpstreamEdgeStates:
         home = next(t for t in r.json()["teams"] if t["tricode"] == "LAL")
         by_name = {p["name"]: p for p in home["players"]}
         assert "Did Not Play" not in by_name
-        # no ZeroDivisionError, and the percentage degrades to 0 rather than None
         assert by_name["Zero Shots"]["fgPct"] == 0
         assert by_name["Zero Shots"]["ftPct"] == 0
 

@@ -30,10 +30,6 @@ from conftest import (
 )
 from main import app
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Fixtures
-# ─────────────────────────────────────────────────────────────────────────────
-
 
 @pytest.fixture(scope="module")
 def client():
@@ -45,7 +41,7 @@ def make_player_stats_row(person_id=PLAYER_ID, minutes="28:00"):
     """Build a BoxScoreTraditionalV3 player_stats row."""
     row = [None] * 33
     row[6] = person_id
-    row[14] = minutes  # non-empty → player played
+    row[14] = minutes
     row[15] = 11  # FGM
     row[16] = 20  # FGA
     row[18] = 2  # 3PM
@@ -67,9 +63,9 @@ def make_career_row(gp=60):
     row[h["SEASON_ID"]] = "2024-25"
     row[h["GP"]] = gp
     row[h["MIN"]] = 1800.0
-    row[h["PTS"]] = 1680.0  # 28.0 ppg
-    row[h["REB"]] = 480.0  # 8.0 rpg
-    row[h["AST"]] = 360.0  # 6.0 apg
+    row[h["PTS"]] = 1680.0
+    row[h["REB"]] = 480.0
+    row[h["AST"]] = 360.0
     row[h["STL"]] = 60.0
     row[h["BLK"]] = 36.0
     row[h["TOV"]] = 120.0
@@ -84,11 +80,6 @@ def make_career_row(gp=60):
     row[h["FTA"]] = 300.0
     row[h["FT_PCT"]] = 0.80
     return row
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/health
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestHealth:
@@ -106,11 +97,6 @@ class TestHealth:
         with patch("main._common.cache", broken_cache):
             body = client.get("/api/health").json()
         assert body == {"status": "degraded"}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/dates
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestDates:
@@ -146,10 +132,6 @@ class TestDates:
             False,
         ]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/injuries
-# ─────────────────────────────────────────────────────────────────────────────
 
 INJURY_PAYLOAD = {
     "injuries": [
@@ -207,11 +189,6 @@ class TestInjuries:
                 os.unlink(tmp)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/scoreboard
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestScoreboard:
     def _patch_sb(self, games=None, live_raw=None):
         """Return a context manager that mocks the scoreboard endpoint dependencies."""
@@ -245,16 +222,16 @@ class TestScoreboard:
         assert g["awayTeam"]["tricode"] == "BOS"
         assert g["status"] == "Final"
 
-    def test_wnba_skips_series_attachment(self, client):
-        # league_id "10" bypasses the playoff-series lookup entirely
+    def test_wnba_series_uses_wnba_league(self, client):
         with (
             self._patch_sb([make_live_game(gameStatusText="Final")]),
-            patch("routes.scores._get_playoff_series_cached") as series_mock,
+            patch(
+                "routes.scores._get_playoff_series_cached", return_value=({}, {})
+            ) as series_mock,
         ):
             r = client.get("/api/scoreboard?league=wnba")
         assert r.status_code == 200
-        assert "series" not in r.json()["games"][0]
-        series_mock.assert_not_called()
+        series_mock.assert_called_once_with("10")
 
     def test_et_time_converted(self, client):
         with self._patch_sb([make_live_game(gameStatusText="7:30 pm ET")]):
@@ -285,7 +262,6 @@ class TestScoreboard:
     def test_missing_line_score_fallback(self, client):
         """Game in header but no matching line_score rows -> empty team fallback."""
         sb = MagicMock()
-        # Header has one game, but line_score has no rows for it
         sb.game_header.get_dict.return_value = {
             "data": [
                 [
@@ -345,7 +321,6 @@ class TestScoreboard:
         ):
             r = client.get("/api/scoreboard")
         assert r.status_code == 200
-        # Falls back to V3 data (ET time not converted because live merge skipped)
         assert r.json()["games"][0]["status"] != ""
 
     def test_mixed_started_unstarted_games(self, client):
@@ -362,7 +337,6 @@ class TestScoreboard:
 
         v3_started = make_live_game(gameStatusText="Q1 10:00")
         v3_unstarted = make_live_game(gameStatusText="9:00 pm ET")
-        # Override gameId for unstarted V3 game
         v3_unstarted["gameId"] = unstarted_id
 
         sb_v3 = make_scoreboard_v3([v3_started, v3_unstarted])
@@ -383,10 +357,6 @@ class TestScoreboard:
             or "CET" in games[unstarted_id]["status"]
         )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/boxscores
-# ─────────────────────────────────────────────────────────────────────────────
 
 _BOXSCORE_RESULT = {
     "gameId": GAME_ID,
@@ -499,11 +469,6 @@ class TestBoxscores:
 
         assert r.status_code == 200
         assert len(r.json()["boxscores"]) == 1
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/leaders
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestLeaders:
@@ -620,11 +585,6 @@ class TestLeaders:
         assert "date" in r.json()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/standings
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestStandings:
     def _mock(self, rows):
         m = MagicMock()
@@ -666,11 +626,6 @@ class TestStandings:
         assert team["last10"] == "8-2"
         assert team["streak"] == "W3"
         assert team["gamesBack"] == 2.5
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/players/search
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestPlayerSearch:
@@ -735,11 +690,6 @@ class TestPlayerSearch:
         assert body["total"] == 25
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/players/stats
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestPlayerStats:
     def test_returns_live_stats(self, client):
         with (
@@ -782,11 +732,6 @@ class TestPlayerStats:
         ids = ",".join(str(i) for i in range(26))
         r = client.get(f"/api/players/stats?ids={ids}")
         assert r.status_code == 400
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/games/{game_id}/players
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestGamePlayers:
@@ -866,7 +811,6 @@ class TestGamePlayers:
             "threePointers",
         ):
             assert key in tp
-        # Tatum scored 32 in fixture, beats LeBron's 28
         assert tp["points"]["value"] == 32
         assert tp["points"]["players"][0]["name"] == "Jayson Tatum"
         assert tp["points"]["players"][0]["team"] == "BOS"
@@ -927,11 +871,6 @@ class TestGamePlayers:
         names = [p["name"] for p in nyl["players"]]
         assert "Did NotPlay" not in names
         assert "Zero Minutes" not in names
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/players/{id}/last-n-games
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestLastNGames:
@@ -1002,11 +941,6 @@ class TestLastNGames:
         assert r.json()["games"][0]["dnp"] is True
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/players/{id}/season-avg
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestSeasonAvg:
     def _mock_career(self, rows=None):
         m = MagicMock()
@@ -1053,11 +987,6 @@ class TestSeasonAvg:
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/season-avg")
         assert r.status_code == 404
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/players/{player_id}/profile
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 def _mock_profile_endpoints(bio_overrides=None, career_rows=None):
@@ -1149,11 +1078,6 @@ class TestPlayerProfile:
         assert len(body["career"]) == 1
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# /api/trades
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class TestTrades:
     def _resp(self, rows):
         m = MagicMock()
@@ -1166,7 +1090,7 @@ class TestTrades:
             "Transaction_Type": "Signing",
             "TRANSACTION_DATE": "2026-02-01T00:00:00",
             "TRANSACTION_DESCRIPTION": "Brooklyn Nets signed LeBron James to a 10-Day Contract.",
-            "TEAM_ID": 1610612751.0,  # BKN
+            "TEAM_ID": 1610612751.0,
             "TEAM_SLUG": "nets",
             "PLAYER_ID": float(PLAYER_ID),
             "PLAYER_SLUG": "lebron-james",
@@ -1338,10 +1262,6 @@ class TestTrades:
             r = client.get("/api/trades")
         assert r.json()["transactions"][0]["playerName"] == "Unknown Player"
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# WNBA endpoints
-# ─────────────────────────────────────────────────────────────────────────────
 
 WNBA_LEADERS_DATA = [
     ["Sabrina Ionescu", 25, 8, 8, WNBA_TEAM_ID_NYL],
@@ -1550,9 +1470,13 @@ class TestWnbaPlayoffs:
         with (
             patch("routes.scores.NBAStatsHTTP", self._mock_http(rows)),
             patch("routes.scores._reset_nba_stats_http_session"),
+            patch(
+                "routes.scores._get_playoff_series_cached", return_value=({}, {})
+            ) as series_mock,
         ):
             r = client.get("/api/playoffs?league=wnba")
         assert "seriesResults" in r.json()
+        series_mock.assert_called_once_with("10")
 
 
 class TestWnbaGamePlayers:

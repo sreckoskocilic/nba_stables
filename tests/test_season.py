@@ -16,10 +16,6 @@ def client():
         yield c
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers for /api/season/highs
-# ─────────────────────────────────────────────────────────────────────────────
-
 HIGHS_HEADERS = [
     "PLAYER_NAME",
     "TEAM_ABBREVIATION",
@@ -89,11 +85,6 @@ def _mock_gamelog(rows):
         "resultSets": [{"headers": HIGHS_HEADERS, "rowSet": []}]
     }
     return (full, empty)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Tests: GET /api/season/highs
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestGetSeasonHighs:
@@ -193,7 +184,6 @@ class TestGetSeasonHighs:
         assert player["matchup"] == "LAL vs. BOS"
 
     def test_zero_value_stays_zero_with_no_players(self, client):
-        # If no row has assists > 0, value stays 0 and players is empty
         rows = [_highs_row(pts=30, ast=0)]
         resp = self._call(client, rows)
         ast_high = resp.json()["highs"]["assists"]
@@ -201,7 +191,6 @@ class TestGetSeasonHighs:
         assert ast_high["players"] == []
 
     def test_null_stat_treated_as_zero(self, client):
-        # None values should not crash and should count as 0
         row = _highs_row(pts=None)
         resp = self._call(client, [row])
         assert resp.status_code == 200
@@ -252,10 +241,6 @@ class TestGetSeasonHighs:
         assert resp.json()["highs"]["threePointers"]["label"] == "3-Pointers"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers for /api/season/doubles
-# ─────────────────────────────────────────────────────────────────────────────
-
 DOUBLES_HEADERS = ["PLAYER_ID", "PLAYER_NAME", "TEAM_ABBREVIATION", "DD2", "TD3"]
 
 
@@ -280,11 +265,6 @@ def _mock_dash_stats(rows, playoff_rows=None):
         "resultSets": [{"headers": DOUBLES_HEADERS, "rowSet": playoff_rows or []}]
     }
     return (full, playoff)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Tests: GET /api/season/doubles
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestGetSeasonDoubles:
@@ -423,10 +403,6 @@ class TestGetSeasonDoubles:
         assert dd["playoff"] == 3
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers for /api/season/triple-double-games/{player_id}
-# ─────────────────────────────────────────────────────────────────────────────
-
 TD_GAMES_HEADERS = ["GAME_DATE", "MATCHUP", "PTS", "REB", "AST", "STL", "BLK"]
 
 
@@ -455,11 +431,6 @@ def _mock_player_gamelog(rows):
         "resultSets": [{"headers": TD_GAMES_HEADERS, "rowSet": []}]
     }
     return (full, empty)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Tests: GET /api/season/triple-double-games/{player_id}
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 _FAKE_PLAYER = {PLAYER_ID: [PLAYER_ID, "LeBron James", 1]}
@@ -590,16 +561,10 @@ class TestGetTripleDoubleGames:
         assert resp.status_code == 404
 
     def test_null_stats_treated_as_zero(self, client):
-        # None values should not raise errors and should not count as double digits
         row = _td_game_row(pts=None, reb=None, ast=None)
         resp = self._call(client, [row])
         assert resp.status_code == 200
         assert resp.json()["games"] == []
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Tests: WNBA routing (league_id="10" passes through)
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TestWnbaSeasonHighs:

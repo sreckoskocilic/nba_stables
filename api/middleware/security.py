@@ -7,10 +7,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-# CSP for HTML pages (NBA stats pages with inline styles, Google Fonts, analytics)
 PAGE_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self'; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; base-uri 'none'; form-action 'self'"
 
-# CSP for API endpoints (JSON only — no scripts, styles, or resources needed)
 DEFAULT_CSP = "default-src 'none'; frame-ancestors 'none'"
 
 
@@ -25,7 +23,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "0"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
-        # Choose CSP based on route type
         if request.url.path.startswith("/api/"):
             csp = DEFAULT_CSP
             response.headers["Cache-Control"] = "no-store"

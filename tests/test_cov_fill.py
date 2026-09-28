@@ -160,7 +160,6 @@ def test_get_player_stats_value_error(client):
 
 
 def test_convert_et_to_cet_error_branch(monkeypatch):
-    # Force datetime.now to raise to hit exception handler
     monkeypatch.setattr("helpers.stats.datetime", None)
     from helpers.stats import convert_et_to_cet
 
@@ -170,15 +169,12 @@ def test_convert_et_to_cet_error_branch(monkeypatch):
 def test_simple_cache_expiry_and_eviction():
     sc = SimpleCache()
     sc.set("a", 1, ttl_seconds=0)
-    assert sc.get("a") is None  # expired path deletes entry
-    # Force an expired cache entry with empty heap to exercise deletion
+    assert sc.get("a") is None
     sc._cache["stale"] = {"data": 1, "expires": 0}
-    sc._heap.clear()
     assert sc.get("stale") is None
     for i in range(10):
         sc.set(f"k{i}", i, ttl_seconds=1)
     assert sc.get("k0") == 0
-    # Trigger background eviction directly
     with sc._lock:
         sc._evict_expired()
     assert sc.get("nonexistent") is None
@@ -305,13 +301,9 @@ def test_lifespan_warns_missing_injuries_file(monkeypatch, caplog):
 
 def test_security_headers_page_route(client):
     """Cover security.py: non-API, non-soccer routes get PAGE_CSP."""
-    # Any non-/api/, non-/soccer path hits the else branch
     r = client.get("/not-an-api-route")
     csp = r.headers.get("Content-Security-Policy", "")
-    assert "fonts.googleapis.com" in csp  # PAGE_CSP includes Google Fonts
-
-
-# ─── /api/players/{id}/profile coverage fill ─────────────────────────────────
+    assert "fonts.googleapis.com" in csp
 
 
 def test_calc_age_handles_empty_and_invalid():

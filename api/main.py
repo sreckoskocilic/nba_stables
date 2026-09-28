@@ -51,23 +51,18 @@ class TimingMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     logger.info("Starting NBA Stables API...")
-    # Validate env var bounds (_safe_int_env already floors both at 1)
     workers = _common._DEFAULT_WORKERS
     if workers > 100:
         logger.warning("EXECUTOR_WORKERS=%d is above the maximum 100", workers)
-    # Warn if injuries data file is missing
     if not os.path.exists(CBS_INJURIES_FILE):
         logger.warning("CBS injuries file not found at startup: %s", CBS_INJURIES_FILE)
-    # Pre-warm players cache to avoid slow first request
     try:
         await asyncio.to_thread(_stats.load_players_file)
         logger.info("Players cache warmed")
     except Exception as e:  # pragma: no cover
         logger.warning("Failed to warm players cache: %s", e)
     yield
-    # Shutdown - only clear cache, executor shutdown handled by atexit
     logger.info("Shutting down NBA Stables API...")
     _common.cache.clear()
     logger.info("Shutdown complete")
@@ -111,7 +106,6 @@ async def health_check():
         return JSONResponse({"status": "degraded"}, status_code=503)
 
 
-# Serve web files
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 if os.path.exists(static_dir):
     app.mount("/web", StaticFiles(directory=static_dir), name="web")

@@ -1,10 +1,6 @@
-# NBA API constants - column indices and magic numbers centralized for maintainability
-
-# NBA season constants
-NBA_REGULAR_SEASON_GAMES = 82  # Number of games in a regular NBA season
+NBA_REGULAR_SEASON_GAMES = 82
 ET_SUFFIX = "ET"  # Eastern Time marker in NBA game status text (e.g. "7:30 pm ET")
 
-# Column index constants for NBA API responses:
 # CommonAllPlayers columns
 CAP_PERSON_ID = 0
 CAP_DISPLAY_LAST_COMMA_FIRST = 1

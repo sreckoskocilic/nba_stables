@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Make `api/` importable from anywhere pytest is run
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
 
 # Suppress noisy error logs from intentional exception tests
@@ -72,12 +71,8 @@ def _clear_players_cache():
     _reset()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Shared test constants
-# ─────────────────────────────────────────────────────────────────────────────
-
 GAME_ID = "0022301234"
-PLAYER_ID = 2544  # LeBron James
+PLAYER_ID = 2544
 TEAM_ID_LAL = 1610612747
 TEAM_ID_BOS = 1610612738
 
@@ -146,11 +141,6 @@ CAREER_HEADERS = [
     "PF",
     "PTS",
 ]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Shared mock data builders
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 def make_live_player_stats(**kw):
@@ -403,19 +393,19 @@ def make_standings_row(rank, city, name, conf, wins, losses, team_id=1610612738)
 # WNBA standings use different column indices (_WS_* in scores.py)
 def make_wnba_standings_row(rank, city, name, conf, wins, losses, team_id=1611661313):
     row = [None] * 40
-    row[2] = team_id  # _WS_TEAM_ID
-    row[3] = city  # _WS_CITY
-    row[4] = name  # _WS_NAME
-    row[6] = conf  # _WS_CONF
-    row[8] = rank  # _WS_RANK
-    row[13] = wins  # _WS_WINS
-    row[14] = losses  # _WS_LOSSES
-    row[15] = wins / (wins + losses) if (wins + losses) else 0.0  # _WS_WIN_PCT
-    row[18] = f"{wins // 2}-{losses // 2}"  # _WS_HOME
-    row[19] = f"{wins // 2}-{losses // 2}"  # _WS_AWAY
-    row[20] = "8-2"  # _WS_L10
-    row[37] = "W3"  # _WS_STREAK
-    row[38] = 2.5  # _WS_GAMES_BACK
+    row[2] = team_id
+    row[3] = city
+    row[4] = name
+    row[6] = conf
+    row[8] = rank
+    row[13] = wins
+    row[14] = losses
+    row[15] = wins / (wins + losses) if (wins + losses) else 0.0
+    row[18] = f"{wins // 2}-{losses // 2}"
+    row[19] = f"{wins // 2}-{losses // 2}"
+    row[20] = "8-2"
+    row[37] = "W3"
+    row[38] = 2.5
     return row
 
 

@@ -69,7 +69,6 @@
   --panel: #151b17;
   --line: #2c362f;
   --head: #1b231e;
-  --btn: #1c231e;
   --btn-h: #242d27;
   --active: #1d2d24;
   --text: #d7e0da;
@@ -443,7 +442,6 @@ tr.pg > td { background: rgba(201, 214, 154, .16); }
 .btn-a { color: var(--mint); background: var(--active); border-color: #2f5a44; }
 
 @media (max-width: 860px) {
-  body { --side-w: 0px; }
   .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: "top" "side" "main"; }
   .brand { border-right: 0; padding: 0 8px; height: 34px; }
   .league { margin-left: auto; }
@@ -459,11 +457,9 @@ tr.pg > td { background: rgba(201, 214, 154, .16); }
   .sb { min-width: 0; }
   .dbl { grid-template-columns: minmax(0, 1fr); }
   .vh .seg { margin-left: 0; }
-  .inj-l { font-size: 12px; }
 }
 @media (max-width: 768px) {
   .lt-t { font-size: .985rem; }
-  .dt-s td, .dt-p td { font-size: .845rem; }
   .ps td { font-size: .895rem; padding: 3px 4px; }
   .ps th { padding: 4px; }
   .seg button { font-size: .925rem; padding: 0 10px; }
@@ -486,7 +482,7 @@ tr.pg > td { background: rgba(201, 214, 154, .16); }
 <div class="league seg" role="group" aria-label="League"><button class="on" data-league="nba" aria-pressed="true">NBA</button><button data-league="wnba" aria-pressed="false">WNBA</button></div>
 <button class="btn help-btn" id="helpBtn" aria-expanded="false" aria-controls="help">Help</button>
 </header>
-<aside class="side" id="side" aria-label="Explorer">
+<aside class="side" aria-label="Explorer">
 <ul class="tree"><li class="folder"><div class="frow"><span class="chev">▾</span>today/</div><ul><li><button class="row on" data-view="scoreboard" aria-current="page"><span class="ico f-today"></span>Live Scoreboard</button></li><li><button class="row" data-view="boxscores"><span class="ico f-today"></span>Box Scores</button></li><li><button class="row" data-view="leaders"><span class="ico f-today"></span>Daily Leaders</button></li><li><button class="row" data-view="tracker"><span class="ico f-today"></span>Player Tracker</button></li></ul></li><li class="folder"><div class="frow"><span class="chev">▾</span>season/</div><ul><li><button class="row" data-view="standings"><span class="ico f-season"></span>Standings</button></li><li><button class="row" data-view="playoffs"><span class="ico f-season"></span>Playoffs</button></li><li><button class="row" data-view="seasonDoubles"><span class="ico f-season"></span>Doubles &amp; Triples</button></li><li><button class="row" data-view="seasonHighs"><span class="ico f-season"></span>Season Highs</button></li></ul></li><li class="folder"><div class="frow"><span class="chev">▾</span>players/</div><ul><li><button class="row" data-view="lastngames"><span class="ico f-players"></span>Player Profile</button></li><li><button class="row nba-only" data-view="injuries"><span class="ico f-players"></span>Injuries</button></li><li><button class="row nba-only" data-view="trades"><span class="ico f-players"></span>Trades</button></li></ul></li></ul>
 <div class="side-foot">
 <p>© 2026 NBA Stables. Not affiliated with the NBA.</p>

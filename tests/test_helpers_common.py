@@ -26,10 +26,6 @@ class TestSimpleCache:
     def setup_method(self):
         self.cache = SimpleCache()
 
-    # ------------------------------------------------------------------
-    # Basic set / get
-    # ------------------------------------------------------------------
-
     def test_set_and_get_dict(self):
         self.cache.set("key", {"data": 1}, ttl_seconds=60)
         assert self.cache.get("key") == {"data": 1}
@@ -47,17 +43,10 @@ class TestSimpleCache:
         assert self.cache.get("k") == 42
 
     def test_set_and_get_none_value(self):
-        # Storing None is valid; get should return None (same as a cache miss—
-        # callers are expected to handle this)
+        # Storing None is valid; get returns None, same as a cache miss
         self.cache.set("k", None, ttl_seconds=60)
-        # None value expires immediately at set time so this is a miss
-        # — documenting the current behaviour rather than asserting a "correct" one
         result = self.cache.get("k")
         assert result is None
-
-    # ------------------------------------------------------------------
-    # Cache miss
-    # ------------------------------------------------------------------
 
     def test_miss_returns_none(self):
         assert self.cache.get("nonexistent") is None
@@ -65,10 +54,6 @@ class TestSimpleCache:
     def test_miss_on_different_key(self):
         self.cache.set("a", 1, ttl_seconds=60)
         assert self.cache.get("b") is None
-
-    # ------------------------------------------------------------------
-    # Overwrite
-    # ------------------------------------------------------------------
 
     def test_overwrite_updates_value(self):
         self.cache.set("key", "first", ttl_seconds=60)
@@ -78,14 +63,9 @@ class TestSimpleCache:
     def test_overwrite_extends_ttl(self):
         with fake_clock() as clock:
             self.cache.set("key", "v", ttl_seconds=1)
-            self.cache.set("key", "v", ttl_seconds=60)  # refresh
-            clock.advance(2)  # past original TTL of 1s
-            # Should still be alive because TTL was reset to 60
+            self.cache.set("key", "v", ttl_seconds=60)
+            clock.advance(2)
             assert self.cache.get("key") == "v"
-
-    # ------------------------------------------------------------------
-    # Expiry
-    # ------------------------------------------------------------------
 
     def test_expired_entry_returns_none(self):
         with fake_clock() as clock:
@@ -97,7 +77,7 @@ class TestSimpleCache:
         with fake_clock() as clock:
             self.cache.set("key", "value", ttl_seconds=1)
             clock.advance(2)
-            self.cache.get("key")  # triggers eviction
+            self.cache.get("key")
             assert "key" not in self.cache._cache
 
     def test_non_expired_entry_survives(self):
@@ -105,10 +85,6 @@ class TestSimpleCache:
             self.cache.set("key", "alive", ttl_seconds=60)
             clock.advance(0)
             assert self.cache.get("key") == "alive"
-
-    # ------------------------------------------------------------------
-    # Clear
-    # ------------------------------------------------------------------
 
     def test_clear_removes_all_entries(self):
         self.cache.set("k1", 1, ttl_seconds=60)
@@ -127,10 +103,6 @@ class TestSimpleCache:
         self.cache.set("k", "new", ttl_seconds=60)
         assert self.cache.get("k") == "new"
 
-    # ------------------------------------------------------------------
-    # Multiple independent keys
-    # ------------------------------------------------------------------
-
     def test_multiple_keys_independent(self):
         self.cache.set("a", 1, ttl_seconds=60)
         self.cache.set("b", 2, ttl_seconds=60)
@@ -147,12 +119,7 @@ class TestSimpleCache:
             assert self.cache.get("short") is None
             assert self.cache.get("long") == "here"
 
-    # ------------------------------------------------------------------
-    # Background eviction thread
-    # ------------------------------------------------------------------
-
     def test_evict_loop_calls_evict_expired(self):
-        # Verify _evict_loop acquires the lock and calls _evict_expired each iteration.
         # Patch sleep to return once then raise to break the infinite loop.
         call_count = [0]
         original_evict = self.cache._evict_expired
@@ -176,12 +143,7 @@ class TestSimpleCache:
 
         assert call_count[0] >= 1
 
-    # ------------------------------------------------------------------
-    # Background eviction (_evict_expired called directly)
-    # ------------------------------------------------------------------
-
     def test_background_eviction_removes_expired_entry(self):
-        # Set a short-lived entry, let it expire, then trigger eviction directly
         with fake_clock() as clock:
             self.cache.set("stale", "val", ttl_seconds=1)
             clock.advance(2)
@@ -190,7 +152,6 @@ class TestSimpleCache:
             assert "stale" not in self.cache._cache
 
     def test_background_eviction_keeps_live_entry(self):
-        # Expired entry is cleaned up but live entry survives direct eviction call
         with fake_clock() as clock:
             self.cache.set("stale", "gone", ttl_seconds=1)
             self.cache.set("live", "here", ttl_seconds=60)
@@ -200,39 +161,31 @@ class TestSimpleCache:
             assert "stale" not in self.cache._cache
             assert self.cache.get("live") == "here"
 
-    # ------------------------------------------------------------------
-    # Maxsize eviction
-    # ------------------------------------------------------------------
-
     def test_maxsize_eviction_drops_oldest_entry(self):
-        # Fill a tiny cache to capacity then add one more entry.
-        # The coldest entry should be evicted to stay within maxsize.
         small = SimpleCache(maxsize=3)
         small.set("a", 1, ttl_seconds=60)
         small.set("b", 2, ttl_seconds=60)
         small.set("c", 3, ttl_seconds=60)
-        small.set("d", 4, ttl_seconds=60)  # triggers maxsize eviction
+        small.set("d", 4, ttl_seconds=60)
         assert len(small._cache) == 3
         assert small.get("a") is None
         assert small.get("d") == 4
 
     def test_maxsize_eviction_keeps_short_ttl_entry(self):
-        # A short-TTL entry added to a cache full of long-TTL entries must
-        # survive: eviction goes by write recency, not by soonest expiry.
+        # Eviction goes by write recency, not by soonest expiry.
         small = SimpleCache(maxsize=2)
         small.set("a", 1, ttl_seconds=86400)
         small.set("b", 2, ttl_seconds=86400)
-        small.set("live", 3, ttl_seconds=30)  # triggers maxsize eviction
+        small.set("live", 3, ttl_seconds=30)
         assert small.get("live") == 3
         assert small.get("a") is None
 
     def test_maxsize_eviction_treats_rewrite_as_fresh(self):
-        # Re-setting a key moves it to the back of the eviction order.
         small = SimpleCache(maxsize=2)
         small.set("a", 1, ttl_seconds=60)
         small.set("b", 2, ttl_seconds=60)
         small.set("a", "updated", ttl_seconds=60)
-        small.set("c", 3, ttl_seconds=60)  # evicts "b", not "a"
+        small.set("c", 3, ttl_seconds=60)
         assert small.get("a") == "updated"
         assert small.get("b") is None
         assert small.get("c") == 3

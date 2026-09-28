@@ -15,11 +15,10 @@ CBS_INJURIES_FILE = os.path.join(
 logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
-RETRY_DELAY = 5  # seconds
+RETRY_DELAY = 5
 
 
 def scrape_cbs_injuries():
-    """Scrape CBS Sports and save to JSON file"""
     url = "https://www.cbssports.com/nba/injuries/"
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",

@@ -20,10 +20,6 @@ from helpers.stats import (
     reformat_player_minutes,
 )
 
-# ---------------------------------------------------------------------------
-# reformat_player_minutes
-# ---------------------------------------------------------------------------
-
 
 class TestReformatPlayerMinutes:
     def test_exact_minutes(self):
@@ -42,11 +38,9 @@ class TestReformatPlayerMinutes:
         assert reformat_player_minutes(65) == "1:05"
 
     def test_full_nba_game(self):
-        # 48 minutes
         assert reformat_player_minutes(2880) == "48:00"
 
     def test_overtime(self):
-        # 53 minutes (48 + 5 OT)
         assert reformat_player_minutes(3180) == "53:00"
 
     def test_one_second(self):
@@ -56,13 +50,7 @@ class TestReformatPlayerMinutes:
         assert reformat_player_minutes(59) == "0:59"
 
     def test_large_value(self):
-        # 100 minutes 0 seconds
         assert reformat_player_minutes(6000) == "100:00"
-
-
-# ---------------------------------------------------------------------------
-# parse_iso_minutes (ISO-8601 duration → MM:SS; regex-based, no isodate)
-# ---------------------------------------------------------------------------
 
 
 class TestParseIsoMinutes:
@@ -85,11 +73,6 @@ class TestParseIsoMinutes:
         assert parse_iso_minutes("") == "0:00"
 
 
-# ---------------------------------------------------------------------------
-# fix_encoding
-# ---------------------------------------------------------------------------
-
-
 class TestFixEncoding:
     def test_plain_ascii_unchanged(self):
         assert fix_encoding("LeBron James") == "LeBron James"
@@ -105,32 +88,23 @@ class TestFixEncoding:
         assert fix_encoding(mojibake) == original
 
     def test_mojibake_diacritics(self):
-        # Luka Dončić — č is U+010D
         original = "Don\u010di\u0107"
         mojibake = original.encode("utf-8").decode("latin-1")
         assert fix_encoding(mojibake) == original
 
     def test_mojibake_accented_vowels(self):
-        # é as in "André"
         original = "Andr\u00e9"
         mojibake = original.encode("utf-8").decode("latin-1")
         assert fix_encoding(mojibake) == original
 
     def test_already_correct_returns_original(self):
-        # If the string is already valid UTF-8 text (no mojibake),
-        # encoding to latin-1 may raise UnicodeEncodeError → returns original
         s = "Steph Curry"
         assert fix_encoding(s) == s
 
     def test_returns_original_on_unencodable(self):
-        # Chinese characters cannot be encoded as iso-8859-1 → returns original
         s = "\u4e2d\u6587"
         assert fix_encoding(s) == s
 
-
-# ---------------------------------------------------------------------------
-# get_display_date
-# ---------------------------------------------------------------------------
 
 _FIXED_DATE = date(2026, 3, 7)
 
@@ -166,9 +140,6 @@ class TestGetDisplayDate:
         assert month_name.isalpha()
 
 
-# ---------------------------------------------------------------------------
-# convert_et_to_cet
-# ---------------------------------------------------------------------------
 # Pin datetime.now() to a fixed winter date (January 15 2026, EST active)
 # so DST cannot affect results. Winter: EST=UTC-5, CET=UTC+1 → +6h offset.
 
@@ -199,31 +170,24 @@ class TestConvertETtoCET:
         assert "CET" in result
 
     def test_valid_output_format(self):
-        # Must match HH:MM CET
         import re
 
         result = _cet("7:00 pm")
         assert re.match(r"\d{2}:\d{2} CET", result)
 
-    # Winter offset: ET→CET = +6 hours
     def test_7pm_et_winter(self):
-        # 19:00 EST → 01:00 CET (next day)
         assert _cet("7:00 pm") == "01:00 CET"
 
     def test_1pm_et_winter(self):
-        # 13:00 EST → 19:00 CET
         assert _cet("1:00 pm") == "19:00 CET"
 
     def test_midnight_am_et_winter(self):
-        # 12:00 am = 00:00 EST → 06:00 CET
         assert _cet("12:00 am") == "06:00 CET"
 
     def test_noon_pm_et_winter(self):
-        # 12:00 pm = 12:00 EST → 18:00 CET
         assert _cet("12:00 pm") == "18:00 CET"
 
     def test_630pm_et_winter(self):
-        # 18:30 EST → 00:30 CET
         assert _cet("6:30 pm") == "00:30 CET"
 
     def test_case_insensitive_am(self):
@@ -233,14 +197,8 @@ class TestConvertETtoCET:
         assert _cet("8:00 PM") == _cet("8:00 pm")
 
     def test_no_space_before_ampm(self):
-        # regex allows optional whitespace between time and am/pm
         result = _cet("7:00pm")
         assert "CET" in result
-
-
-# ---------------------------------------------------------------------------
-# Helpers for API-backed functions
-# ---------------------------------------------------------------------------
 
 
 def _game_row(game_id, status):
@@ -320,11 +278,6 @@ def _scoreboard_mock(games_data, leaders_data=None):
     return sb
 
 
-# ---------------------------------------------------------------------------
-# get_games_list
-# ---------------------------------------------------------------------------
-
-
 class TestGetGamesList:
     def _call(self, games_data, days_offset=1):
         sb = _scoreboard_mock(games_data)
@@ -369,11 +322,6 @@ class TestGetGamesList:
     def test_returns_list_type(self):
         result = self._call([_game_row("001", 2)])
         assert isinstance(result, list)
-
-
-# ---------------------------------------------------------------------------
-# get_games_leaders_list
-# ---------------------------------------------------------------------------
 
 
 class TestGetGamesLeadersList:
@@ -435,11 +383,6 @@ class TestGetGamesLeadersList:
     def test_returns_dict_type(self):
         result = self._call([], [])
         assert isinstance(result, dict)
-
-
-# ---------------------------------------------------------------------------
-# fetch_single_boxscore
-# ---------------------------------------------------------------------------
 
 
 class TestFetchSingleBoxscore:
@@ -561,8 +504,7 @@ class TestFetchSingleBoxscore:
         }
 
     def test_leader_with_insufficient_length_skipped(self):
-        # len(leader) <= 4 should be ignored
-        leaders = [["Short", 10, 5, 3]]  # only 4 elements, index 4 missing
+        leaders = [["Short", 10, 5, 3]]
         result = self._call(leaders_data=leaders)
         assert result["teams"][0]["leader"]["name"] == ""
 
@@ -573,11 +515,6 @@ class TestFetchSingleBoxscore:
         ):
             result = fetch_single_boxscore("0022300001", [])
         assert result is None
-
-
-# ---------------------------------------------------------------------------
-# find_category_leaders
-# ---------------------------------------------------------------------------
 
 
 class TestFindCategoryLeaders:
@@ -631,11 +568,6 @@ class TestFindCategoryLeaders:
         assert entries["pts"] == [items[1]]
 
 
-# ---------------------------------------------------------------------------
-# _today_et / scoreboard_date
-# ---------------------------------------------------------------------------
-
-
 class TestTodayEt:
     def test_returns_date_object(self):
         from helpers.stats import _today_et
@@ -673,11 +605,6 @@ class TestScoreboardDate:
         assert result == date(2026, 3, 8)
 
 
-# ---------------------------------------------------------------------------
-# _parse_minutes
-# ---------------------------------------------------------------------------
-
-
 class TestParseMinutes:
     def test_valid_input(self):
         from helpers.stats import parse_minutes
@@ -691,11 +618,6 @@ class TestParseMinutes:
         assert parse_minutes("") == (0, 0)
 
 
-# ---------------------------------------------------------------------------
-# load_players_file stale-while-error
-# ---------------------------------------------------------------------------
-
-
 class TestLoadPlayersFile:
     def test_uses_stale_cache_on_error(self):
         import helpers.stats as hs
@@ -703,16 +625,11 @@ class TestLoadPlayersFile:
         with patch("helpers.stats._fetch_players") as fetch_mock:
             fetch_mock.side_effect = [[[1, "Player One", 1]], RuntimeError("boom")]
             first = hs.load_players_file()
-            hs._players_cache_expires["00"] = 0  # expire cache to force second fetch
+            hs._players_cache_expires["00"] = 0
             second = hs.load_players_file()
         assert fetch_mock.call_count == 2
         assert first == [[1, "Player One", 1]]
         assert second == [[1, "Player One", 1]]
-
-
-# ---------------------------------------------------------------------------
-# _reset_nba_stats_http_session
-# ---------------------------------------------------------------------------
 
 
 class TestResetNbaStatsHttpSession:
@@ -743,11 +660,6 @@ class TestResetNbaStatsHttpSession:
             NBAStatsHTTP._session = None
 
 
-# ---------------------------------------------------------------------------
-# Player side-caches
-# ---------------------------------------------------------------------------
-
-
 class TestPlayerSideCaches:
     def test_dict_and_lower_track_the_fetched_rows(self):
         import helpers.stats as hs
@@ -776,11 +688,6 @@ class TestPlayerSideCaches:
             assert hs.load_players_with_lower(league_id="10") == [
                 (wnba[0], "wnba player")
             ]
-
-
-# ---------------------------------------------------------------------------
-# get_cached_scoreboard
-# ---------------------------------------------------------------------------
 
 
 class TestGetCachedScoreboard:
@@ -834,11 +741,6 @@ class TestGetCachedScoreboard:
         ):
             hs.get_cached_scoreboard()
         reset.assert_called()
-
-
-# ---------------------------------------------------------------------------
-# get_cached_live_boxscore — TTL depends on whether the game is final
-# ---------------------------------------------------------------------------
 
 
 class TestGetCachedLiveBoxscore:
