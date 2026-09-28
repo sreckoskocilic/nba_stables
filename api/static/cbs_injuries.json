@@ -4,27 +4,39 @@
       "team": "Atlanta",
       "players": [
         {
-          "name": "Mouhamed Gueye",
-          "updated": "Tue, Sep 8",
-          "injury": "Foot",
-          "status": "Expected to be out until at least Oct 15"
+          "name": "RayJ Dennis",
+          "updated": "Tue, Sep 22",
+          "injury": "Achilles",
+          "status": "Questionable for start of season"
+        },
+        {
+          "name": "Henri Veesaar",
+          "updated": "Mon, Sep 21",
+          "injury": "Knee",
+          "status": "Out for the season"
         },
         {
           "name": "Keshon Gilbert",
           "updated": "Tue, Sep 8",
           "injury": "Hip",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Mouhamed Gueye",
+          "updated": "Tue, Sep 8",
+          "injury": "Foot",
+          "status": "Game Time Decision"
         }
       ]
     },
     {
-      "team": "Boston",
+      "team": "Brooklyn",
       "players": [
         {
-          "name": "Jayson Tatum",
-          "updated": "Tue, Sep 8",
-          "injury": "Knee",
-          "status": "Questionable for start of season"
+          "name": "Mikel Brown Jr.",
+          "updated": "Mon, Sep 28",
+          "injury": "Ankle",
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -32,16 +44,28 @@
       "team": "Charlotte",
       "players": [
         {
-          "name": "Brandon Miller",
+          "name": "Grant Williams",
+          "updated": "Fri, Sep 25",
+          "injury": "Hamstring",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Kon Knueppel",
+          "updated": "Fri, Sep 25",
+          "injury": "Hamstring",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Rob Dillingham",
           "updated": "Tue, Sep 8",
-          "injury": "Shoulder",
-          "status": "Questionable for start of season"
+          "injury": "Wrist",
+          "status": "Game Time Decision"
         },
         {
           "name": "PJ Hall",
           "updated": "Tue, Sep 8",
           "injury": "Ankle",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -49,28 +73,22 @@
       "team": "Chicago",
       "players": [
         {
-          "name": "Josh Giddey",
-          "updated": "Tue, Sep 8",
-          "injury": "Ankle",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Rob Dillingham",
-          "updated": "Tue, Sep 8",
-          "injury": "Wrist",
-          "status": "Questionable for start of season"
-        },
-        {
           "name": "Dailyn Swain",
           "updated": "Tue, Sep 8",
           "injury": "Wrist",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         },
         {
           "name": "Zach Collins",
           "updated": "Tue, Sep 8",
           "injury": "Toe",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Josh Giddey",
+          "updated": "Tue, Sep 8",
+          "injury": "Ankle",
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -81,7 +99,7 @@
           "name": "Peyton Watson",
           "updated": "Tue, Sep 8",
           "injury": "Hamstring",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -89,16 +107,16 @@
       "team": "Dallas",
       "players": [
         {
-          "name": "Dereck Lively II",
-          "updated": "Tue, Sep 8",
-          "injury": "Foot",
-          "status": "Questionable for start of season"
+          "name": "Kyrie Irving",
+          "updated": "Fri, Sep 25",
+          "injury": "Knee",
+          "status": "Game Time Decision"
         },
         {
-          "name": "Kyrie Irving",
-          "updated": "Tue, Sep 8",
-          "injury": "Knee",
-          "status": "Questionable for start of season"
+          "name": "Dereck Lively II",
+          "updated": "Wed, Sep 23",
+          "injury": "Foot",
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -109,13 +127,19 @@
           "name": "Trevon Brazile",
           "updated": "Tue, Sep 8",
           "injury": "Undisclosed",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
     {
       "team": "Golden St.",
       "players": [
+        {
+          "name": "Kristaps Porzingis",
+          "updated": "Mon, Sep 28",
+          "injury": "Undisclosed",
+          "status": "Game Time Decision"
+        },
         {
           "name": "Jimmy Butler",
           "updated": "Tue, Sep 8",
@@ -134,22 +158,10 @@
       "team": "Houston",
       "players": [
         {
-          "name": "Kevin Durant",
-          "updated": "Tue, Sep 8",
-          "injury": "Ankle",
-          "status": "Questionable for start of season"
-        },
-        {
           "name": "Steven Adams",
-          "updated": "Tue, Sep 8",
+          "updated": "Sun, Sep 27",
           "injury": "Ankle",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Fred VanVleet",
-          "updated": "Tue, Sep 8",
-          "injury": "Knee",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -161,12 +173,6 @@
           "updated": "Tue, Sep 8",
           "injury": "Knee",
           "status": "Expected to be out until at least Jan 1"
-        },
-        {
-          "name": "Tyrese Haliburton",
-          "updated": "Tue, Sep 8",
-          "injury": "Achilles",
-          "status": "Questionable for start of season"
         }
       ]
     },
@@ -177,25 +183,25 @@
           "name": "Yanic Konan Niederhauser",
           "updated": "Tue, Sep 8",
           "injury": "Foot",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Bradley Beal",
-          "updated": "Tue, Sep 8",
-          "injury": "Hip",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Brandon Ingram",
-          "updated": "Tue, Sep 8",
-          "injury": "Heel",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         },
         {
           "name": "Jordan Miller",
           "updated": "Tue, Sep 8",
           "injury": "Shoulder",
           "status": "Expected to be out until at least Mar 1"
+        },
+        {
+          "name": "Bradley Beal",
+          "updated": "Tue, Sep 8",
+          "injury": "Hip",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Brandon Ingram",
+          "updated": "Tue, Sep 8",
+          "injury": "Heel",
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -203,16 +209,16 @@
       "team": "Memphis",
       "players": [
         {
-          "name": "Adama-Alpha Bal",
-          "updated": "Fri, Sep 18",
+          "name": "Micah Peavy",
+          "updated": "Mon, Sep 28",
           "injury": "Ankle",
-          "status": "Probable for start of season"
+          "status": "Game Time Decision"
         },
         {
-          "name": "Walter Clayton Jr.",
-          "updated": "Tue, Sep 8",
-          "injury": "Knee",
-          "status": "Questionable for start of season"
+          "name": "Zach Edey",
+          "updated": "Mon, Sep 28",
+          "injury": "Ankle",
+          "status": "Game Time Decision"
         },
         {
           "name": "Richie Saunders",
@@ -224,25 +230,25 @@
           "name": "Jaylen Wells",
           "updated": "Tue, Sep 8",
           "injury": "Toe",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Zach Edey",
-          "updated": "Tue, Sep 8",
-          "injury": "Ankle",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         },
         {
           "name": "Scotty Pippen Jr.",
           "updated": "Tue, Sep 8",
           "injury": "Toe",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Walter Clayton Jr.",
+          "updated": "Tue, Sep 8",
+          "injury": "Knee",
+          "status": "Game Time Decision"
         },
         {
           "name": "Karim Lopez",
           "updated": "Tue, Sep 8",
           "injury": "Undisclosed",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -250,22 +256,28 @@
       "team": "Miami",
       "players": [
         {
-          "name": "Trevor Keels",
-          "updated": "Tue, Sep 8",
+          "name": "Giannis Antetokounmpo",
+          "updated": "Thu, Sep 24",
           "injury": "Knee",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Ryan Conwell",
+          "updated": "Thu, Sep 24",
+          "injury": "Hip",
+          "status": "Game Time Decision"
         },
         {
           "name": "Bam Adebayo",
           "updated": "Tue, Sep 8",
           "injury": "Back",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         },
         {
           "name": "Myron Gardner",
           "updated": "Tue, Sep 8",
           "injury": "Ankle",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -273,10 +285,16 @@
       "team": "Milwaukee",
       "players": [
         {
+          "name": "Tyler Herro",
+          "updated": "Mon, Sep 28",
+          "injury": "Foot",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Kevin Porter",
           "updated": "Tue, Sep 8",
           "injury": "Knee",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -298,7 +316,7 @@
           "name": "Bryce McGowens",
           "updated": "Tue, Sep 8",
           "injury": "Toe",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -309,13 +327,7 @@
           "name": "Mohamed Diawara",
           "updated": "Tue, Sep 8",
           "injury": "Finger",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Jalen Brunson",
-          "updated": "Tue, Sep 8",
-          "injury": "Wrist",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -323,40 +335,34 @@
       "team": "Oklahoma City",
       "players": [
         {
-          "name": "Ajay Mitchell",
-          "updated": "Tue, Sep 8",
-          "injury": "Calf",
-          "status": "Questionable for start of season"
-        },
-        {
           "name": "Otega Oweh",
           "updated": "Tue, Sep 8",
           "injury": "Lower Leg",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         },
         {
           "name": "Nikola Topic",
           "updated": "Tue, Sep 8",
           "injury": "Back",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         },
         {
           "name": "Thomas Sorber",
           "updated": "Tue, Sep 8",
           "injury": "Knee",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Ajay Mitchell",
+          "updated": "Tue, Sep 8",
+          "injury": "Calf",
+          "status": "Game Time Decision"
         },
         {
           "name": "Isaiah Hartenstein",
           "updated": "Tue, Sep 8",
           "injury": "Ankle",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Jalen Williams",
-          "updated": "Tue, Sep 8",
-          "injury": "Hamstring",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -364,22 +370,22 @@
       "team": "Orlando",
       "players": [
         {
+          "name": "Jonathan Isaac",
+          "updated": "Mon, Sep 28",
+          "injury": "Knee",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Izaiyah Nelson",
           "updated": "Tue, Sep 8",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Nov 1"
-        },
-        {
-          "name": "Jonathan Isaac",
-          "updated": "Tue, Sep 8",
-          "injury": "Knee",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         },
         {
           "name": "Franz Wagner",
           "updated": "Tue, Sep 8",
           "injury": "Calf",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -390,7 +396,7 @@
           "name": "Adem Bona",
           "updated": "Thu, Sep 17",
           "injury": "Foot",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -407,7 +413,7 @@
           "name": "CJ Huntley",
           "updated": "Tue, Sep 8",
           "injury": "Hamstring",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -419,12 +425,6 @@
           "updated": "Tue, Sep 8",
           "injury": "Knee",
           "status": "Expected to be out until at least Mar 1"
-        },
-        {
-          "name": "Damian Lillard",
-          "updated": "Tue, Sep 8",
-          "injury": "Achilles",
-          "status": "Questionable for start of season"
         }
       ]
     },
@@ -432,28 +432,22 @@
       "team": "Sacramento",
       "players": [
         {
-          "name": "Keegan Murray",
-          "updated": "Tue, Sep 8",
-          "injury": "Ankle",
-          "status": "Questionable for start of season"
-        },
-        {
           "name": "Zach LaVine",
           "updated": "Tue, Sep 8",
           "injury": "Hand",
-          "status": "Questionable for start of season"
-        },
-        {
-          "name": "Domantas Sabonis",
-          "updated": "Tue, Sep 8",
-          "injury": "Knee",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         },
         {
           "name": "De'Andre Hunter",
           "updated": "Tue, Sep 8",
           "injury": "Eye",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Keegan Murray",
+          "updated": "Tue, Sep 8",
+          "injury": "Ankle",
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -470,7 +464,7 @@
           "name": "David Jones",
           "updated": "Tue, Sep 8",
           "injury": "Ankle",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -481,19 +475,19 @@
           "name": "Nate Bittle",
           "updated": "Wed, Sep 9",
           "injury": "Lower Leg",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         },
         {
           "name": "Chucky Hepburn",
           "updated": "Tue, Sep 8",
           "injury": "Knee",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         },
         {
           "name": "Alijah Martin",
           "updated": "Tue, Sep 8",
           "injury": "Knee",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -504,7 +498,7 @@
           "name": "Jaren Jackson Jr.",
           "updated": "Tue, Sep 8",
           "injury": "Knee",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -512,32 +506,38 @@
       "team": "Washington",
       "players": [
         {
+          "name": "Alex Sarr",
+          "updated": "Tue, Sep 8",
+          "injury": "Foot",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Trevor Keels",
+          "updated": "Tue, Sep 8",
+          "injury": "Knee",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Jamir Watkins",
           "updated": "Tue, Sep 8",
           "injury": "Knee",
           "status": "Expected to be out until at least Apr 1"
         },
         {
-          "name": "Alex Sarr",
-          "updated": "Tue, Sep 8",
-          "injury": "Foot",
-          "status": "Questionable for start of season"
-        },
-        {
           "name": "Anthony Davis",
           "updated": "Tue, Sep 8",
           "injury": "Finger",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         },
         {
           "name": "Trae Young",
           "updated": "Tue, Sep 8",
           "injury": "Quadriceps",
-          "status": "Questionable for start of season"
+          "status": "Game Time Decision"
         }
       ]
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "September 21, 2026 16:10 UTC"
+  "lastUpdated": "September 28, 2026 17:56 UTC"
 }
