@@ -114,9 +114,11 @@ _initDateSeg(_leaderDateBtns, (o) => {
   loadLeaders();
 });
 function _loadDateLabels() {
+  const league = currentLeague;
   fetch(`/api/dates${leagueQuery()}`)
     .then((r) => r.json())
     .then((t) => {
+      if (league !== currentLeague) return;
       const fmt = (v) => {
         const d = new Date(v);
         return isNaN(d) ? v : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -281,10 +283,13 @@ async function loadTrackedStats() {
   if (trackedPlayerIds.length === 0) return;
   const el = document.getElementById("trackerContent");
   el.innerHTML = loadingHtml("Loading player stats...");
+  const league = currentLeague;
   try {
     const ids = trackedPlayerIds.map((p) => p.id).join(","),
       r = await _fetchWithAbort("trackedStats", `/api/players/stats?ids=${ids}${leagueParam()}`),
       d = await r.json();
+    if (league !== currentLeague) return;
+    if (!r.ok) throw new Error(d.detail || "Failed to load stats");
     if (d.players.length === 0) {
       el.innerHTML = emptyHtml("No Active Games", "Selected players don't have games in progress today");
       return;
@@ -397,8 +402,10 @@ async function loadStandings(force = false) {
   const el = document.getElementById("standingsContent");
   el.innerHTML = loadingHtml("Loading standings...");
   try {
-    const r = await _fetchWithAbort("standings", `/api/standings${leagueQuery()}`);
-    _standingsData = await r.json();
+    const r = await _fetchWithAbort("standings", `/api/standings${leagueQuery()}`),
+      d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "Failed to load standings");
+    _standingsData = d;
     renderStandings();
   } catch (e) {
     el.innerHTML = emptyHtml("Error Loading Standings", esc(e.message));
@@ -666,8 +673,10 @@ async function loadPlayoffs(force = false) {
   const el = document.getElementById("playoffsContent");
   el.innerHTML = loadingHtml("Loading bracket...");
   try {
-    const r = await _fetchWithAbort("playoffs", `/api/playoffs${leagueQuery()}`);
-    playoffsData = await r.json();
+    const r = await _fetchWithAbort("playoffs", `/api/playoffs${leagueQuery()}`),
+      d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "Failed to load bracket");
+    playoffsData = d;
     showConference(activeConference);
   } catch (e) {
     el.innerHTML = emptyHtml("Error Loading Bracket", esc(e.message));
@@ -713,7 +722,7 @@ function showFinals() {
   }
   const games = f.games
     .map((g, i) => {
-      const d = g.date ? new Date(g.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+      const d = g.date ? new Date(`${g.date}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
       return `<article class="bxg" data-action="toggleGameDetails" data-game-id="${escAttr(g.gameId)}"><div class="fin-row"><span class="fin-gn">Game ${i + 1}<span class="m">${esc(d)}</span></span><span class="fin-sc">${esc(g.home?.tricode || "—")} <b>${esc(g.home?.score ?? "—")}</b> - <b>${esc(g.away?.score ?? "—")}</b> ${esc(g.away?.tricode || "—")}</span></div><div class="bx-more" title="Player details">▼</div><div class="bx-det"></div></article>`;
     })
     .join("");
@@ -859,8 +868,8 @@ function _drawPlayIn(o, piA) {
     `<div class="pig"><div class="pig-l">${label}</div>${piSlot(top, topWin)}${piSlot(bot, botWin)}<div class="pig-r">${result}</div></div>`;
   const g1Sc = o[0] && o[1] ? scrs[piKey(o[0], o[1])] : null;
   const g2Sc = o[2] && o[3] ? scrs[piKey(o[2], o[3])] : null;
-  const g1WinIdx = g1Sc ? (g1Sc[String(o[0].teamId)] >= g1Sc[String(o[1].teamId)] ? 0 : 1) : -1;
-  const g2WinIdx = g2Sc ? (g2Sc[String(o[2].teamId)] >= g2Sc[String(o[3].teamId)] ? 0 : 1) : -1;
+  const g1WinIdx = piA.seed7TeamId && o[0] ? (o[0].teamId === piA.seed7TeamId ? 0 : 1) : -1;
+  const g2WinIdx = piA.g2WinnerTeamId && o[2] ? (o[2].teamId === piA.g2WinnerTeamId ? 0 : 1) : -1;
   const g3TopPh = { rank: "?", name: "G1 Loser", wins: "?", losses: "?" };
   const g3BotPh = { rank: "?", name: "G2 Winner", wins: "?", losses: "?" };
   const g3Top =
@@ -1056,6 +1065,7 @@ async function toggleTdGames(playerId, btn) {
   try {
     const r = await _fetchWithAbort("tdGames_" + playerId, `/api/season/triple-double-games/${playerId}` + leagueQuery()),
       d = await r.json();
+    if (!r.ok) throw new Error(d.detail);
     if (!d.games || d.games.length === 0) {
       container.innerHTML = '<p class="m sm">No triple-double games found</p>';
       return;
@@ -1080,10 +1090,10 @@ async function loadScoreboard() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || "Failed to load scoreboard");
     const games = Array.isArray(data.games) ? data.games : [];
-    const firstEt = games.length && games[0].gameEt ? new Date(games[0].gameEt) : null;
+    const sbDate = games.length ? new Date(data.date) : null;
     dateEl.textContent =
-      firstEt && !isNaN(firstEt)
-        ? firstEt.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
+      sbDate && !isNaN(sbDate)
+        ? sbDate.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
         : "";
     if (games.length === 0) {
       content.innerHTML = emptyHtml("No Games Today", "Check back later for live games");

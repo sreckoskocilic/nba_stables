@@ -1103,6 +1103,9 @@ class TestExecutorTimeouts:
         assert r.json()["players"] == []
 
 
+PLAYOFF_GAME_ID = "0042500101"
+
+
 class TestScoreboardSeries:
     def _lgf_mock(self, rowset):
         m = MagicMock()
@@ -1150,6 +1153,7 @@ class TestScoreboardSeries:
         lo, hi = sorted((TEAM_ID_LAL, TEAM_ID_BOS))
         games = [
             {
+                "gameId": PLAYOFF_GAME_ID,
                 "homeTeam": {"tricode": "LAL"},
                 "awayTeam": {"tricode": "BOS"},
             }
@@ -1159,17 +1163,45 @@ class TestScoreboardSeries:
         )
         assert games[0]["series"] == {"home": 3, "away": 1}
 
+    def test_attach_helper_skips_non_playoff_game(self):
+        from routes.scores import _attach_series_to_games
+
+        lo, hi = sorted((TEAM_ID_LAL, TEAM_ID_BOS))
+        games = [
+            {
+                "gameId": "0012600001",
+                "homeTeam": {"tricode": "LAL"},
+                "awayTeam": {"tricode": "BOS"},
+            }
+        ]
+        _attach_series_to_games(
+            games, {f"{lo}_{hi}": {str(TEAM_ID_LAL): 3, str(TEAM_ID_BOS): 1}}
+        )
+        assert "series" not in games[0]
+
     def test_attach_helper_skips_unknown_pair(self):
         from routes.scores import _attach_series_to_games
 
-        games = [{"homeTeam": {"tricode": "LAL"}, "awayTeam": {"tricode": "BOS"}}]
+        games = [
+            {
+                "gameId": PLAYOFF_GAME_ID,
+                "homeTeam": {"tricode": "LAL"},
+                "awayTeam": {"tricode": "BOS"},
+            }
+        ]
         _attach_series_to_games(games, {"999_998": {"999": 1, "998": 0}})
         assert "series" not in games[0]
 
     def test_attach_helper_skips_unknown_tricode(self):
         from routes.scores import _attach_series_to_games
 
-        games = [{"homeTeam": {"tricode": "ZZZ"}, "awayTeam": {"tricode": "BOS"}}]
+        games = [
+            {
+                "gameId": PLAYOFF_GAME_ID,
+                "homeTeam": {"tricode": "ZZZ"},
+                "awayTeam": {"tricode": "BOS"},
+            }
+        ]
         _attach_series_to_games(games, {"1_2": {"1": 3, "2": 0}})
         assert "series" not in games[0]
 
@@ -1188,7 +1220,9 @@ class TestScoreboardSeries:
             ["PG02", TEAM_ID_BOS, "L", 98, "2026-05-22", "BOS @ LAL"],
         ]
         with (
-            self._patch_sb([make_live_game(gameStatusText="Final")]),
+            self._patch_sb(
+                [make_live_game(gameId=PLAYOFF_GAME_ID, gameStatusText="Final")]
+            ),
             patch("routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)),
         ):
             r = client.get("/api/scoreboard")
@@ -1204,7 +1238,7 @@ class TestScoreboardSeries:
             ["WG01", nyl, "W", 80, "2026-09-27", "NYL @ MIN"],
             ["WG01", min_lynx, "L", 75, "2026-09-27", "MIN vs. NYL"],
         ]
-        game = make_live_game()
+        game = make_live_game(gameId="1042600101")
         game["homeTeam"].update(teamTricode="MIN", teamId=min_lynx)
         game["awayTeam"].update(teamTricode="NYL", teamId=nyl)
         lgf = self._lgf_mock(lgf_rows)

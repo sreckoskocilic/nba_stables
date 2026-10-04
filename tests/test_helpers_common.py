@@ -191,6 +191,25 @@ class TestSimpleCache:
         assert small.get("c") == 3
 
 
+class TestKeyLock:
+    def test_same_key_is_serialised(self):
+        c = SimpleCache()
+        with c.lock("k"):
+            assert c._key_locks[hash("k") % c._KEY_LOCK_STRIPES].locked()
+
+    def test_waiter_proceeds_after_timeout(self, monkeypatch):
+        c = SimpleCache()
+        monkeypatch.setattr(c, "_KEY_LOCK_WAIT", 0.01)
+        stripe = c._key_locks[hash("k") % c._KEY_LOCK_STRIPES]
+        stripe.acquire()
+        try:
+            with c.lock("k"):
+                pass
+            assert stripe.locked()
+        finally:
+            stripe.release()
+
+
 class TestLogExceptions:
     def test_calls_logger_exception(self):
         from helpers.logger import log_exceptions

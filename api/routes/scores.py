@@ -79,6 +79,9 @@ PLAYOFF_SEED_PLAYIN = 10
 # Series counts only change after a playoff game ends; cache longer than scoreboard.
 _PLAYOFF_SERIES_TTL = 300
 
+# Third digit of a game ID is the game type, the same for NBA and WNBA (004…, 104…).
+_PLAYOFF_GAME_TYPE = "4"
+
 # Per league: NBA and WNBA share tricodes (MIN, IND, PHX, ...). WNBA IDs start 1611661.
 _TRICODE_TO_TEAM_ID = {
     "00": {tri: tid for tid, (tri, _) in TEAMS.items() if tid < 1611661000},
@@ -128,7 +131,7 @@ async def get_boxscores(
 ):
     """Get detailed box scores for games"""
     league_id = "10" if league == "wnba" else "00"
-    cache_key = f"{league_id}:boxscores_{days_offset}"
+    cache_key = f"{league_id}:boxscores_{_today_et().isoformat()}_{days_offset}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -141,10 +144,18 @@ async def get_boxscores(
             if result is not None:
                 boxscores_list.append(result)
         boxscores_list.sort(key=lambda x: x.get("gameId", ""))
-        return {"boxscores": boxscores_list, "date": get_display_date(days_offset)}
+        complete = len(boxscores_list) == len(leaders_by_game)
+        return {
+            "boxscores": boxscores_list,
+            "date": get_display_date(days_offset),
+        }, complete
 
-    result = await asyncio.to_thread(_sync)
-    ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["boxscores"]
+    result, complete = await asyncio.to_thread(_sync)
+    ttl = (
+        CACHE_TTL["historical"]
+        if days_offset >= 2 and complete
+        else CACHE_TTL["boxscores"]
+    )
     cache.set(cache_key, result, ttl)
     return result
 
@@ -270,19 +281,15 @@ def _build_team(row, team_id, game_id, leaders_by) -> dict:
 
 def _scoreboard_from_v3(sb) -> list[dict]:
     """Build scoreboard game list from ScoreboardV3 (scheduled / pre-game)."""
-    header = sb.game_header.get_dict()
-    line_score = sb.line_score.get_dict()
-
     teams_by_game: dict[str, dict[str, tuple]] = {}
-    for row in line_score["data"]:
+    for row in sb["line_score"]:
         gid = row[LS_GAME_ID]
         teams_by_game.setdefault(gid, {})[row[LS_TRICODE]] = (row, row[LS_TEAM_ID])
 
-    leaders_data = sb.game_leaders.get_dict()
-    leaders_by = {(ld[GL_GAME_ID], ld[GL_TEAM_ID]): ld for ld in leaders_data["data"]}
+    leaders_by = {(ld[GL_GAME_ID], ld[GL_TEAM_ID]): ld for ld in sb["game_leaders"]}
 
     games = []
-    for g in header["data"]:
+    for g in sb["game_header"]:
         if g[GH_GAME_STATUS] == STATUS_SCHEDULED and g[GH_STATUS_TEXT] == "TBD":
             continue
         game_id = g[GH_GAME_ID]
@@ -320,7 +327,7 @@ async def get_daily_leaders(
 ):
     """Get daily leaders across statistical categories"""
     league_id = "10" if league == "wnba" else "00"
-    cache_key = f"{league_id}:leaders_{days_offset}"
+    cache_key = f"{league_id}:leaders_{_today_et().isoformat()}_{days_offset}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -337,6 +344,7 @@ async def get_daily_leaders(
                 return {}
 
         boxscore_results = [fetch_leaders_boxscore(gid) for gid in game_ids]
+        complete = all(boxscore_results)
 
         for bs in boxscore_results:
             if not bs:
@@ -382,23 +390,32 @@ async def get_daily_leaders(
                         {"name": p["name"], "team": p["team"]} for p in max_entries[key]
                     ],
                 }
-        return {"leaders": leaders, "date": get_display_date(days_offset)}
+        return {"leaders": leaders, "date": get_display_date(days_offset)}, complete
 
-    result = await asyncio.to_thread(_sync)
-    ttl = CACHE_TTL["historical"] if days_offset >= 2 else CACHE_TTL["leaders"]
+    result, complete = await asyncio.to_thread(_sync)
+    ttl = (
+        CACHE_TTL["historical"]
+        if days_offset >= 2 and complete
+        else CACHE_TTL["leaders"]
+    )
     cache.set(cache_key, result, ttl)
     return result
 
 
 def _fetch_standings_teams() -> list:
     """Return raw standings team rows, cached to avoid duplicate LeagueStandings calls."""
-    cached = cache.get("raw_standings")
-    if cached is not None:  # pragma: no cover
-        return cached
-    standings = call_stats(leaguestandings.LeagueStandings).get_dict()
-    teams = standings["resultSets"][0]["rowSet"]
-    cache.set("raw_standings", teams, CACHE_TTL["standings"])
-    return teams
+    season = get_current_season()
+    cache_key = f"raw_standings_{season}"
+    with cache.lock(cache_key):
+        cached = cache.get(cache_key)
+        if cached is not None:  # pragma: no cover
+            return cached
+        standings = call_stats(
+            leaguestandings.LeagueStandings, season=season
+        ).get_dict()
+        teams = standings["resultSets"][0]["rowSet"]
+        cache.set(cache_key, teams, CACHE_TTL["standings"])
+        return teams
 
 
 def _parse_team_row(team) -> dict:
@@ -433,25 +450,26 @@ _WS_STREAK = 37
 
 
 def _fetch_wnba_standings_teams() -> list:
-    cached = cache.get("raw_standings_wnba")
-    if cached is not None:  # pragma: no cover
-        return cached
-    try:
-        resp = NBAStatsHTTP().send_api_request(
-            endpoint="leaguestandingsv3",
-            parameters={
-                "LeagueID": "10",
-                "Season": get_wnba_current_season(),
-                "SeasonType": "Regular Season",
-            },
-            proxy=STATS_PROXY,
-            timeout=STATS_TIMEOUT,
-        )
-        teams = resp.get_dict()["resultSets"][0]["rowSet"]
-    finally:
-        _reset_nba_stats_http_session()
-    cache.set("raw_standings_wnba", teams, CACHE_TTL["standings"])
-    return teams
+    with cache.lock("raw_standings_wnba"):
+        cached = cache.get("raw_standings_wnba")
+        if cached is not None:  # pragma: no cover
+            return cached
+        try:
+            resp = NBAStatsHTTP().send_api_request(
+                endpoint="leaguestandingsv3",
+                parameters={
+                    "LeagueID": "10",
+                    "Season": get_wnba_current_season(),
+                    "SeasonType": "Regular Season",
+                },
+                proxy=STATS_PROXY,
+                timeout=STATS_TIMEOUT,
+            )
+            teams = resp.get_dict()["resultSets"][0]["rowSet"]
+        finally:
+            _reset_nba_stats_http_session()
+        cache.set("raw_standings_wnba", teams, CACHE_TTL["standings"])
+        return teams
 
 
 def _parse_wnba_team_row(team) -> dict:
@@ -639,12 +657,13 @@ def _get_playoff_series_cached(league_id: str = "00") -> tuple[dict, dict]:
         get_wnba_current_season()[:4] if league_id == "10" else get_current_season()
     )
     cache_key = f"playoff_series_{league_id}_{season}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
-    result = _fetch_playoff_series_data(season, league_id)
-    cache.set(cache_key, result, _PLAYOFF_SERIES_TTL)
-    return result
+    with cache.lock(cache_key):
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        result = _fetch_playoff_series_data(season, league_id)
+        cache.set(cache_key, result, _PLAYOFF_SERIES_TTL)
+        return result
 
 
 def _attach_series_to_games(
@@ -655,12 +674,15 @@ def _attach_series_to_games(
     """Mutate scoreboard `games` to include a `series` field on playoff games.
 
     `series` shape: {"home": <home_wins>, "away": <away_wins>}.
-    Games whose team pair is not in series_data are left untouched.
+    Non-playoff games and games whose team pair is not in series_data are
+    left untouched.
     """
     if not series_data:
         return
     tricode_to_id = _TRICODE_TO_TEAM_ID[league_id]
     for game in games:
+        if game["gameId"][2:3] != _PLAYOFF_GAME_TYPE:
+            continue
         home_tri = (game.get("homeTeam") or {}).get("tricode") or ""
         away_tri = (game.get("awayTeam") or {}).get("tricode") or ""
         home_id = tricode_to_id.get(home_tri)

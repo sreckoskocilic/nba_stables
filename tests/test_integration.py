@@ -18,6 +18,7 @@ from conftest import (
     TEAM_ID_BOS,
     TEAM_ID_LAL,
     WNBA_GAME_ID,
+    WNBA_NYL,
     WNBA_TEAM_ID_LVA,
     WNBA_TEAM_ID_NYL,
     make_live_boxscore,
@@ -25,6 +26,7 @@ from conftest import (
     make_scoreboard_v3,
     make_standings_row,
     make_v3_boxscore,
+    make_v3_player_row,
     make_wnba_live_boxscore,
     make_wnba_standings_row,
 )
@@ -261,9 +263,8 @@ class TestScoreboard:
 
     def test_missing_line_score_fallback(self, client):
         """Game in header but no matching line_score rows -> empty team fallback."""
-        sb = MagicMock()
-        sb.game_header.get_dict.return_value = {
-            "data": [
+        sb = {
+            "game_header": [
                 [
                     GAME_ID,
                     "20260307/BOSLAL",
@@ -284,10 +285,10 @@ class TestScoreboard:
                     "",
                     False,
                 ]
-            ]
+            ],
+            "line_score": [],
+            "game_leaders": [],
         }
-        sb.line_score.get_dict.return_value = {"data": []}
-        sb.game_leaders.get_dict.return_value = {"data": []}
 
         with (
             patch("routes.scores.get_scoreboard_v3_by_date", return_value=sb),
@@ -436,6 +437,30 @@ class TestBoxscores:
 
     def test_offset_too_large_rejected(self, client):
         assert client.get("/api/boxscores?days_offset=99").status_code == 422
+
+    def test_partial_historical_day_gets_short_ttl(self, client):
+        from helpers.common import CACHE_TTL
+
+        leaders = {GAME_ID: [], "0022500002": []}
+        with (
+            patch("routes.scores.get_games_leaders_list", return_value=leaders),
+            patch(
+                "routes.scores.fetch_single_boxscore",
+                side_effect=[_BOXSCORE_RESULT, None],
+            ),
+            patch("routes.scores.cache.set") as set_mock,
+        ):
+            client.get("/api/boxscores?days_offset=3")
+        assert set_mock.call_args.args[2] == CACHE_TTL["boxscores"]
+
+    def test_cache_key_includes_today(self, client):
+        with (
+            patch("routes.scores.get_games_leaders_list", return_value={}),
+            patch("routes.scores._today_et", return_value=date(2026, 10, 4)),
+            patch("routes.scores.cache.set") as set_mock,
+        ):
+            client.get("/api/boxscores?days_offset=3")
+        assert set_mock.call_args.args[0] == "00:boxscores_2026-10-04_3"
 
     def test_has_date_field(self, client):
         with patch("routes.scores.get_games_leaders_list", return_value={}):
@@ -713,6 +738,18 @@ class TestPlayerStats:
         assert players[0]["points"] == 28
         assert players[0]["team"] == "LAL"
 
+    def test_skips_games_not_started(self, client):
+        with (
+            patch(
+                "routes.players.get_cached_scoreboard",
+                return_value=[make_live_game(gameStatus=1)],
+            ),
+            patch("routes.players.get_cached_live_boxscore") as fetch,
+        ):
+            r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
+        assert r.json()["players"] == []
+        fetch.assert_not_called()
+
     def test_invalid_id_returns_empty(self, client):
         r = client.get("/api/players/stats?ids=not_a_number")
         assert r.json()["players"] == []
@@ -772,6 +809,22 @@ class TestGamePlayers:
     def test_rejects_invalid_game_id(self, client):
         r = client.get("/api/games/INVALID/players")
         assert r.status_code == 422
+
+    @pytest.mark.parametrize("gid", ["0032500001", "0062300001"])
+    def test_accepts_all_star_and_cup_final_ids(self, client, gid):
+        with (
+            patch(
+                "routes.players._game_players_from_live",
+                side_effect=RuntimeError("down"),
+            ),
+            patch(
+                "routes.players._game_players_from_v3",
+                return_value={"status": "Final", "teams": []},
+            ),
+            patch("routes.players.log_exceptions"),
+        ):
+            r = client.get(f"/api/games/{gid}/players")
+        assert r.status_code == 200
 
     def test_periods_per_team(self, client):
         with patch(
@@ -833,7 +886,7 @@ class TestGamePlayers:
         assert body["status"] == "Final"
         assert len(body["teams"]) == 2
         nyl = next(t for t in body["teams"] if t["tricode"] == "NYL")
-        assert nyl["score"] == 85
+        assert nyl["score"] == 25
         assert nyl["periods"] == []
         assert nyl["players"][0]["name"] == "Sabrina Ionescu"
         assert body["topPerformers"]["points"]["value"] == 30
@@ -841,23 +894,14 @@ class TestGamePlayers:
     def test_v3_fallback_skips_dnp_players(self, client):
         gid = "0042500404"
         box = make_v3_boxscore(gid)
-        data = box.get_dict.return_value["boxScoreTraditional"]
-        data["homeTeam"]["players"].extend(
-            [
-                {
-                    "personId": 999,
-                    "firstName": "Did",
-                    "familyName": "NotPlay",
-                    "statistics": {"minutes": ""},
-                },
-                {
-                    "personId": 998,
-                    "firstName": "Zero",
-                    "familyName": "Minutes",
-                    "statistics": {"minutes": "0:00"},
-                },
-            ]
-        )
+        box["data"][1:1] = [
+            make_v3_player_row(
+                gid, WNBA_NYL, 999, "Did", "NotPlay", minutes="", points=0
+            ),
+            make_v3_player_row(
+                gid, WNBA_NYL, 998, "Zero", "Minutes", minutes="0:00", points=0
+            ),
+        ]
         with (
             patch(
                 "routes.players.get_cached_live_boxscore",
@@ -882,11 +926,7 @@ class TestLastNGames:
         return m
 
     def _trad_boxscore(self, person_id=PLAYER_ID):
-        m = MagicMock()
-        m.player_stats.get_dict.return_value = {
-            "data": [make_player_stats_row(person_id)]
-        }
-        return m
+        return {"data": [make_player_stats_row(person_id)]}
 
     def test_returns_game_log(self, client):
         with (
@@ -921,8 +961,7 @@ class TestLastNGames:
         )
 
     def test_dnp_game_flagged(self, client):
-        empty_bs = MagicMock()
-        empty_bs.player_stats.get_dict.return_value = {"data": []}
+        empty_bs = {"data": []}
         with (
             patch(
                 "routes.players.load_players_dict",
@@ -987,6 +1026,22 @@ class TestSeasonAvg:
         ):
             r = client.get(f"/api/players/{PLAYER_ID}/season-avg")
         assert r.status_code == 404
+
+    def test_profile_reuses_the_season_avg_career_call(self, client):
+        pcs = MagicMock(return_value=self._mock_career())
+        with (
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch(
+                "routes.players.commonplayerinfo.CommonPlayerInfo",
+                side_effect=RuntimeError("down"),
+            ),
+            patch("routes.players.log_exceptions"),
+        ):
+            client.get(f"/api/players/{PLAYER_ID}/season-avg")
+            r = client.get(f"/api/players/{PLAYER_ID}/profile")
+        assert r.status_code == 200
+        assert len(r.json()["career"]) == 1
+        pcs.assert_called_once()
 
 
 def _mock_profile_endpoints(bio_overrides=None, career_rows=None):

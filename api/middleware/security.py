@@ -28,6 +28,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "no-store"
         else:
             csp = PAGE_CSP
+            response.headers["Cache-Control"] = "no-cache"
         response.headers["Content-Security-Policy"] = csp
 
         return response

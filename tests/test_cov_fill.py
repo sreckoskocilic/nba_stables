@@ -68,10 +68,9 @@ def test_fetch_players_wnba_filters_inactive(monkeypatch):
 
 
 def test_normalize_game_date_shapes():
-    """Both real upstream formats normalise to ISO; anything else passes through."""
+    """PlayerGameLog dates normalise to ISO; anything else passes through."""
     from routes.players import _normalize_game_date
 
-    assert _normalize_game_date("2026-05-08") == "2026-05-08"
     assert _normalize_game_date("AUG 27, 2026") == "2026-08-27"
     assert _normalize_game_date("not a date") == "not a date"
     assert _normalize_game_date(None) is None
@@ -139,12 +138,7 @@ def test_last_n_games_playergamelog_path_with_dates(monkeypatch, client):
         row[32] = 20
         return row
 
-    bs = MagicMock()
-    bs.player_stats.get_dict.return_value = {"data": [player_stats_row(PLAYER_ID)]}
-    bs.game_summary.get_dict.return_value = {
-        "headers": ["GAME_DATE_EST"],
-        "data": [["2026-03-10"]],
-    }
+    bs = {"data": [player_stats_row(PLAYER_ID)]}
     monkeypatch.setattr("routes.players.get_cached_boxscore_v3", lambda gid: bs)
 
     r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=1")
@@ -199,67 +193,6 @@ def _make_stats_row(pid):
     return row
 
 
-def test_last_n_games_game_summary_date_path(monkeypatch, client):
-    """Game date falls back to game_summary when the gamelog row has none."""
-    fake_pid = 9991
-    cache._cache.pop(f"last_n_games_00_{fake_pid}_1", None)
-    cache._cache.pop(f"player_games_raw_00_{fake_pid}", None)
-
-    monkeypatch.setattr(
-        "routes.players.load_players_dict",
-        lambda league_id="00": {fake_pid: [fake_pid, "Test Player C", None]},
-    )
-    mock_pgl = MagicMock()
-    mock_pgl.player_game_log.get_dict.return_value = {
-        "data": [[None, None, "0022309991", "", "LAL vs BOS"]]
-    }
-    monkeypatch.setattr(
-        "routes.players.playergamelog.PlayerGameLog", lambda **_: mock_pgl
-    )
-
-    bs = MagicMock()
-    bs.player_stats.get_dict.return_value = {"data": [_make_stats_row(fake_pid)]}
-    bs.game_summary.get_dict.return_value = {
-        "headers": ["GAME_DATE_EST"],
-        "data": [["2025-02-27"]],
-    }
-    monkeypatch.setattr("routes.players.get_cached_boxscore_v3", lambda gid: bs)
-
-    r = client.get(f"/api/players/{fake_pid}/last-n-games?n=1")
-    assert r.status_code == 200
-    assert "2025-02-27" in r.json()["games"][0]["matchup"]
-
-
-def test_last_n_games_matchup_date_prefix_path(monkeypatch, client):
-    """Game date is parsed from the matchup YYYY-MM-DD prefix when row and summary lack it."""
-    fake_pid = 9992
-    cache._cache.pop(f"last_n_games_00_{fake_pid}_1", None)
-    cache._cache.pop(f"player_games_raw_00_{fake_pid}", None)
-
-    monkeypatch.setattr(
-        "routes.players.load_players_dict",
-        lambda league_id="00": {fake_pid: [fake_pid, "Test Player D", None]},
-    )
-    mock_pgl = MagicMock()
-    mock_pgl.player_game_log.get_dict.return_value = {
-        "data": [[None, None, "0022309992", "", "2025-02-27 vs BOS"]]
-    }
-    monkeypatch.setattr(
-        "routes.players.playergamelog.PlayerGameLog", lambda **_: mock_pgl
-    )
-
-    bs = MagicMock()
-    bs.player_stats.get_dict.return_value = {"data": [_make_stats_row(fake_pid)]}
-    bs.game_summary.get_dict.return_value = {"headers": [], "data": []}
-    monkeypatch.setattr("routes.players.get_cached_boxscore_v3", lambda gid: bs)
-
-    r = client.get(f"/api/players/{fake_pid}/last-n-games?n=1")
-    assert r.status_code == 200
-    matchup = r.json()["games"][0]["matchup"]
-    assert matchup.startswith("2025-02-27 —")
-    assert "vs BOS" in matchup
-
-
 def test_get_cached_boxscore_v3_cache_miss(monkeypatch):
     """get_cached_boxscore_v3 fetches and returns the boxscore on a cache miss."""
     from helpers.stats import get_cached_boxscore_v3
@@ -273,7 +206,7 @@ def test_get_cached_boxscore_v3_cache_miss(monkeypatch):
         lambda **_: mock_bs,
     )
     result = get_cached_boxscore_v3(fake_game_id)
-    assert result is mock_bs
+    assert result is mock_bs.player_stats.get_dict.return_value
 
 
 def test_lifespan_warns_invalid_workers(monkeypatch, caplog):

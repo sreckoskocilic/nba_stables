@@ -95,12 +95,16 @@ async def get_trades():
             )
 
         transactions.sort(key=lambda x: x["date"], reverse=True)
-        return {"transactions": transactions, "total": len(transactions)}
+        return {"transactions": transactions, "total": len(transactions)}, bool(
+            players_dict
+        )
 
     result = await asyncio.to_thread(_sync)
     if result is _unavailable:
         raise HTTPException(
             status_code=503, detail="Failed to fetch player movement data"
         )
-    cache.set("trades", result, CACHE_TTL["trades"])
+    result, names_resolved = result
+    ttl = CACHE_TTL["trades"] if names_resolved else CACHE_TTL["leaders"]
+    cache.set("trades", result, ttl)
     return result

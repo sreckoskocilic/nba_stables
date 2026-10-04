@@ -13,6 +13,7 @@ from helpers.stats import (
     fetch_single_boxscore,
     find_category_leaders,
     fix_encoding,
+    fold_name,
     get_display_date,
     get_games_leaders_list,
     get_games_list,
@@ -79,6 +80,12 @@ class TestFixEncoding:
 
     def test_empty_string(self):
         assert fix_encoding("") == ""
+
+
+class TestFoldName:
+    def test_strips_diacritics_and_lowercases(self):
+        assert fold_name("Nikola Jokić") == "nikola jokic"
+        assert fold_name("Luka Dončić") == "luka doncic"
 
     def test_mojibake_special_c_with_caron(self):
         # "Jokić" — ć is U+0107, encoded as UTF-8 bytes \xc4\x87,
@@ -309,15 +316,15 @@ class TestGetGamesList:
     def test_empty_games_returns_empty_list(self):
         assert self._call([]) == []
 
-    def test_returns_empty_on_api_exception(self):
+    def test_propagates_api_exception(self):
         with (
             patch(
                 "helpers.stats.scoreboardv3.ScoreboardV3",
                 side_effect=Exception("network"),
             ),
-            patch("helpers.stats.log_exceptions"),
+            pytest.raises(Exception, match="network"),
         ):
-            assert get_games_list(1) == []
+            get_games_list(1)
 
     def test_returns_list_type(self):
         result = self._call([_game_row("001", 2)])
@@ -370,15 +377,15 @@ class TestGetGamesLeadersList:
         result = self._call([_game_row("001", 2)], [ld])
         assert result["001"][0][0] == original
 
-    def test_returns_empty_dict_on_api_exception(self):
+    def test_propagates_api_exception(self):
         with (
             patch(
                 "helpers.stats.scoreboardv3.ScoreboardV3",
                 side_effect=Exception("timeout"),
             ),
-            patch("helpers.stats.log_exceptions"),
+            pytest.raises(Exception, match="timeout"),
         ):
-            assert get_games_leaders_list(1) == {}
+            get_games_leaders_list(1)
 
     def test_returns_dict_type(self):
         result = self._call([], [])
@@ -691,56 +698,48 @@ class TestPlayerSideCaches:
 
 
 class TestGetCachedScoreboard:
-    def test_nba_overrides_the_cdn_endpoint_url(self):
+    def test_fetches_the_league_scoreboard(self):
         import helpers.stats as hs
         from helpers.common import CACHE_TTL
 
-        sb = MagicMock()
-        sb.games.data = [{"gameId": "0022300001"}]
+        payload = {"scoreboard": {"games": [{"gameId": "0022300001"}]}}
         with (
-            patch("helpers.stats.live_scoreboard.ScoreBoard", return_value=sb),
+            patch("helpers.stats._fetch_live_json", return_value=payload) as fetch,
             patch("helpers.stats.cache.set") as set_mock,
         ):
             out = hs.get_cached_scoreboard()
         assert out == [{"gameId": "0022300001"}]
-        assert sb.endpoint_url == "scoreboard/todaysScoreboard_00.json"
-        sb.get_request.assert_called_once()
+        fetch.assert_called_once_with("00", "scoreboard/todaysScoreboard_00.json")
         assert set_mock.call_args.args[2] == CACHE_TTL["scoreboard"]
 
-    def test_wnba_goes_through_the_wnba_cdn_helper(self):
+    def test_wnba_uses_the_wnba_scoreboard(self):
         import helpers.stats as hs
 
-        with patch(
-            "helpers.stats._fetch_wnba_live_scoreboard",
-            return_value=[{"gameId": "1022600001"}],
-        ) as fetch:
+        payload = {"scoreboard": {"games": [{"gameId": "1022600001"}]}}
+        with patch("helpers.stats._fetch_live_json", return_value=payload) as fetch:
             out = hs.get_cached_scoreboard(league_id="10")
         assert out == [{"gameId": "1022600001"}]
-        fetch.assert_called_once()
+        fetch.assert_called_once_with("10", "scoreboard/todaysScoreboard_10.json")
 
     def test_second_call_is_served_from_cache(self):
         import helpers.stats as hs
 
-        with patch(
-            "helpers.stats._fetch_wnba_live_scoreboard", return_value=[]
-        ) as fetch:
+        payload = {"scoreboard": {"games": []}}
+        with patch("helpers.stats._fetch_live_json", return_value=payload) as fetch:
             hs.get_cached_scoreboard(league_id="10")
             hs.get_cached_scoreboard(league_id="10")
         fetch.assert_called_once()
 
-    def test_failure_resets_the_session_and_reraises(self):
+    def test_failure_reraises(self):
         import helpers.stats as hs
 
         with (
             patch(
-                "helpers.stats.live_scoreboard.ScoreBoard",
-                side_effect=RuntimeError("cdn down"),
+                "helpers.stats._fetch_live_json", side_effect=RuntimeError("cdn down")
             ),
-            patch("helpers.stats._reset_nba_stats_http_session") as reset,
             pytest.raises(RuntimeError),
         ):
             hs.get_cached_scoreboard()
-        reset.assert_called()
 
 
 class TestGetCachedLiveBoxscore:
@@ -752,10 +751,8 @@ class TestGetCachedLiveBoxscore:
         import helpers.stats as hs
 
         data = self._payload(status)
-        box = MagicMock()
-        box.return_value.get_dict.return_value = data
         with (
-            patch("helpers.stats.live_boxscore.BoxScore", box),
+            patch("helpers.stats._fetch_live_json", return_value=data),
             patch("helpers.stats.cache.set") as set_mock,
         ):
             out = hs.get_cached_live_boxscore("0022300001")
@@ -775,33 +772,29 @@ class TestGetCachedLiveBoxscore:
     def test_second_call_is_served_from_cache(self):
         import helpers.stats as hs
 
-        box = MagicMock()
-        box.return_value.get_dict.return_value = self._payload("Final")
-        with patch("helpers.stats.live_boxscore.BoxScore", box):
+        with patch(
+            "helpers.stats._fetch_live_json", return_value=self._payload("Final")
+        ) as fetch:
             hs.get_cached_live_boxscore("0022300001")
             hs.get_cached_live_boxscore("0022300001")
-        box.assert_called_once()
+        fetch.assert_called_once()
 
-    def test_wnba_goes_through_the_wnba_cdn_helper(self):
+    def test_wnba_uses_the_wnba_cdn(self):
         import helpers.stats as hs
 
         with patch(
-            "helpers.stats._fetch_wnba_live_boxscore",
-            return_value=self._payload("Final"),
+            "helpers.stats._fetch_live_json", return_value=self._payload("Final")
         ) as fetch:
             hs.get_cached_live_boxscore("1022600001", league_id="10")
-        fetch.assert_called_once_with("1022600001")
+        fetch.assert_called_once_with("10", "boxscore/boxscore_1022600001.json")
 
-    def test_failure_resets_the_session_and_reraises(self):
+    def test_failure_reraises(self):
         import helpers.stats as hs
 
         with (
             patch(
-                "helpers.stats.live_boxscore.BoxScore",
-                side_effect=RuntimeError("cdn down"),
+                "helpers.stats._fetch_live_json", side_effect=RuntimeError("cdn down")
             ),
-            patch("helpers.stats._reset_nba_stats_http_session") as reset,
             pytest.raises(RuntimeError),
         ):
             hs.get_cached_live_boxscore("0022300001")
-        reset.assert_called()

@@ -1,5 +1,4 @@
 import asyncio
-import json
 import re
 from datetime import date, datetime
 
@@ -39,6 +38,7 @@ from helpers.stats import (
     fetch_regular_and_playoffs,
     find_category_leaders,
     fix_encoding,
+    fold_name,
     get_cached_boxscore_v3,
     get_cached_live_boxscore,
     get_cached_scoreboard,
@@ -54,19 +54,11 @@ router = APIRouter()
 
 
 def _normalize_game_date(date_str: str | None) -> str | None:
-    """Normalise a game date to ISO. Handles both upstream shapes: LeagueGameLog
-    and GAME_DATE_EST serve '2026-05-08', PlayerGameLog serves 'AUG 27, 2026'."""
-    if not date_str:
-        return None
-    raw = str(date_str)
+    """Normalise a PlayerGameLog date ('AUG 27, 2026') to ISO; pass anything else through."""
     try:
-        return date.fromisoformat(raw[:10]).isoformat()
-    except ValueError:
-        pass
-    try:
-        return datetime.strptime(raw, "%b %d, %Y").date().isoformat()  # noqa: DTZ007
-    except ValueError:
-        return raw
+        return datetime.strptime(date_str, "%b %d, %Y").date().isoformat()  # noqa: DTZ007
+    except (TypeError, ValueError):
+        return date_str
 
 
 def _avg_pct(row, h, gp):
@@ -83,39 +75,10 @@ def _avg_pct(row, h, gp):
     return avg, pct
 
 
-def _derive_matchup_display(gg, csp):
-    """Build the display matchup string with a resolved game date.
-
-    Date preference: gamelog row date → boxscore game_summary → a YYYY-MM-DD
-    prefix embedded in the matchup string. Returns "YYYY-MM-DD — MATCHUP" when a
-    date is found, else the raw matchup. `gg` is [matchup, game_id, date?].
-    """
-    game_date = _normalize_game_date(gg[2] if len(gg) > 2 else None)
-    if not game_date:
-        try:
-            summary = csp.game_summary.get_dict()
-            hdrs = summary.get("headers", [])
-            data = summary.get("data", [[]])
-            if data and hdrs:
-                summary_map = dict(zip(hdrs, data[0]))
-                game_date = summary_map.get("GAME_DATE_EST") or summary_map.get(
-                    "GAME_DATE"
-                )
-                game_date = _normalize_game_date(game_date)
-        except Exception as ex:  # pragma: no cover
-            log_exceptions(ex)
-
-    matchup_raw = gg[0]
-    matchup_parts = matchup_raw.split(" ", 1)
-    if not game_date and len(matchup_parts) == 2 and len(matchup_parts[0]) == 10:
-        game_date = matchup_parts[0]
-        matchup_display = matchup_parts[1]
-    else:
-        matchup_display = matchup_raw
-
-    if game_date:
-        matchup_display = f"{game_date} — {matchup_display}"
-    return matchup_display
+def _derive_matchup_display(gg):
+    """'YYYY-MM-DD — MATCHUP' from a [matchup, game_id, date] gamelog row."""
+    game_date = _normalize_game_date(gg[2])
+    return f"{game_date} — {gg[0]}" if game_date else gg[0]
 
 
 @router.get("/api/players/search")
@@ -138,7 +101,7 @@ async def search_players(
     def _sync():
         players = load_players_with_lower(league_id)
         results = []
-        query = cleaned.lower()
+        query = fold_name(cleaned)
 
         total = 0
 
@@ -161,7 +124,9 @@ async def get_player_stats(
 ):
     """Get live stats for specific players"""
     players_ids = {
-        int(pid) for pid in (p.strip() for p in ids.split(",")) if pid.isdigit()
+        int(pid)
+        for pid in (p.strip() for p in ids.split(","))
+        if pid.isascii() and pid.isdigit()
     }
 
     if not players_ids:
@@ -183,7 +148,9 @@ async def get_player_stats(
         # Cost is low (max ~15 games) and keeps traded/free-agent players visible.
         try:
             relevant_game_ids = [
-                game["gameId"] for game in get_cached_scoreboard(league_id)
+                game["gameId"]
+                for game in get_cached_scoreboard(league_id)
+                if game["gameStatus"] >= 2
             ]
         except Exception as ex:
             log_exceptions(ex, "player_tracker_scoreboard")
@@ -192,8 +159,6 @@ async def get_player_stats(
         def fetch_player_boxscore(game_id):  # pragma: no cover
             try:
                 return get_cached_live_boxscore(game_id, league_id=league_id)
-            except json.JSONDecodeError:
-                return None
             except Exception as ex:
                 log_exceptions(ex, f"game_id={game_id}")
                 return None
@@ -268,7 +233,7 @@ async def get_player_stats(
 @router.get("/api/games/{game_id}/players")
 @route_error_handler("Failed to fetch game players")
 async def get_game_players(
-    game_id: str = Path(..., pattern=r"^(?:00[1245]|10[0-9])\d{7}$"),
+    game_id: str = Path(..., pattern=r"^(?:00[1-6]|10[0-9])\d{7}$"),
 ):
     """Get all player stats for a specific game with advanced metrics"""
     cache_key = f"game_players_{game_id}"
@@ -454,41 +419,39 @@ def _game_players_from_live(game_id: str, league_id: str = "00") -> dict:
 def _game_players_from_v3(game_id: str) -> dict:
     """Build the game-players response from BoxScoreTraditionalV3 (fallback for
     finished games no longer served by the live CDN)."""
-    box = get_cached_boxscore_v3(game_id).get_dict()["boxScoreTraditional"]
+    box = get_cached_boxscore_v3(game_id)
 
-    teams = []
+    teams_by_id: dict = {}
     all_active = []
 
-    for team_key in ["homeTeam", "awayTeam"]:
-        team = box[team_key]
-        tricode = team["teamTricode"]
-        team_data = {
-            "name": f"{team['teamCity']} {team['teamName']}",
-            "tricode": tricode,
-            "score": team["statistics"]["points"],
-            "periods": [],
-            "players": [],
-        }
-
-        for player in team["players"]:
-            stats = player["statistics"]
-            minutes = stats.get("minutes") or ""
-            if not minutes or minutes == "0:00":
-                continue
-            name = fix_encoding(
-                f"{player.get('firstName', '')} {player.get('familyName', '')}".strip()
-            )
-            player_row, perf_entry = _player_box_entry(
-                player["personId"], name, minutes, stats, tricode
-            )
-            team_data["players"].append(player_row)
-            all_active.append(perf_entry)
-
-        team_data["players"].sort(
-            key=lambda x: parse_minutes(x["minutes"]),
-            reverse=True,
+    for row in box["data"]:
+        stats = dict(zip(box["headers"], row))
+        team = teams_by_id.setdefault(
+            stats["teamId"],
+            {
+                "name": f"{stats['teamCity']} {stats['teamName']}",
+                "tricode": stats["teamTricode"],
+                "score": 0,
+                "periods": [],
+                "players": [],
+            },
         )
-        teams.append(team_data)
+        team["score"] += stats["points"] or 0
+        minutes = stats["minutes"] or ""
+        if not minutes or minutes == "0:00":
+            continue
+        name = fix_encoding(
+            f"{stats['firstName'] or ''} {stats['familyName'] or ''}".strip()
+        )
+        player_row, perf_entry = _player_box_entry(
+            stats["personId"], name, minutes, stats, team["tricode"]
+        )
+        team["players"].append(player_row)
+        all_active.append(perf_entry)
+
+    teams = list(teams_by_id.values())
+    for team in teams:
+        team["players"].sort(key=lambda x: parse_minutes(x["minutes"]), reverse=True)
 
     return _finalize_game_players(game_id, "Final", teams, all_active)
 
@@ -553,11 +516,10 @@ async def get_last_n_games_stats(
         def fetch_game_stats(gg):
             try:
                 csp = get_cached_boxscore_v3(gg[1])
-                player_stats_dict = {
-                    x[BS_PLAYER_ID]: x for x in csp.player_stats.get_dict()["data"]
-                }
-                ss = player_stats_dict.get(player_id)
-                matchup_display = _derive_matchup_display(gg, csp)
+                ss = next(
+                    (x for x in csp["data"] if x[BS_PLAYER_ID] == player_id), None
+                )
+                matchup_display = _derive_matchup_display(gg)
 
                 if ss is not None and ss[BS_MINUTES] != "":
                     return {
@@ -592,7 +554,7 @@ async def get_last_n_games_stats(
             "playerName": player_name,
             "games": games,
             "playoffGames": actual_playoff,
-        }
+        }, len(games) == len(results)
 
     result = await asyncio.to_thread(_sync)
     if result is _not_found:
@@ -601,8 +563,27 @@ async def get_last_n_games_stats(
         raise HTTPException(
             status_code=503, detail="Player game data temporarily unavailable"
         )
-    cache.set(cache_key, result, CACHE_TTL["season_leaders"])
+    result, complete = result
+    if complete:
+        cache.set(cache_key, result, CACHE_TTL["season_leaders"])
     return result
+
+
+def _career_regular_season(player_id: int, league_id: str) -> dict:
+    """PlayerCareerStats regular-season totals, shared by season-avg and profile."""
+    cache_key = f"raw_career_{league_id}_{player_id}"
+    with cache.lock(cache_key):
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        career = call_stats(
+            playercareerstats.PlayerCareerStats,
+            player_id=player_id,
+            league_id_nullable=league_id,
+        )
+        data = career.season_totals_regular_season.get_dict()
+        cache.set(cache_key, data, CACHE_TTL["season_leaders"])
+        return data
 
 
 @router.get("/api/players/{player_id}/season-avg")
@@ -622,12 +603,7 @@ async def get_player_season_avg(
     _no_data = object()
 
     def _sync():
-        career = call_stats(
-            playercareerstats.PlayerCareerStats,
-            player_id=player_id,
-            league_id_nullable=league_id,
-        )
-        season_data = career.season_totals_regular_season.get_dict()
+        season_data = _career_regular_season(player_id, league_id)
         headers = season_data["headers"]
         rows = season_data["data"]
 
@@ -729,12 +705,7 @@ async def get_player_profile(
         }
 
     def _fetch_career():
-        career = call_stats(
-            playercareerstats.PlayerCareerStats,
-            player_id=player_id,
-            league_id_nullable=league_id,
-        )
-        season_dict = career.season_totals_regular_season.get_dict()
+        season_dict = _career_regular_season(player_id, league_id)
         sh = {k: i for i, k in enumerate(season_dict["headers"])}
         career_rows = []
         for row in season_dict["data"]:
@@ -760,16 +731,19 @@ async def get_player_profile(
         return career_rows
 
     def _sync():
+        complete = True
         try:
             bio = _fetch_bio()
         except Exception as ex:
             log_exceptions(ex, f"profile_bio player_id={player_id}")
             bio = None
+            complete = False
         try:
             career = _fetch_career()
         except Exception as ex:
             log_exceptions(ex, f"profile_career player_id={player_id}")
             career = []
+            complete = False
 
         if bio is None and not career:
             return _not_found
@@ -778,10 +752,12 @@ async def get_player_profile(
             "playerId": player_id,
             "bio": bio or {},
             "career": career,
-        }
+        }, complete
 
     result = await asyncio.to_thread(_sync)
     if result is _not_found:
         raise HTTPException(status_code=404, detail="Player not found")
-    cache.set(cache_key, result, CACHE_TTL["season_leaders"])
+    result, complete = result
+    if complete:
+        cache.set(cache_key, result, CACHE_TTL["season_leaders"])
     return result

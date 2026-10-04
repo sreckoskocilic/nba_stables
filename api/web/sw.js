@@ -41,12 +41,12 @@ self.addEventListener('fetch', (event) => {
       .then((response) => {
         if (response.ok && isShellAsset) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          caches.open(CACHE_NAME).then((cache) => cache.put(reqPath, clone));
         }
         return response;
       })
       .catch(async () => {
-        const cached = await caches.match(event.request);
+        const cached = await caches.match(isShellAsset ? reqPath : event.request);
         if (cached) return cached;
         if (event.request.mode === 'navigate') {
           return (

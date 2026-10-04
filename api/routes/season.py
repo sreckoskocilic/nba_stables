@@ -113,7 +113,7 @@ async def get_season_doubles(
     season: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
     league: str = Query(default="nba"),
 ):
-    """Get top 10 players by double-doubles and triple-doubles this season"""
+    """Get top 30 double-double and top 20 triple-double players this season"""
     league_id = "10" if league == "wnba" else "00"
     current_season = (
         get_wnba_current_season() if league_id == "10" else get_current_season()

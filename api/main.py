@@ -8,6 +8,7 @@ import logging
 import logging.config
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -49,9 +50,15 @@ class TimingMiddleware(BaseHTTPMiddleware):
         return response
 
 
+_TO_THREAD_WORKERS = 32
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting NBA Stables API...")
+    asyncio.get_running_loop().set_default_executor(
+        ThreadPoolExecutor(max_workers=_TO_THREAD_WORKERS, thread_name_prefix="sync")
+    )
     workers = _common._DEFAULT_WORKERS
     if workers > 100:
         logger.warning("EXECUTOR_WORKERS=%d is above the maximum 100", workers)
@@ -123,13 +130,7 @@ async def serve_service_worker():  # pragma: no cover
     directory, so /web/sw.js could never control the app served at /."""
     sw_path = os.path.join(static_dir, "sw.js")
     if os.path.exists(sw_path):
-        return FileResponse(
-            sw_path,
-            media_type="application/javascript",
-            # Always revalidate: a cached worker script keeps serving its old
-            # version, so a fix here would never reach an existing install.
-            headers={"Cache-Control": "no-cache"},
-        )
+        return FileResponse(sw_path, media_type="application/javascript")
     raise HTTPException(status_code=404, detail="Service worker not found")
 
 

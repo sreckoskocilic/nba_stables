@@ -26,7 +26,8 @@ on:
 jobs:
   run-tests:
     uses: ./.github/workflows/tests.yml
-    secrets: inherit
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   deploy:
     name: Deploy Application
@@ -44,7 +45,8 @@ jobs:
           script: |
             set -exuo pipefail
             cd /opt/nba_stables
-            git pull origin main
+            git fetch origin main
+            git reset --hard ${{ github.sha }}
             find . -depth \( -type f -name "*.py[co]" -o -type d -name "__pycache__" \) -delete || true
             docker compose --profile prod build --pull
             docker compose --profile prod up -d --wait

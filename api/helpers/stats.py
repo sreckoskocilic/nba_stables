@@ -1,6 +1,7 @@
 import re
 import threading
 import time
+import unicodedata
 from datetime import date, datetime, timedelta
 from functools import lru_cache
 from typing import Any
@@ -9,9 +10,6 @@ from zoneinfo import ZoneInfo
 import requests
 from curl_cffi import requests as curl_requests
 from nba_api.library.http import NBAHTTP
-from nba_api.live.nba.endpoints import boxscore as live_boxscore
-from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
-from nba_api.live.nba.library.http import NBALiveHTTP
 from nba_api.stats.endpoints import (
     boxscoretraditionalv3,
     commonallplayers,
@@ -41,9 +39,6 @@ from helpers.common import (
     cache,
 )
 from helpers.logger import log_exceptions
-
-# CDN now requires Referer header (returns 403 without it)
-NBALiveHTTP.headers["Referer"] = "https://www.nba.com/"
 
 
 def _reset_nba_stats_http_session() -> None:
@@ -243,11 +238,17 @@ _players_cache: dict[str, list] = {}
 _players_dict_cache: dict[str, dict] = {}
 _players_cache_lower: dict[str, list] = {}
 _players_cache_expires: dict[str, float] = {}
-_players_lock = threading.Lock()
+_players_locks = {"00": threading.Lock(), "10": threading.Lock()}
+
+
+def fold_name(s: str) -> str:
+    """Lowercase and strip diacritics, so 'jokic' matches 'Nikola Jokić'."""
+    decomposed = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
 
 
 def _fetch_players(league_id: str = "00") -> list:
-    """Fetch active players with their current team IDs from the NBA stats API."""
+    """Fetch active players as [person_id, name] from the NBA stats API."""
     try:
         is_current = 0 if league_id == "10" else 1
         cap = call_stats(
@@ -281,7 +282,7 @@ def _fetch_players(league_id: str = "00") -> list:
 
 def load_players_file(league_id: str = "00") -> list:  # pragma: no cover
     """Return cached list of active players fetched from the NBA stats API."""
-    with _players_lock:
+    with _players_locks[league_id]:
         if league_id in _players_cache and time.time() < _players_cache_expires.get(
             league_id, 0
         ):
@@ -293,7 +294,7 @@ def load_players_file(league_id: str = "00") -> list:  # pragma: no cover
                 p[0]: p for p in _players_cache[league_id]
             }
             _players_cache_lower[league_id] = [
-                (p, p[1].lower()) for p in _players_cache[league_id]
+                (p, fold_name(p[1])) for p in _players_cache[league_id]
             ]
             _players_cache_expires[league_id] = time.time() + CACHE_TTL["players"]
         except Exception as ex:
@@ -321,13 +322,14 @@ def load_players_with_lower(league_id: str = "00") -> list:
     return _players_cache_lower.get(league_id, [])
 
 
-_WNBA_LIVE_BASE = "https://cdn.wnba.com/static/json/liveData"
+_LIVE_HOSTS = {"00": "https://cdn.nba.com", "10": "https://cdn.wnba.com"}
 
 
-def _fetch_wnba_live_json(path: str) -> Any:  # pragma: no cover
+def _fetch_live_json(league_id: str, path: str) -> Any:  # pragma: no cover
     r = curl_requests.get(
-        f"{_WNBA_LIVE_BASE}/{path}",
+        f"{_LIVE_HOSTS[league_id]}/static/json/liveData/{path}",
         impersonate="chrome",
+        headers={"Referer": "https://www.nba.com/"},
         timeout=STATS_TIMEOUT,
         proxies=({"https": STATS_PROXY, "http": STATS_PROXY} if STATS_PROXY else None),
     )
@@ -335,77 +337,47 @@ def _fetch_wnba_live_json(path: str) -> Any:  # pragma: no cover
     return r.json()
 
 
-def _fetch_wnba_live_scoreboard() -> list:  # pragma: no cover
-    data = _fetch_wnba_live_json("scoreboard/todaysScoreboard_10.json")
-    return data["scoreboard"]["games"]
-
-
 def get_cached_scoreboard(league_id: str = "00") -> Any:
-    """Return cached live ScoreBoard().games.data."""
+    """Return the cached live scoreboard games list."""
     sb_key = f"raw_scoreboard_{league_id}_{scoreboard_date().isoformat()}"
-    cached = cache.get(sb_key)
-    if cached is not None:
-        return cached
-    try:
-        if league_id == "10":
-            data = with_retry(_fetch_wnba_live_scoreboard)
-        else:
-
-            def _fetch():
-                sb = live_scoreboard.ScoreBoard(
-                    proxy=STATS_PROXY, timeout=STATS_TIMEOUT, get_request=False
-                )
-                sb.endpoint_url = f"scoreboard/todaysScoreboard_{league_id}.json"
-                sb.get_request()
-                return sb.games.data
-
-            data = with_retry(_fetch)
-    except Exception:
-        _reset_nba_stats_http_session()
-        raise
-    _reset_nba_stats_http_session()
-    cache.set(sb_key, data, CACHE_TTL["scoreboard"])
-    return data
-
-
-def _fetch_wnba_live_boxscore(game_id: str) -> dict:  # pragma: no cover
-    return _fetch_wnba_live_json(f"boxscore/boxscore_{game_id}.json")
+    with cache.lock(sb_key):
+        cached = cache.get(sb_key)
+        if cached is not None:
+            return cached
+        data = with_retry(
+            lambda: _fetch_live_json(
+                league_id, f"scoreboard/todaysScoreboard_{league_id}.json"
+            )
+        )["scoreboard"]["games"]
+        cache.set(sb_key, data, CACHE_TTL["scoreboard"])
+        return data
 
 
 def get_cached_live_boxscore(
     game_id: str,
     league_id: str = "00",
-) -> dict | None:
-    """Return a cached live BoxScore response dict for the given game_id."""
+) -> dict:
+    """Return a cached live boxscore dict for the given game_id."""
     cache_key = f"raw_live_boxscore_{game_id}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
-    try:
-        if league_id == "10":
-            data = with_retry(lambda: _fetch_wnba_live_boxscore(game_id))
-        else:
-            data = with_retry(
-                lambda: live_boxscore.BoxScore(
-                    game_id=game_id, proxy=STATS_PROXY, timeout=STATS_TIMEOUT
-                ).get_dict(),
-            )
-    except Exception:
-        _reset_nba_stats_http_session()
-        raise
-    _reset_nba_stats_http_session()
-    status = data.get("game", {}).get("gameStatusText", "")
-    ttl = (
-        CACHE_TTL["historical"]
-        if status.startswith("Final")
-        else CACHE_TTL["boxscores"]
-    )
-    cache.set(cache_key, data, ttl)
-    return data
+    with cache.lock(cache_key):
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        data = with_retry(
+            lambda: _fetch_live_json(league_id, f"boxscore/boxscore_{game_id}.json")
+        )
+        status = data.get("game", {}).get("gameStatusText", "")
+        ttl = (
+            CACHE_TTL["historical"]
+            if status.startswith("Final")
+            else CACHE_TTL["boxscores"]
+        )
+        cache.set(cache_key, data, ttl)
+        return data
 
 
-def get_cached_scoreboard_v3(days_offset: int = 1, league_id: str = "00") -> Any:
-    """Return a cached ScoreboardV3 object for the given days_offset."""
+def get_cached_scoreboard_v3(days_offset: int = 1, league_id: str = "00") -> dict:
+    """Return cached ScoreboardV3 rows for the given days_offset."""
     target_date = _today_et() - timedelta(days=days_offset)
     return get_scoreboard_v3_by_date(
         target_date, historical=days_offset >= 1, league_id=league_id
@@ -414,20 +386,28 @@ def get_cached_scoreboard_v3(days_offset: int = 1, league_id: str = "00") -> Any
 
 def get_scoreboard_v3_by_date(
     game_date: date, historical: bool = False, league_id: str = "00"
-) -> Any:
-    """Return a cached ScoreboardV3 object for a specific date."""
+) -> dict:
+    """Return cached ScoreboardV3 rows for a specific date, keyed by dataset name
+    (game_header, line_score, game_leaders)."""
     date_str = game_date.strftime("%Y-%m-%d")
     # historical belongs in the key: between ~06:00 and 13:00 CET both callers
     # resolve to the same ET date with different TTLs, and whichever misses
     # first would otherwise pin its TTL on the other.
     cache_key = f"raw_scoreboard_v3_{league_id}_{date_str}_{int(historical)}"
-    cached = cache.get(cache_key)
-    if cached is not None:  # pragma: no cover
-        return cached
-    sb = call_stats(scoreboardv3.ScoreboardV3, game_date=date_str, league_id=league_id)
-    ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["scoreboard"]
-    cache.set(cache_key, sb, ttl)
-    return sb
+    with cache.lock(cache_key):
+        cached = cache.get(cache_key)
+        if cached is not None:  # pragma: no cover
+            return cached
+        endpoint = call_stats(
+            scoreboardv3.ScoreboardV3, game_date=date_str, league_id=league_id
+        )
+        sb = {
+            name: getattr(endpoint, name).get_dict()["data"]
+            for name in ("game_header", "line_score", "game_leaders")
+        }
+        ttl = CACHE_TTL["historical"] if historical else CACHE_TTL["scoreboard"]
+        cache.set(cache_key, sb, ttl)
+        return sb
 
 
 # Compact leaders list indices (from get_games_leaders_list: [name, pts, reb, ast, team_id])
@@ -465,56 +445,54 @@ def find_category_leaders(
 
 def get_games_list(days_offset: int = 1, league_id: str = "00") -> list:
     """Get list of game IDs for a given date offset"""
-    g_set = set()
-    try:
-        sb = get_cached_scoreboard_v3(days_offset, league_id=league_id)
-        games = sb.game_header.get_dict()
-        for g in games["data"]:
-            if g[GH_GAME_STATUS] > STATUS_SCHEDULED:
-                g_set.add(g[GH_GAME_ID])
-    except Exception as ex:
-        log_exceptions(ex)
-    return list(g_set)
+    sb = get_cached_scoreboard_v3(days_offset, league_id=league_id)
+    return list(
+        {
+            g[GH_GAME_ID]
+            for g in sb["game_header"]
+            if g[GH_GAME_STATUS] > STATUS_SCHEDULED
+        }
+    )
 
 
 def get_games_leaders_list(days_offset: int = 1, league_id: str = "00") -> dict:
     """Get games with their leaders"""
-    g_dict = {}
-    try:
-        sb = get_cached_scoreboard_v3(days_offset, league_id=league_id)
-        games = sb.game_header.get_dict()
-        leaders = sb.game_leaders.get_dict()
-
-        for g in games["data"]:
-            if g[GH_GAME_STATUS] > STATUS_SCHEDULED:
-                g_dict[g[GH_GAME_ID]] = []
-
-        for ld in leaders["data"]:
-            game_id = ld[GL_GAME_ID]
-            if game_id in g_dict:
-                g_dict[game_id].append(
-                    [
-                        fix_encoding(ld[GL_PLAYER_NAME]),
-                        ld[GL_PTS],
-                        ld[GL_REB],
-                        ld[GL_AST],
-                        ld[GL_TEAM_ID],
-                    ]
-                )
-    except Exception as ex:
-        log_exceptions(ex)
+    sb = get_cached_scoreboard_v3(days_offset, league_id=league_id)
+    g_dict = {
+        g[GH_GAME_ID]: []
+        for g in sb["game_header"]
+        if g[GH_GAME_STATUS] > STATUS_SCHEDULED
+    }
+    for ld in sb["game_leaders"]:
+        game_id = ld[GL_GAME_ID]
+        if game_id in g_dict:
+            g_dict[game_id].append(
+                [
+                    fix_encoding(ld[GL_PLAYER_NAME]),
+                    ld[GL_PTS],
+                    ld[GL_REB],
+                    ld[GL_AST],
+                    ld[GL_TEAM_ID],
+                ]
+            )
     return g_dict
 
 
-def get_cached_boxscore_v3(game_id: str) -> Any:
-    """Return a cached BoxScoreTraditionalV3 response for the given game_id."""
+def get_cached_boxscore_v3(game_id: str) -> dict:
+    """Return cached BoxScoreTraditionalV3 player stats ({headers, data}) for a game.
+
+    Rows list home-team players first, then away-team players.
+    """
     cache_key = f"raw_boxscore_{game_id}"
-    cached = cache.get(cache_key)
-    if cached is not None:  # pragma: no cover
-        return cached
-    bs_stats = call_stats(boxscoretraditionalv3.BoxScoreTraditionalV3, game_id=game_id)
-    cache.set(cache_key, bs_stats, CACHE_TTL["historical"])
-    return bs_stats
+    with cache.lock(cache_key):
+        cached = cache.get(cache_key)
+        if cached is not None:  # pragma: no cover
+            return cached
+        bs_stats = call_stats(
+            boxscoretraditionalv3.BoxScoreTraditionalV3, game_id=game_id
+        ).player_stats.get_dict()
+        cache.set(cache_key, bs_stats, CACHE_TTL["historical"])
+        return bs_stats
 
 
 def fetch_single_boxscore(

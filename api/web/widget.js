@@ -90,6 +90,7 @@ async function loadStats() {
         const ids = tracked.map(p => p.id).join(",");
         const r = await fetch(`/api/players/stats?ids=${ids}${_leagueP()}`);
         const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || "Failed to load stats");
         if (!data.players.length) {
             $content.innerHTML = `<div class="empty"><div class="empty-icon">&#128564;</div><div class="empty-title">No Active Games</div><p>Selected players don't have games in progress</p></div>`;
             $status.textContent = "No games";

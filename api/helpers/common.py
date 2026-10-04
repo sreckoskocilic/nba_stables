@@ -2,7 +2,9 @@ import atexit
 import os
 import threading
 import time
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from typing import Any
 
 CACHE_TTL = {
@@ -23,11 +25,14 @@ CACHE_TTL = {
 class SimpleCache:
     _DEFAULT_MAXSIZE = 2000
     _EVICT_INTERVAL = 60
+    _KEY_LOCK_STRIPES = 64
+    _KEY_LOCK_WAIT = 10
 
     def __init__(self, maxsize: int = _DEFAULT_MAXSIZE):
         self._cache: dict[str, dict[str, Any]] = {}
         self._lock = threading.Lock()
         self._maxsize = maxsize
+        self._key_locks = [threading.Lock() for _ in range(self._KEY_LOCK_STRIPES)]
         self._evict_thread = threading.Thread(target=self._evict_loop, daemon=True)
         self._evict_thread.start()
 
@@ -67,6 +72,21 @@ class SimpleCache:
         expired_keys = [k for k, v in self._cache.items() if v["expires"] <= now]
         for key in expired_keys:
             self._cache.pop(key, None)
+
+    @contextmanager
+    def lock(self, key: str) -> Iterator[None]:
+        """Serialise fetch-and-set for `key`, so concurrent misses fetch once.
+
+        Waits at most _KEY_LOCK_WAIT seconds, then proceeds unlocked: a hung
+        upstream must not queue every waiter behind the holder's retries.
+        """
+        stripe = self._key_locks[hash(key) % self._KEY_LOCK_STRIPES]
+        acquired = stripe.acquire(timeout=self._KEY_LOCK_WAIT)
+        try:
+            yield
+        finally:
+            if acquired:
+                stripe.release()
 
     def clear(self):
         with self._lock:

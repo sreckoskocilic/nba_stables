@@ -266,13 +266,11 @@ def make_live_boxscore(game_id=GAME_ID, status="Final"):
 
 
 def make_scoreboard_v3(games=None):
-    """Build a mock ScoreboardV3 object from a list of live game dicts.
+    """Build cached ScoreboardV3 rows from a list of live game dicts.
 
     Translates make_live_game()-style dicts into the V3 data format
     so tests can mock get_scoreboard_v3_by_date with familiar data.
     """
-    from unittest.mock import MagicMock
-
     if games is None:
         games = []
 
@@ -365,11 +363,11 @@ def make_scoreboard_v3(games=None):
                 ]
             )
 
-    sb = MagicMock()
-    sb.game_header.get_dict.return_value = {"data": header_data}
-    sb.line_score.get_dict.return_value = {"data": line_score_data}
-    sb.game_leaders.get_dict.return_value = {"data": leaders_data}
-    return sb
+    return {
+        "game_header": header_data,
+        "line_score": line_score_data,
+        "game_leaders": leaders_data,
+    }
 
 
 def make_standings_row(rank, city, name, conf, wins, losses, team_id=1610612738):
@@ -437,90 +435,61 @@ def _make_v3_player_stats(**kw):
     return stats
 
 
-def make_v3_boxscore(game_id=WNBA_GAME_ID):
-    m = MagicMock()
-    m.get_dict.return_value = {
-        "boxScoreTraditional": {
-            "gameId": game_id,
-            "homeTeam": {
-                "teamId": WNBA_TEAM_ID_NYL,
-                "teamCity": "New York",
-                "teamName": "Liberty",
-                "teamTricode": "NYL",
-                "statistics": {
-                    "points": 85,
-                    "fieldGoalsMade": 30,
-                    "fieldGoalsAttempted": 65,
-                    "threePointersMade": 8,
-                    "threePointersAttempted": 20,
-                    "freeThrowsMade": 17,
-                    "freeThrowsAttempted": 20,
-                    "reboundsTotal": 35,
-                    "reboundsOffensive": 8,
-                    "assists": 20,
-                    "steals": 7,
-                    "blocks": 4,
-                    "turnovers": 12,
-                    "foulsPersonal": 18,
-                    "freeThrowsPercentage": 0.85,
-                    "fieldGoalsPercentage": 0.462,
-                    "threePointersPercentage": 0.4,
-                },
-                "players": [
-                    {
-                        "personId": 100001,
-                        "name": None,
-                        "firstName": "Sabrina",
-                        "familyName": "Ionescu",
-                        "status": "ACTIVE",
-                        "statistics": _make_v3_player_stats(points=25, assists=8),
-                    },
-                ],
-            },
-            "awayTeam": {
-                "teamId": WNBA_TEAM_ID_LVA,
-                "teamCity": "Las Vegas",
-                "teamName": "Aces",
-                "teamTricode": "LVA",
-                "statistics": {
-                    "points": 80,
-                    "fieldGoalsMade": 28,
-                    "fieldGoalsAttempted": 62,
-                    "threePointersMade": 6,
-                    "threePointersAttempted": 18,
-                    "freeThrowsMade": 18,
-                    "freeThrowsAttempted": 22,
-                    "reboundsTotal": 32,
-                    "reboundsOffensive": 6,
-                    "assists": 18,
-                    "steals": 5,
-                    "blocks": 3,
-                    "turnovers": 14,
-                    "foulsPersonal": 20,
-                    "freeThrowsPercentage": 0.818,
-                    "fieldGoalsPercentage": 0.452,
-                    "threePointersPercentage": 0.333,
-                },
-                "players": [
-                    {
-                        "personId": 100002,
-                        "name": None,
-                        "firstName": "A'ja",
-                        "familyName": "Wilson",
-                        "status": "ACTIVE",
-                        "statistics": _make_v3_player_stats(
-                            points=30,
-                            reboundsTotal=12,
-                            reboundsOffensive=3,
-                            reboundsDefensive=9,
-                            assists=3,
-                        ),
-                    },
-                ],
-            },
-        }
+V3_PLAYER_STATS_HEADERS = (
+    "gameId",
+    "teamId",
+    "teamCity",
+    "teamName",
+    "teamTricode",
+    "personId",
+    "firstName",
+    "familyName",
+    *_make_v3_player_stats(),
+)
+
+
+def make_v3_player_row(game_id, team, person_id, first, last, **stats):
+    team_id, city, name, tricode = team
+    values = {
+        "gameId": game_id,
+        "teamId": team_id,
+        "teamCity": city,
+        "teamName": name,
+        "teamTricode": tricode,
+        "personId": person_id,
+        "firstName": first,
+        "familyName": last,
+        **_make_v3_player_stats(**stats),
     }
-    return m
+    return [values[h] for h in V3_PLAYER_STATS_HEADERS]
+
+
+WNBA_NYL = (WNBA_TEAM_ID_NYL, "New York", "Liberty", "NYL")
+WNBA_LVA = (WNBA_TEAM_ID_LVA, "Las Vegas", "Aces", "LVA")
+
+
+def make_v3_boxscore(game_id=WNBA_GAME_ID):
+    """Cached BoxScoreTraditionalV3 player stats: home rows first, then away."""
+    return {
+        "headers": V3_PLAYER_STATS_HEADERS,
+        "data": [
+            make_v3_player_row(
+                game_id, WNBA_NYL, 100001, "Sabrina", "Ionescu", points=25, assists=8
+            ),
+            make_v3_player_row(
+                game_id,
+                WNBA_LVA,
+                100002,
+                "A'ja",
+                "Wilson",
+                points=30,
+                reboundsTotal=12,
+                reboundsOffensive=3,
+                reboundsDefensive=9,
+                assists=3,
+            ),
+        ],
+    }
 
 
 def make_wnba_live_boxscore(game_id=WNBA_GAME_ID, status="Final"):
