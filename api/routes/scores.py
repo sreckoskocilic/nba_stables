@@ -66,6 +66,7 @@ from helpers.stats import (
     get_games_list,
     get_scoreboard_v3_by_date,
     get_wnba_current_season,
+    live_status_text,
     scoreboard_date,
 )
 
@@ -226,7 +227,7 @@ def _scoreboard_from_live(raw_games) -> list[dict]:
         home_leaders = game["gameLeaders"]["homeLeaders"]
         away_leaders = game["gameLeaders"]["awayLeaders"]
 
-        status_text = game["gameStatusText"]
+        status_text = live_status_text(game)
         if ET_SUFFIX in status_text:
             status_text = convert_et_to_cet(status_text)
 

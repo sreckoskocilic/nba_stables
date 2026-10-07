@@ -156,6 +156,21 @@ def parse_iso_minutes(iso_str: str) -> str:
         return "0:00"
 
 
+def live_status_text(game: dict) -> str:
+    """Status line for a live-API game; while the clock runs, period + clock
+    (e.g. 'Q2 5:30', 'OT1 2:15') — the CDN's own text has no clock."""
+    text = game["gameStatusText"].strip()
+    clock = game.get("gameClock") or ""
+    if game.get("gameStatus") != 2 or not clock:
+        return text
+    remaining = parse_iso_minutes(clock)
+    if remaining == "0:00":
+        return text
+    period = game.get("period") or 0
+    label = f"Q{period}" if period <= 4 else f"OT{period - 4}"
+    return f"{label} {remaining}"
+
+
 def parse_minutes(mm_ss: str) -> tuple[int, int]:
     """Parse 'MM:SS' string to (minutes, seconds) tuple for sorting."""
     try:

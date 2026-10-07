@@ -44,6 +44,7 @@ from helpers.stats import (
     get_cached_scoreboard,
     get_current_season,
     get_wnba_current_season,
+    live_status_text,
     load_players_dict,
     load_players_with_lower,
     parse_iso_minutes,
@@ -407,7 +408,7 @@ def _game_players_from_live(game_id: str, league_id: str = "00") -> dict:
 
     return _finalize_game_players(
         game_id,
-        game["gameStatusText"],
+        live_status_text(game),
         teams,
         all_active,
         arena=arena,

@@ -17,6 +17,7 @@ from helpers.stats import (
     get_display_date,
     get_games_leaders_list,
     get_games_list,
+    live_status_text,
     parse_iso_minutes,
     reformat_player_minutes,
 )
@@ -72,6 +73,35 @@ class TestParseIsoMinutes:
 
     def test_empty_returns_zero(self):
         assert parse_iso_minutes("") == "0:00"
+
+
+class TestLiveStatusText:
+    @staticmethod
+    def _game(status=2, text="2nd Qtr             ", period=2, clock="PT05M30.00S"):
+        return {
+            "gameStatus": status,
+            "gameStatusText": text,
+            "period": period,
+            "gameClock": clock,
+        }
+
+    def test_running_clock_shows_period_and_time(self):
+        assert live_status_text(self._game()) == "Q2 5:30"
+
+    def test_overtime_period(self):
+        game = self._game(text="OT 1", period=5, clock="PT02M15.00S")
+        assert live_status_text(game) == "OT1 2:15"
+
+    def test_halftime_keeps_stripped_text(self):
+        game = self._game(text="Halftime            ", clock="PT00M00.00S")
+        assert live_status_text(game) == "Halftime"
+
+    def test_missing_clock_keeps_text(self):
+        assert live_status_text(self._game(clock="")) == "2nd Qtr"
+
+    def test_not_in_progress_keeps_text(self):
+        game = self._game(status=3, text="Final", period=4, clock="PT00M00.00S")
+        assert live_status_text(game) == "Final"
 
 
 class TestFixEncoding:
