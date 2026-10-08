@@ -15,7 +15,6 @@ from conftest import (
     make_live_boxscore,
     make_live_game,
     make_live_player,
-    make_live_player_stats,
     make_standings_row,
 )
 from helpers.common import CACHE_TTL
@@ -31,14 +30,14 @@ def client():
 class TestCacheHits:
     def test_boxscores_served_from_cache(self, client):
         with patch("routes.scores.get_games_leaders_list", return_value={}) as mock:
-            client.get("/api/boxscores?days_offset=1")
-            client.get("/api/boxscores?days_offset=1")
+            client.get("/api/boxscores?days_offset=2")
+            client.get("/api/boxscores?days_offset=2")
         mock.assert_called_once()
 
     def test_leaders_served_from_cache(self, client):
         with patch("routes.scores.get_games_list", return_value=[]) as mock:
-            client.get("/api/leaders?days_offset=1")
-            client.get("/api/leaders?days_offset=1")
+            client.get("/api/leaders?days_offset=2")
+            client.get("/api/leaders?days_offset=2")
         mock.assert_called_once()
 
     def test_standings_served_from_cache(self, client):
@@ -106,8 +105,8 @@ class TestCacheHits:
         mock.assert_called_once()
 
 
-class TestPlayerStatsAdvancedFields:
-    def test_player_stats_shape_includes_advanced_fields(self, client):
+class TestPlayerStatsFields:
+    def test_player_stats_shape(self, client):
         with (
             patch(
                 "routes.players.load_players_dict",
@@ -128,102 +127,18 @@ class TestPlayerStatsAdvancedFields:
             "id",
             "name",
             "team",
+            "minutes",
             "points",
+            "fg",
+            "threePointers",
+            "ft",
             "rebounds",
             "assists",
-            "fg",
-            "fgPct",
-            "ft",
-            "ftPct",
-            "isDoubleDouble",
-            "isTripleDouble",
+            "blocks",
+            "steals",
+            "fouls",
         ):
             assert key in p
-
-    def test_double_double_flagged(self, client):
-        stats = make_live_player_stats(points=20, reboundsTotal=10)
-        player = {
-            "personId": PLAYER_ID,
-            "name": "LeBron James",
-            "status": "ACTIVE",
-            "statistics": stats,
-        }
-        bs = {
-            "game": {
-                "gameStatusText": "Final",
-                "homeTeam": {
-                    "teamCity": "LA",
-                    "teamName": "Lakers",
-                    "teamTricode": "LAL",
-                    "teamId": TEAM_ID_LAL,
-                    "score": 110,
-                    "players": [player],
-                },
-                "awayTeam": {
-                    "teamCity": "BOS",
-                    "teamName": "Celtics",
-                    "teamTricode": "BOS",
-                    "teamId": TEAM_ID_BOS,
-                    "score": 100,
-                    "players": [],
-                },
-            }
-        }
-        with (
-            patch(
-                "routes.players.load_players_dict",
-                return_value={p[0]: p for p in FAKE_PLAYERS},
-            ),
-            patch(
-                "routes.players.get_cached_scoreboard", return_value=[make_live_game()]
-            ),
-            patch("routes.players.get_cached_live_boxscore", return_value=bs),
-        ):
-            r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
-        assert r.json()["players"][0]["isDoubleDouble"] is True
-        assert r.json()["players"][0]["isTripleDouble"] is False
-
-    def test_triple_double_flagged(self, client):
-        stats = make_live_player_stats(points=20, reboundsTotal=10, assists=10)
-        player = {
-            "personId": PLAYER_ID,
-            "name": "LeBron James",
-            "status": "ACTIVE",
-            "statistics": stats,
-        }
-        bs = {
-            "game": {
-                "gameStatusText": "Final",
-                "homeTeam": {
-                    "teamCity": "LA",
-                    "teamName": "Lakers",
-                    "teamTricode": "LAL",
-                    "teamId": TEAM_ID_LAL,
-                    "score": 110,
-                    "players": [player],
-                },
-                "awayTeam": {
-                    "teamCity": "BOS",
-                    "teamName": "Celtics",
-                    "teamTricode": "BOS",
-                    "teamId": TEAM_ID_BOS,
-                    "score": 100,
-                    "players": [],
-                },
-            }
-        }
-        with (
-            patch(
-                "routes.players.load_players_dict",
-                return_value={p[0]: p for p in FAKE_PLAYERS},
-            ),
-            patch(
-                "routes.players.get_cached_scoreboard", return_value=[make_live_game()]
-            ),
-            patch("routes.players.get_cached_live_boxscore", return_value=bs),
-        ):
-            r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
-        assert r.json()["players"][0]["isTripleDouble"] is True
 
 
 class TestPlayoffs:
@@ -856,11 +771,34 @@ class TestScoresErrorHandlers:
             patch(
                 "routes.scores.get_scoreboard_v3_by_date", side_effect=Exception("boom")
             ),
+            patch("routes.scores.get_cached_scoreboard", side_effect=Exception("boom")),
             patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7)),
+            patch("routes.scores.log_exceptions"),
             patch("helpers.decorators.log_exceptions"),
         ):
             r = client.get("/api/scoreboard")
         assert r.status_code == 500
+
+    def test_scoreboard_falls_back_to_live_when_v3_fails(self, client):
+        from datetime import date
+
+        live = [
+            make_live_game(gameCode="20260308/BOSLAL"),
+            make_live_game(gameId="0022500999", gameCode="20260307/NYKMIA"),
+        ]
+        with (
+            patch(
+                "routes.scores.get_scoreboard_v3_by_date", side_effect=Exception("boom")
+            ) as v3,
+            patch("routes.scores.get_cached_scoreboard", return_value=live),
+            patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 8)),
+            patch("routes.scores.log_exceptions"),
+        ):
+            r = client.get("/api/scoreboard")
+            client.get("/api/scoreboard")
+        assert r.status_code == 200
+        assert [g["gameId"] for g in r.json()["games"]] == [GAME_ID]
+        v3.assert_called_once()
 
     def test_boxscores_empty_leaders_returns_empty(self, client):
         with (
@@ -916,7 +854,7 @@ class TestScoresErrorHandlers:
 
 
 class TestMoreCacheHits:
-    def test_player_stats_cached(self, client):
+    def test_player_stats_not_cached_at_route(self, client):
         with (
             patch(
                 "routes.players.load_players_dict",
@@ -926,7 +864,17 @@ class TestMoreCacheHits:
         ):
             client.get(f"/api/players/stats?ids={PLAYER_ID}")
             client.get(f"/api/players/stats?ids={PLAYER_ID}")
-        mock.assert_called_once()
+        assert mock.call_count == 2
+
+    def test_live_game_players_not_cached_at_route(self, client):
+        gid = "0022500777"
+        with patch(
+            "routes.players.get_cached_live_boxscore",
+            return_value=make_live_boxscore(gid, status="Q2 5:00"),
+        ) as mock:
+            client.get(f"/api/games/{gid}/players")
+            client.get(f"/api/games/{gid}/players")
+        assert mock.call_count == 2
 
     def test_game_players_cached(self, client):
         with patch(
@@ -1317,7 +1265,7 @@ class TestCacheTtlSelection:
 
     @pytest.mark.parametrize(
         ("days_offset", "expected"),
-        [(1, CACHE_TTL["boxscores"]), (2, CACHE_TTL["historical"])],
+        [(1, []), (2, [CACHE_TTL["historical"]])],
     )
     def test_boxscores_ttl(self, client, days_offset, expected):
         with (
@@ -1326,11 +1274,11 @@ class TestCacheTtlSelection:
         ):
             r = client.get(f"/api/boxscores?days_offset={days_offset}")
         assert r.status_code == 200
-        assert self._ttls(set_mock) == [expected]
+        assert self._ttls(set_mock) == expected
 
     @pytest.mark.parametrize(
         ("days_offset", "expected"),
-        [(1, CACHE_TTL["leaders"]), (2, CACHE_TTL["historical"])],
+        [(1, []), (2, [CACHE_TTL["historical"]])],
     )
     def test_leaders_ttl(self, client, days_offset, expected):
         with (
@@ -1339,7 +1287,7 @@ class TestCacheTtlSelection:
         ):
             r = client.get(f"/api/leaders?days_offset={days_offset}")
         assert r.status_code == 200
-        assert self._ttls(set_mock) == [expected]
+        assert self._ttls(set_mock) == expected
 
     @pytest.mark.parametrize(
         ("season", "expected"),
@@ -1384,7 +1332,6 @@ class TestUpstreamEdgeStates:
         by_name = {p["name"]: p for p in home["players"]}
         assert "Did Not Play" not in by_name
         assert by_name["Zero Shots"]["fgPct"] == 0
-        assert by_name["Zero Shots"]["ftPct"] == 0
 
     def test_player_stats_handles_zero_attempts(self, client):
         bs = make_live_boxscore()
@@ -1410,8 +1357,8 @@ class TestUpstreamEdgeStates:
         ):
             r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
         p = r.json()["players"][0]
-        assert p["fgPct"] == 0
-        assert p["ftPct"] == 0
+        assert p["fg"] == "0/0"
+        assert p["ft"] == "0/0"
 
     def test_doubles_sums_both_teams_of_a_traded_player(self, client):
         # A mid-season trade gives the same PLAYER_ID one row per team

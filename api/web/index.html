@@ -52,16 +52,22 @@
     "Box Scores",
     "Player Tracker",
     "Standings",
-    "Injury Reports",
-    "Desktop Widgets",
-    "Android Widget"
+    "Injury Reports"
   ]
 }
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" href="/web/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+@font-face {
+  font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url("/web/fonts/jetbrains-mono-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url("/web/fonts/jetbrains-mono-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 :root {
   --bg: #0f1311;
   --side: #121714;
@@ -235,9 +241,9 @@ body.wnba .nba-only { display: none !important; }
 .bxs .sc { font-weight: 700; color: var(--label); }
 .bxs .ldn { color: var(--text-2); text-align: right; padding-right: 16px; }
 .bxs th.ldh { text-align: right; padding-right: 16px; }
-.bx-more { text-align: center; padding: 5px 6px 3px; line-height: 1; color: var(--text-2); font-size: .875rem; }
+.bx-more { display: block; width: 100%; text-align: center; padding: 5px 6px 3px; line-height: 1; color: var(--text-2); font-size: .875rem; }
 .bxg.open .bx-more { border-bottom: 1px solid var(--line); }
-.bx-det { border-top: 1px solid var(--line); }
+.bx-det { border-top: 1px solid var(--line); cursor: auto; }
 .bx-strip { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 8px; align-items: flex-start; border-bottom: 1px solid var(--hair); }
 .dt-s { font-size: .845rem; }
 .dt-s th { font-size: .845rem; padding: 3px 6px; }
@@ -255,7 +261,7 @@ body.wnba .nba-only { display: none !important; }
 .dt-p th.n, .dt-p td.n { text-align: center; }
 .dt-p tbody tr:hover td { background: var(--active); }
 .dt-p th:first-child, .dt-p td:first-child { padding-left: 8px; }
-.dt-p .pl { font-weight: 600; }
+.dt-p .pl { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .dt-p th.reb-h { letter-spacing: 0; }
 .dt-p .m2 { color: var(--text-2); }
 .od { color: var(--muted); }
@@ -277,7 +283,7 @@ body.wnba .nba-only { display: none !important; }
 .ps td { padding: 4px 8px; white-space: nowrap; }
 .wrap > .ps { border: 1px solid var(--hair); border-radius: 4px; background: var(--panel); }
 .search-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; }
-.search { flex: 0 1 520px; min-width: 0; }
+.search { position: relative; flex: 0 1 520px; min-width: 0; }
 .inp { width: 100%; height: 36px; padding: 0 12px; font: inherit; font-size: 1.125rem; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
 .inp::placeholder { color: var(--muted); }
 .inp:focus { outline: none; border-color: #2f5a44; box-shadow: 0 0 0 2px rgba(62, 207, 142, .12); }
@@ -374,7 +380,6 @@ tr.dnp td { color: var(--muted); background: #121714; }
 .tdd > td { background: var(--side) !important; padding: 4px 6px 6px 48px; }
 .tdg { width: auto; }
 
-
 .float {
   position: fixed; right: 12px; top: 40px; z-index: 50; width: 390px; max-width: calc(100vw - 24px);
   max-height: calc(100dvh - 90px); overflow: auto;
@@ -396,8 +401,6 @@ tr.dnp td { color: var(--muted); background: #121714; }
 .mk-pg { background: rgba(201, 214, 154, .16); }
 .mk-dnp { background: #121714; border: 1px solid var(--line); }
 
-
-
 .loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 48px 16px; color: var(--muted); }
 .loading.inl { justify-content: flex-start; padding: 10px 12px; font-size: .875rem; }
 .spin { width: 14px; height: 14px; flex: none; border: 2px solid var(--line); border-top-color: var(--mint); border-radius: 50%; animation: spin .8s linear infinite; }
@@ -405,7 +408,6 @@ tr.dnp td { color: var(--muted); background: #121714; }
 .det-msg { padding: 10px 12px; }
 .btn-p:disabled { opacity: .45; cursor: not-allowed; }
 .btn-p:disabled:hover { background: var(--active); }
-.search { position: relative; }
 .sr-list { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 40; max-height: 320px; overflow-y: auto; background: var(--panel); border: 1px solid #3a463e; border-radius: 4px; box-shadow: 0 12px 40px rgba(0, 0, 0, .55); }
 .sr-item { display: flex; justify-content: space-between; gap: 12px; padding: 6px 12px; font-size: 1.025rem; cursor: pointer; border-bottom: 1px solid var(--hair); }
 .sr-item:last-child { border-bottom: 0; }
@@ -413,7 +415,6 @@ tr.dnp td { color: var(--muted); background: #121714; }
 .sr-id { color: var(--muted); font-size: .875rem; }
 .sb .ser { display: block; font-size: .775rem; font-weight: 600; color: var(--muted); }
 tr.pg > td { background: rgba(201, 214, 154, .16); }
-.dt-p .pl { overflow: hidden; text-overflow: ellipsis; }
 .slot.piw { border-color: #a88b58; }
 
 .fin { display: grid; gap: 8px; }
@@ -437,9 +438,6 @@ tr.pg > td { background: rgba(201, 214, 154, .16); }
 .bxm-l { margin-top: 4px; font-size: .875rem; color: var(--text-2); }
 .bxm-l span { color: var(--label); }
 
-.cookie { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 60; display: none; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; background: var(--panel); border: 1px solid #3a463e; border-radius: 6px; box-shadow: 0 12px 40px rgba(0, 0, 0, .55); font-size: .925rem; color: var(--text-2); }
-.cookie-b { display: flex; gap: 8px; flex: none; }
-.btn-a { color: var(--mint); background: var(--active); border-color: #2f5a44; }
 
 @media (max-width: 860px) {
   .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: "top" "side" "main"; }
@@ -447,10 +445,10 @@ tr.pg > td { background: rgba(201, 214, 154, .16); }
   .league { margin-left: auto; }
   .help-btn { margin-left: 0; }
   .side { border-right: 0; border-bottom: 1px solid var(--hair); overflow: visible; padding: 6px 8px; }
-  .tree { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tree { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
   .tree li, .tree ul { display: contents; }
   .frow { display: none; }
-  .row { width: auto; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px; }
+  .row { width: auto; flex: none; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px; }
   .row.on::before { display: none; }
   .side-foot { margin-top: 8px; }
   .main { padding: 0 8px 8px; }
@@ -485,8 +483,8 @@ tr.pg > td { background: rgba(201, 214, 154, .16); }
 <aside class="side" aria-label="Explorer">
 <ul class="tree"><li class="folder"><div class="frow"><span class="chev">▾</span>today/</div><ul><li><button class="row on" data-view="scoreboard" aria-current="page"><span class="ico f-today"></span>Live Scoreboard</button></li><li><button class="row" data-view="boxscores"><span class="ico f-today"></span>Box Scores</button></li><li><button class="row" data-view="leaders"><span class="ico f-today"></span>Daily Leaders</button></li><li><button class="row" data-view="tracker"><span class="ico f-today"></span>Player Tracker</button></li></ul></li><li class="folder"><div class="frow"><span class="chev">▾</span>season/</div><ul><li><button class="row" data-view="standings"><span class="ico f-season"></span>Standings</button></li><li><button class="row" data-view="playoffs"><span class="ico f-season"></span>Playoffs</button></li><li><button class="row" data-view="seasonDoubles"><span class="ico f-season"></span>Doubles &amp; Triples</button></li><li><button class="row" data-view="seasonHighs"><span class="ico f-season"></span>Season Highs</button></li></ul></li><li class="folder"><div class="frow"><span class="chev">▾</span>players/</div><ul><li><button class="row" data-view="lastngames"><span class="ico f-players"></span>Player Profile</button></li><li><button class="row nba-only" data-view="injuries"><span class="ico f-players"></span>Injuries</button></li><li><button class="row nba-only" data-view="trades"><span class="ico f-players"></span>Trades</button></li></ul></li></ul>
 <div class="side-foot">
-<p>© 2026 NBA Stables. Not affiliated with the NBA.</p>
-<p class="legal"><a href="/web/about.html">About</a><a href="/web/privacy.html">Privacy</a><a href="/web/cookies.html">Cookies</a><a href="/web/terms.html">Terms</a><a href="#" data-action="openCookieSettings">Cookie Settings</a></p>
+<p>© 2026 NBA Stables. Not affiliated with the NBA or WNBA.</p>
+<p class="legal"><a href="/web/about.html">About</a><a href="/web/privacy.html">Privacy</a><a href="/web/terms.html">Terms</a></p>
 </div>
 </aside>
 <main class="main" id="main">
@@ -517,7 +515,7 @@ tr.pg > td { background: rgba(201, 214, 154, .16); }
 </section>
 
 <section class="view" id="v-standings">
-<div class="vh"><h1>NBA Standings</h1><button class="btn" data-action="loadStandings" title="Refresh"><span aria-hidden="true">↻</span> Refresh</button></div>
+<div class="vh"><h1>Standings</h1><button class="btn" data-action="loadStandings" title="Refresh"><span aria-hidden="true">↻</span> Refresh</button></div>
 <div id="standingsContent"><div class="loading"><span class="spin"></span>Loading standings...</div></div>
 </section>
 
@@ -582,12 +580,6 @@ tr.pg > td { background: rgba(201, 214, 154, .16); }
 </div>
 </div>
 
-<div class="cookie" id="cookieBanner">
-<p>We use privacy-friendly analytics cookies only if you accept.</p>
-<div class="cookie-b"><button class="btn" id="cookieReject">Reject</button><button class="btn btn-a" id="cookieAccept">Accept</button></div>
-</div>
-
 <script defer src="/web/app.js"></script>
-<script defer src="/web/legal.js"></script>
 </body>
 </html>

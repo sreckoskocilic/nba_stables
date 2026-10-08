@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="darkreader-lock">
     <title>About NBA Stables</title>
     <meta name="description" content="NBA Stables — free, ad-free live NBA and WNBA scores, box scores, standings, injuries and player stats.">
     <meta name="keywords" content="NBA, WNBA, basketball, live scores, NBA stats, WNBA stats, player tracker, box scores, standings, injury report, free NBA app">
@@ -22,7 +24,7 @@
     <meta name="twitter:description" content="NBA Stables — free, ad-free live NBA and WNBA scores, box scores, standings, injuries and player stats.">
     <meta name="twitter:image" content="https://nbastables.com/web/og-image.png">
 
-    <meta name="theme-color" content="#ff6b35">
+    <meta name="theme-color" content="#121714">
     <link rel="manifest" href="/web/manifest.json">
     <link rel="apple-touch-icon" href="/web/icon-192.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/web/icon-192.png">
@@ -49,269 +51,84 @@
     }
     </script>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #12121a;
-            --bg-card: #1a1a24;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0b0;
-            --accent: #ff6b35;
-            --border: #2a2a3a;
-            --gradient-1: linear-gradient(135deg, #ff6b35 0%, #ff8c5a 100%);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            line-height: 1.7;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        header {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
-            padding: 20px 0;
-        }
-
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            text-decoration: none;
-        }
-
-        .logo svg {
-            height: 40px;
-            width: 40px;
-        }
-
-        .logo h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .back-link {
-            color: var(--accent);
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 0.95rem;
-        }
-
-        .back-link:hover { text-decoration: underline; }
-
-        main { padding: 50px 0; }
-
-        h2 {
-            font-size: 1.6rem;
-            font-weight: 700;
-            margin-bottom: 16px;
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        h3 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin: 30px 0 12px;
-            color: var(--text-primary);
-        }
-
-        p {
-            color: var(--text-secondary);
-            margin-bottom: 16px;
-            font-size: 1rem;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px;
-            margin: 24px 0 32px;
-        }
-
-        .feature-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-        }
-
-        .feature-card .icon {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
-        }
-
-        .feature-card h4 {
-            font-size: 0.95rem;
-            font-weight: 600;
-            margin-bottom: 6px;
-        }
-
-        .feature-card p {
-            font-size: 0.85rem;
-            margin-bottom: 0;
-        }
-
-        .cta {
-            display: inline-block;
-            background: var(--gradient-1);
-            color: white;
-            text-decoration: none;
-            padding: 12px 28px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
-            margin-top: 10px;
-            transition: opacity 0.2s;
-        }
-
-        .cta:hover { opacity: 0.9; }
-
-        @media (max-width: 480px) {
-            .header-content { padding: 0 16px; }
-            .container { padding: 0 16px; }
-            .logo svg { height: 34px; width: 34px; }
-            .logo h1 { font-size: 1.25rem; }
-            .back-link { font-size: 0.85rem; }
-            main { padding: 30px 0; }
-            h2 { font-size: 1.35rem; }
-            h3 { font-size: 1rem; margin: 24px 0 10px; }
-            p { font-size: 0.9rem; }
-            .feature-grid {
-                grid-template-columns: 1fr;
-                gap: 12px;
-                margin: 16px 0 24px;
-            }
-            .feature-card { padding: 16px; }
-            .feature-card h4 { font-size: 0.9rem; }
-            .feature-card p { font-size: 0.8rem; }
-            .cta { width: 100%; text-align: center; padding: 14px 20px; }
-        }
-
-        footer {
-            border-top: 1px solid var(--border);
-            padding: 30px 0;
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-        }
-    </style>
+    <link rel="preload" href="/web/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/web/legal.css">
 </head>
 <body>
-    <header>
-        <div class="header-content">
-            <a href="/" class="logo">
-                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="50" cy="50" r="46" fill="#ff6b35"/>
-                    <g fill="none" stroke="#12121a" stroke-width="2.5" stroke-linecap="round">
-                        <line x1="4" y1="50" x2="96" y2="50"/>
-                        <line x1="50" y1="4" x2="50" y2="96"/>
-                        <ellipse cx="50" cy="50" rx="18" ry="46"/>
-                        <ellipse cx="50" cy="50" rx="34" ry="46"/>
-                    </g>
-                </svg>
-                <h1>NBA Stables</h1>
-            </a>
-            <a href="/" class="back-link">&#8592; Back to App</a>
-        </div>
-    </header>
+<header class="tabline"><a class="brand" href="/"><span class="logo" aria-hidden="true">N</span><span class="wordmark">nbastables<span>.com</span></span></a><a class="btn" href="/">&larr; Back to App</a></header>
+<main class="about">
+<h1>About NBA Stables</h1>
+<p>NBA Stables is a free web app for live NBA and WNBA stats. No ads, no paywalls, no tracking.</p>
 
-    <main>
-        <div class="container">
-            <h2>About NBA Stables</h2>
-            <p>NBA Stables is a free web app for live NBA and WNBA stats. No ads, no paywalls. Privacy-friendly analytics with your consent.</p>
-
-            <h3>Features</h3>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="icon">&#127936;</div>
-                    <h4>Live Scoreboard</h4>
-                    <p>Real-time scores with quarter breakdowns and game status for every NBA and WNBA game.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon">&#128202;</div>
-                    <h4>Box Scores</h4>
-                    <p>Team and player stats for today's games and the past week.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon">&#128269;</div>
-                    <h4>Player Tracker</h4>
-                    <p>Look up any player and follow their live stats across games.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon">&#127942;</div>
-                    <h4>Daily Leaders</h4>
-                    <p>Who's leading in points, rebounds, assists, steals and blocks today.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon">&#128200;</div>
-                    <h4>Standings</h4>
-                    <p>Conference standings with win-loss records for both leagues.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon">&#129657;</div>
-                    <h4>Injury Reports</h4>
-                    <p>Current NBA injuries from CBS Sports.</p>
-                </div>
-            </div>
-
-            <h3>Why this exists</h3>
-            <p>Most sports sites are slow and full of ads. NBA Stables covers both NBA and WNBA in one app that works on any device. Install it to your home screen if you want.</p>
-
-            <h3>Always free</h3>
-            <p>Free, no account needed. Minimal analytics with your consent.</p>
-
-            <a href="/" class="cta">Open NBA Stables</a>
-        </div>
-    </main>
-
-    <footer>
-        <div class="container">
-            <p>&copy; 2026 NBA Stables. Not affiliated with the NBA.</p>
-            <p style="margin-top: 8px;">
-                <a href="/web/privacy.html" style="color: var(--accent);">Privacy</a> |
-                <a href="/web/cookies.html" style="color: var(--accent);">Cookies</a> |
-                <a href="/web/terms.html" style="color: var(--accent);">Terms</a> |
-                <a href="#" data-action="openCookieSettings" style="color: var(--accent);">Cookie Settings</a>
-            </p>
-        </div>
-    </footer>
-
-    <div id="cookieBanner" style="position: fixed; left: 16px; right: 16px; bottom: 16px; display: none; align-items: center; justify-content: space-between; gap: 12px; background: #12121a; border: 1px solid #2a2a3a; border-radius: 10px; padding: 12px 14px; z-index: 1000;">
-        <p style="margin: 0; font-size: 0.85rem; color: #a0a0b0;">We use privacy-friendly analytics cookies only if you accept.</p>
-        <div style="display: flex; gap: 8px; flex-shrink: 0;">
-            <button id="cookieReject" style="padding: 8px 10px; border-radius: 8px; border: 1px solid #2a2a3a; background: transparent; color: #fff; cursor: pointer;">Reject</button>
-            <button id="cookieAccept" style="padding: 8px 10px; border-radius: 8px; border: 1px solid #ff6b35; background: #ff6b35; color: #fff; cursor: pointer;">Accept</button>
-        </div>
+<h2>Features</h2>
+<div class="features">
+    <div class="card">
+        <div class="icon">&#127936;</div>
+        <h3>Live Scoreboard</h3>
+        <p>Real-time scores, game clock and team leaders for every NBA and WNBA game. Updates itself while games are on.</p>
     </div>
-    <script defer src="/web/legal.js"></script>
+    <div class="card">
+        <div class="icon">&#128202;</div>
+        <h3>Box Scores</h3>
+        <p>Team and player stats with quarter scores for today's games and the past week.</p>
+    </div>
+    <div class="card">
+        <div class="icon">&#128269;</div>
+        <h3>Player Tracker</h3>
+        <p>Look up any player and follow their live stats across games.</p>
+    </div>
+    <div class="card">
+        <div class="icon">&#127942;</div>
+        <h3>Daily Leaders</h3>
+        <p>Who led in points, rebounds, assists, steals, blocks and 3-pointers, today or any day of the past week.</p>
+    </div>
+    <div class="card">
+        <div class="icon">&#128200;</div>
+        <h3>Standings</h3>
+        <p>Standings with win-loss records, streaks and last 10 games for both leagues.</p>
+    </div>
+    <div class="card">
+        <div class="icon">&#129657;</div>
+        <h3>Injury Reports</h3>
+        <p>Current NBA injuries from CBS Sports.</p>
+    </div>
+    <div class="card">
+        <div class="icon">&#127941;</div>
+        <h3>Playoffs</h3>
+        <p>Playoff bracket with series scores, the play-in tournament and the Finals.</p>
+    </div>
+    <div class="card">
+        <div class="icon">&#11088;</div>
+        <h3>Season Highs</h3>
+        <p>Best single-game performances of the season in every category.</p>
+    </div>
+    <div class="card">
+        <div class="icon">&#127919;</div>
+        <h3>Doubles &amp; Triples</h3>
+        <p>Season double-double and triple-double counts, with every triple-double game.</p>
+    </div>
+    <div class="card">
+        <div class="icon">&#128100;</div>
+        <h3>Player Profile</h3>
+        <p>Bio, last 10 games, season averages and career stats for any player.</p>
+    </div>
+    <div class="card">
+        <div class="icon">&#128260;</div>
+        <h3>Trades</h3>
+        <p>NBA trades, signings and waivers from the past six months.</p>
+    </div>
+</div>
+
+<h2>Why this exists</h2>
+<p>Most sports sites are slow and full of ads. NBA Stables covers both NBA and WNBA in one app that works on any device. Install it to your home screen if you want.</p>
+
+<h2>Always free</h2>
+<p>Free, no account needed, no cookies.</p>
+<a href="/" class="btn-p">Open NBA Stables</a>
+</main>
+<footer>
+<p>&copy; 2026 NBA Stables. Not affiliated with the NBA or WNBA.</p>
+<p class="legal"><a href="/web/about.html">About</a><a href="/web/privacy.html">Privacy</a><a href="/web/terms.html">Terms</a></p>
+</footer>
 </body>
 </html>

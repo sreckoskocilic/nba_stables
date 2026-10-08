@@ -31,7 +31,6 @@ GH_GAME_ID = 0
 GH_GAME_CODE = 1
 GH_GAME_STATUS = 2
 GH_STATUS_TEXT = 3
-GH_GAME_ET = 7
 STATUS_SCHEDULED = 1  # gameStatus: 1=scheduled, 2=in-progress, 3=final
 
 # ScoreboardV3 line_score columns

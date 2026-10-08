@@ -1,16 +1,5 @@
 nbastables.com {
     header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-    handle /t/a.js {
-        rewrite * /script.js
-        reverse_proxy localhost:3000
-    }
-    handle /api/send {
-        reverse_proxy localhost:3000
-    }
-    handle /t/api/send {
-        rewrite * /api/send
-        reverse_proxy localhost:3000
-    }
     reverse_proxy localhost:8000
 }
 

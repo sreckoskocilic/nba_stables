@@ -39,8 +39,14 @@ function _fetchWithAbort(key, url) {
   _abortControllers[key] && _abortControllers[key].abort();
   const ctrl = new AbortController();
   _abortControllers[key] = ctrl;
-  const timer = setTimeout(() => ctrl.abort(), 15e3);
-  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+  const timer = setTimeout(() => ctrl.abort(new Error("Request timed out")), 15e3);
+  return fetch(url, { signal: ctrl.signal })
+    .catch((e) => {
+      // superseded by a newer request for the same key: settle never, so the stale caller renders nothing
+      if (e.name === "AbortError") return new Promise(() => {});
+      throw e;
+    })
+    .finally(() => clearTimeout(timer));
 }
 function isGameScheduled(status) {
   return /^(\d{1,2}:\d{2}(\s|$)|ppd|postponed|tbd)/i.test(status.trim());
@@ -79,9 +85,6 @@ const pct = (value, digits) => {
   return Number.isFinite(n) ? `${(n * 100).toFixed(digits)}%` : "-";
 };
 const safeVal = (value) => (value == null ? "-" : esc(value));
-function _fmtPct(v) {
-  return ((Number(v) || 0) * 100).toFixed(1) + "%";
-}
 function _setSegOn(buttons, active) {
   buttons.forEach((b) => {
     b.classList.toggle("on", b === active);
@@ -240,6 +243,7 @@ function initPlayerSearch(inputId, resultsId, onSelect, buttonId) {
         );
         if (!r.ok) throw new Error("Search failed");
         const d = await r.json();
+        if (input.value.trim() !== q) return;
         list.innerHTML =
           d.players.length === 0
             ? '<div class="sr-item m">No players found</div>'
@@ -250,6 +254,7 @@ function initPlayerSearch(inputId, resultsId, onSelect, buttonId) {
                 )
                 .join("");
       } catch {
+        if (input.value.trim() !== q) return;
         list.innerHTML = '<div class="sr-item m">Error searching</div>';
       }
       list.hidden = false;
@@ -355,7 +360,7 @@ function _renderTeamPlayers(team) {
   return `<div class="pt"><div class="pt-cap">${esc(team.name)} - ${esc(team.score)}</div><div class="wrap"><table class="t dt-p"><colgroup><col style="width:26ch">${"<col>".repeat(12)}</colgroup><thead><tr><th>Player</th><th class="n">MIN</th><th class="n">PTS</th><th class="n reb-h">REB (O/D)</th><th class="n">AST</th><th class="n">FG</th><th class="n">FG%</th><th class="n">3 PT</th><th class="n">FT</th><th class="n">STL</th><th class="n">BLK</th><th class="n">TO</th><th class="n">PF</th></tr></thead><tbody>${players
     .map(
       (p) =>
-        `<tr><td class="pl" title="${escAttr(p.name)}">${esc(p.name)}</td><td class="n m2">${esc(p.minutes)}</td><td class="n">${statVal("points", p.points)}</td><td class="n">${statVal("rebounds", p.rebounds)} <span class="od">(${esc(p.offRebounds)}/${esc(p.defRebounds)})</span></td><td class="n">${statVal("assists", p.assists)}</td><td class="n">${esc(p.fg)}</td><td class="n">${_fmtPct(p.fgPct)}</td><td class="n">${esc(p.threePt)}</td><td class="n">${esc(p.ft)}</td><td class="n">${statVal("steals", p.steals)}</td><td class="n">${statVal("blocks", p.blocks)}</td><td class="n">${esc(p.turnovers)}</td><td class="n">${esc(p.fouls)}</td></tr>`,
+        `<tr><td class="pl" title="${escAttr(p.name)}">${esc(p.name)}</td><td class="n m2">${esc(p.minutes)}</td><td class="n">${statVal("points", p.points)}</td><td class="n">${statVal("rebounds", p.rebounds)} <span class="od">(${esc(p.offRebounds)}/${esc(p.defRebounds)})</span></td><td class="n">${statVal("assists", p.assists)}</td><td class="n">${esc(p.fg)}</td><td class="n">${pct(p.fgPct, 1)}</td><td class="n">${esc(p.threePt)}</td><td class="n">${esc(p.ft)}</td><td class="n">${statVal("steals", p.steals)}</td><td class="n">${statVal("blocks", p.blocks)}</td><td class="n">${esc(p.turnovers)}</td><td class="n">${esc(p.fouls)}</td></tr>`,
     )
     .join("")}</tbody></table></div></div>`;
 }
@@ -401,9 +406,11 @@ async function loadStandings(force = false) {
   }
   const el = document.getElementById("standingsContent");
   el.innerHTML = loadingHtml("Loading standings...");
+  const league = currentLeague;
   try {
     const r = await _fetchWithAbort("standings", `/api/standings${leagueQuery()}`),
       d = await r.json();
+    if (league !== currentLeague) return;
     if (!r.ok) throw new Error(d.detail || "Failed to load standings");
     _standingsData = d;
     renderStandings();
@@ -575,27 +582,29 @@ function _renderProfileCareer(profile, pct1) {
     .join("")}</tbody></table></div>`;
 }
 async function loadPlayerProfile() {
-  if (!lastNSelectedPlayer) return;
+  const player = lastNSelectedPlayer;
+  if (!player) return;
   const el = document.getElementById("lastNContent");
   el.innerHTML = loadingHtml("Loading profile...");
   try {
     const [e, s, p] = await Promise.all([
         _fetchWithAbort(
           "lastNGames",
-          `/api/players/${lastNSelectedPlayer.id}/last-n-games?n=${PROFILE_RECENT_N}${leagueParam()}`,
+          `/api/players/${player.id}/last-n-games?n=${PROFILE_RECENT_N}${leagueParam()}`,
         ),
-        _fetchWithAbort("lastNSeasonAvg", `/api/players/${lastNSelectedPlayer.id}/season-avg${leagueQuery()}`),
-        _fetchWithAbort("playerProfile", `/api/players/${lastNSelectedPlayer.id}/profile${leagueQuery()}`),
+        _fetchWithAbort("lastNSeasonAvg", `/api/players/${player.id}/season-avg${leagueQuery()}`),
+        _fetchWithAbort("playerProfile", `/api/players/${player.id}/profile${leagueQuery()}`),
       ]),
       a = await e.json(),
       n = s.ok ? await s.json() : null,
       profile = p.ok ? await p.json() : null;
+    if (player !== lastNSelectedPlayer) return;
     const hasGames = a.games && a.games.length > 0;
     const hasProfile = profile && (profile.bio || (profile.career && profile.career.length));
     if (!hasGames && !hasProfile) {
       el.innerHTML = emptyHtml(
         "No Data Found",
-        `No profile data available for ${esc((a && a.playerName) || lastNSelectedPlayer.name)}`,
+        `No profile data available for ${esc((a && a.playerName) || player.name)}`,
       );
       return;
     }
@@ -650,9 +659,10 @@ async function loadPlayerProfile() {
     const panel = (title, html, fallback) =>
       `<section class="card"><h3 class="card-h">${title}</h3>${html || `<p class="m det-msg">${fallback}</p>`}</section>`;
     el.innerHTML =
-      _renderProfileBio(profile, lastNSelectedPlayer.name) +
+      _renderProfileBio(profile, player.name) +
       `<div class="prof">${panel("Last 10 Games", recentHtml, "No recent games")}${panel("Career Stats", careerHtml, "No career data")}</div>`;
   } catch {
+    if (player !== lastNSelectedPlayer) return;
     el.innerHTML = emptyHtml("Error Loading Stats", "Error loading stats");
   }
 }
@@ -672,9 +682,11 @@ async function loadPlayoffs(force = false) {
   }
   const el = document.getElementById("playoffsContent");
   el.innerHTML = loadingHtml("Loading bracket...");
+  const league = currentLeague;
   try {
     const r = await _fetchWithAbort("playoffs", `/api/playoffs${leagueQuery()}`),
       d = await r.json();
+    if (league !== currentLeague) return;
     if (!r.ok) throw new Error(d.detail || "Failed to load bracket");
     playoffsData = d;
     showConference(activeConference);
@@ -723,7 +735,7 @@ function showFinals() {
   const games = f.games
     .map((g, i) => {
       const d = g.date ? new Date(`${g.date}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
-      return `<article class="bxg" data-action="toggleGameDetails" data-game-id="${escAttr(g.gameId)}"><div class="fin-row"><span class="fin-gn">Game ${i + 1}<span class="m">${esc(d)}</span></span><span class="fin-sc">${esc(g.home?.tricode || "—")} <b>${esc(g.home?.score ?? "—")}</b> - <b>${esc(g.away?.score ?? "—")}</b> ${esc(g.away?.tricode || "—")}</span></div><div class="bx-more" title="Player details">▼</div><div class="bx-det"></div></article>`;
+      return `<article class="bxg" data-action="toggleGameDetails" data-game-id="${escAttr(g.gameId)}"><div class="fin-row"><span class="fin-gn">Game ${i + 1}<span class="m">${esc(d)}</span></span><span class="fin-sc">${esc(g.home?.tricode || "—")} <b>${esc(g.home?.score ?? "—")}</b> - <b>${esc(g.away?.score ?? "—")}</b> ${esc(g.away?.tricode || "—")}</span></div><button class="bx-more" title="Player details" aria-label="Player details">▼</button><div class="bx-det"></div></article>`;
     })
     .join("");
   el.innerHTML = `<div class="fin">${header}${games}</div>`;
@@ -1016,9 +1028,11 @@ async function loadSeasonDoubles(force = false) {
   }
   const el = document.getElementById("seasonDoublesContent");
   el.innerHTML = loadingHtml("Loading season leaders...");
+  const league = currentLeague;
   try {
     const r = await _fetchWithAbort("seasonDoubles", "/api/season/doubles" + leagueQuery()),
       d = await r.json();
+    if (league !== currentLeague) return;
     if (!r.ok) throw new Error(d.detail || "Failed to load");
     _seasonDoublesData = d;
     renderSeasonDoubles();
@@ -1081,15 +1095,29 @@ async function toggleTdGames(playerId, btn) {
   }
 }
 
-async function loadScoreboard() {
+let _sbTimer;
+function _pollScoreboard() {
+  clearTimeout(_sbTimer);
+  _sbTimer = setTimeout(() => {
+    if (!document.hidden && _activeView() === "scoreboard") loadScoreboard(true);
+  }, 30e3);
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && _activeView() === "scoreboard") loadScoreboard(true);
+});
+async function loadScoreboard(quiet = false) {
   const content = document.getElementById("scoreboardContent");
   const dateEl = document.getElementById("sbDate");
-  content.innerHTML = loadingHtml("Loading games...");
+  clearTimeout(_sbTimer);
+  if (!quiet) content.innerHTML = loadingHtml("Loading games...");
+  const league = currentLeague;
   try {
     const response = await _fetchWithAbort("scoreboard", `/api/scoreboard${leagueQuery()}`);
     const data = await response.json();
+    if (league !== currentLeague) return;
     if (!response.ok) throw new Error(data.detail || "Failed to load scoreboard");
     const games = Array.isArray(data.games) ? data.games : [];
+    if (games.some((g) => !String(g.status ?? "").toLowerCase().includes("final"))) _pollScoreboard();
     const sbDate = games.length ? new Date(data.date) : null;
     dateEl.textContent =
       sbDate && !isNaN(sbDate)
@@ -1136,6 +1164,10 @@ async function loadScoreboard() {
       .join("");
     content.innerHTML = `<div class="wrap"><table class="t sb"><thead><tr><th>Status</th><th>Team</th><th class="n">Score</th><th>Leader</th><th class="n">PTS</th><th class="n">REB</th><th class="n">AST</th></tr></thead>${body}</table></div>`;
   } catch (e) {
+    if (quiet) {
+      _pollScoreboard();
+      return;
+    }
     content.innerHTML = emptyHtml("Error Loading Games", esc(e.message));
   }
 }
@@ -1146,9 +1178,11 @@ function _playerLines(players, fn) {
 async function loadLeaders() {
   const content = document.getElementById("leadersContent");
   content.innerHTML = loadingHtml("Loading leaders...");
+  const league = currentLeague;
   try {
     const response = await _fetchWithAbort("leaders", `/api/leaders?days_offset=${currentLeadersOffset}${leagueParam()}`);
     const data = await response.json();
+    if (league !== currentLeague) return;
     if (!response.ok) throw new Error(data.detail || "Failed to load leaders");
     const leaders = Object.values(data.leaders || {});
     if (leaders.length === 0) {
@@ -1182,9 +1216,11 @@ async function loadSeasonHighs(force = false) {
   const content = document.getElementById("seasonHighsContent");
   document.getElementById("seasonHighsNote").textContent = "";
   content.innerHTML = loadingHtml("Loading season highs...");
+  const league = currentLeague;
   try {
     const response = await _fetchWithAbort("seasonHighs", "/api/season/highs" + leagueQuery());
     const data = await response.json();
+    if (league !== currentLeague) return;
     if (!response.ok) throw new Error(data.detail || "Failed to load season highs");
     _seasonHighsData = data;
     renderSeasonHighs();
@@ -1230,12 +1266,14 @@ const _BX_COLS =
 async function loadBoxscores() {
   const content = document.getElementById("boxscoresContent");
   content.innerHTML = loadingHtml("Loading box scores...");
+  const league = currentLeague;
   try {
     const response = await _fetchWithAbort(
       "boxscores",
       `/api/boxscores?days_offset=${currentBoxscoreOffset}${leagueParam()}`,
     );
     const data = await response.json();
+    if (league !== currentLeague) return;
     if (!response.ok) throw new Error(data.detail || "Failed to load box scores");
     const boxscores = Array.isArray(data.boxscores) ? data.boxscores : [];
     if (boxscores.length === 0) {
@@ -1250,7 +1288,7 @@ async function loadBoxscores() {
       return;
     }
     const mobile = window.innerWidth <= 768;
-    const tail = '<div class="bx-more" title="Player details">▼</div><div class="bx-det"></div>';
+    const tail = '<button class="bx-more" title="Player details" aria-label="Player details">▼</button><div class="bx-det"></div>';
     content.innerHTML = `<div class="bx-list">${boxscores
       .map((game) => {
         const teams = Array.isArray(game.teams) ? game.teams : [];
@@ -1294,14 +1332,14 @@ const _ACTIONS = {
   showFinals: () => showFinals(),
   removeTracked: (t) => removeTrackedPlayer(parseInt(t.dataset.playerId, 10)),
   toggleTdGames: (t) => toggleTdGames(parseInt(t.dataset.playerId, 10), t),
-  toggleGameDetails: (t) => toggleGameDetails(t.dataset.gameId, t),
+  toggleGameDetails: (t, e) => !e.target.closest(".bx-det") && toggleGameDetails(t.dataset.gameId, t),
   clearLastNPlayer: () => clearLastNPlayer(),
 };
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-action]");
   if (!t) return;
   const fn = _ACTIONS[t.dataset.action];
-  if (fn) fn(t);
+  if (fn) fn(t, e);
 });
 
 const _NBA_ONLY_TABS = ["injuries", "trades"];

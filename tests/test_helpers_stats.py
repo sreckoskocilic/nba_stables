@@ -20,6 +20,7 @@ from helpers.stats import (
     live_status_text,
     parse_iso_minutes,
     reformat_player_minutes,
+    with_retry,
 )
 
 
@@ -102,6 +103,16 @@ class TestLiveStatusText:
     def test_not_in_progress_keeps_text(self):
         game = self._game(status=3, text="Final", period=4, clock="PT00M00.00S")
         assert live_status_text(game) == "Final"
+
+
+class TestWithRetry:
+    def test_http_status_error_not_retried(self):
+        from curl_cffi.requests.exceptions import HTTPError
+
+        fn = MagicMock(side_effect=HTTPError("404"))
+        with pytest.raises(HTTPError):
+            with_retry(fn)
+        fn.assert_called_once()
 
 
 class TestFixEncoding:
@@ -515,12 +526,10 @@ class TestFetchSingleBoxscore:
     def test_stats_counting_stats(self):
         stats = self._call()["teams"][0]["stats"]
         assert stats["rebounds"] == 42
-        assert stats["offRebounds"] == 8
         assert stats["assists"] == 25
         assert stats["steals"] == 9
         assert stats["blocks"] == 5
         assert stats["turnovers"] == 11
-        assert stats["fouls"] == 20
 
     def test_leader_matched_by_team_id(self):
         leaders = [["LeBron James", 35, 8, 7, 101]]

@@ -208,6 +208,8 @@ def with_retry(fn):
     for i in range(_RETRY_ATTEMPTS):
         try:
             return fn()
+        except curl_requests.exceptions.HTTPError:
+            raise
         except (
             ConnectionError,
             TimeoutError,
@@ -552,12 +554,10 @@ def fetch_single_boxscore(
                         "ft": f"{s['freeThrowsMade']}/{s['freeThrowsAttempted']}",
                         "ftPct": s["freeThrowsPercentage"],
                         "rebounds": s["reboundsTotal"],
-                        "offRebounds": s["reboundsOffensive"],
                         "assists": s["assists"],
                         "steals": s["steals"],
                         "blocks": s["blocks"],
                         "turnovers": s["turnovers"],
-                        "fouls": s["foulsPersonal"],
                     },
                     "leader": leader,
                 }

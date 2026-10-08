@@ -7,7 +7,6 @@ from nba_api.stats.library.http import NBAStatsHTTP
 from constants import (
     ET_SUFFIX,
     GH_GAME_CODE,
-    GH_GAME_ET,
     GH_GAME_ID,
     GH_GAME_STATUS,
     GH_STATUS_TEXT,
@@ -152,12 +151,8 @@ async def get_boxscores(
         }, complete
 
     result, complete = await asyncio.to_thread(_sync)
-    ttl = (
-        CACHE_TTL["historical"]
-        if days_offset >= 2 and complete
-        else CACHE_TTL["boxscores"]
-    )
-    cache.set(cache_key, result, ttl)
+    if days_offset >= 2 and complete:
+        cache.set(cache_key, result, CACHE_TTL["historical"])
     return result
 
 
@@ -168,17 +163,32 @@ async def get_scoreboard(league: str = Query(default="nba")):
 
     Uses ScoreboardV3 to show today's scheduled games. Once any game has
     started (gameStatus >= 2), switches to the live scoreboard API for
-    real-time scores and leaders.
+    real-time scores and leaders. If ScoreboardV3 fails, serves the live
+    scoreboard alone.
     """
     league_id = "10" if league == "wnba" else "00"
     sb_date = scoreboard_date()
-    cache_key = f"{league_id}:scoreboard_{sb_date.isoformat()}"
-    cached = cache.get(cache_key)
+    display_date = sb_date.strftime("%B %d, %Y")
+    fallback_key = f"{league_id}:scoreboard_live_only_{sb_date.isoformat()}"
+    cached = cache.get(fallback_key)
     if cached is not None:
         return cached
 
     def _sync():
-        sb = get_scoreboard_v3_by_date(sb_date, league_id=league_id)
+        try:
+            sb = get_scoreboard_v3_by_date(sb_date, league_id=league_id)
+        except Exception as ex:
+            log_exceptions(ex, "scoreboard_v3")
+            day = sb_date.strftime("%Y%m%d")
+            live_raw = [
+                g
+                for g in get_cached_scoreboard(league_id=league_id)
+                if g.get("gameCode", "").startswith(day)
+            ]
+            return {
+                "games": _scoreboard_from_live(live_raw),
+                "date": display_date,
+            }, False
         games = _scoreboard_from_v3(sb)
         try:
             live_raw = get_cached_scoreboard(league_id=league_id)
@@ -200,11 +210,11 @@ async def get_scoreboard(league: str = Query(default="nba")):
             _attach_series_to_games(games, series_wins, league_id)
         except Exception as ex:  # pragma: no cover
             log_exceptions(ex, "scoreboard_series_attach")
-        display_date = sb_date.strftime("%B %d, %Y")
-        return {"games": games, "date": display_date}
+        return {"games": games, "date": display_date}, True
 
-    result = await asyncio.to_thread(_sync)
-    cache.set(cache_key, result, CACHE_TTL["scoreboard"])
+    result, complete = await asyncio.to_thread(_sync)
+    if not complete:
+        cache.set(fallback_key, result, CACHE_TTL["scoreboard"])
     return result
 
 
@@ -235,7 +245,6 @@ def _scoreboard_from_live(raw_games) -> list[dict]:
             {
                 "gameId": game["gameId"],
                 "status": status_text,
-                "gameEt": game.get("gameEt", ""),
                 "homeTeam": {
                     "name": f"{home_team['teamCity']} {home_team['teamName']}",
                     "tricode": home_team["teamTricode"],
@@ -311,7 +320,6 @@ def _scoreboard_from_v3(sb) -> list[dict]:
             {
                 "gameId": game_id,
                 "status": status_text,
-                "gameEt": g[GH_GAME_ET] or "",
                 "homeTeam": _build_team(home_row, home_team_id, game_id, leaders_by),
                 "awayTeam": _build_team(away_row, away_team_id, game_id, leaders_by),
             }
@@ -394,12 +402,8 @@ async def get_daily_leaders(
         return {"leaders": leaders, "date": get_display_date(days_offset)}, complete
 
     result, complete = await asyncio.to_thread(_sync)
-    ttl = (
-        CACHE_TTL["historical"]
-        if days_offset >= 2 and complete
-        else CACHE_TTL["leaders"]
-    )
-    cache.set(cache_key, result, ttl)
+    if days_offset >= 2 and complete:
+        cache.set(cache_key, result, CACHE_TTL["historical"])
     return result
 
 

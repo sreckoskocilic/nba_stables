@@ -236,7 +236,8 @@ def test_security_headers_page_route(client):
     """Cover security.py: non-API, non-soccer routes get PAGE_CSP."""
     r = client.get("/not-an-api-route")
     csp = r.headers.get("Content-Security-Policy", "")
-    assert "fonts.googleapis.com" in csp
+    assert "font-src 'self';" in csp
+    assert "googleapis" not in csp
 
 
 def test_calc_age_handles_empty_and_invalid():

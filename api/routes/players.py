@@ -34,9 +34,7 @@ from helpers.logger import log_exceptions
 from helpers.stats import (
     _today_et,
     call_stats,
-    count_double_digits,
     fetch_regular_and_playoffs,
-    find_category_leaders,
     fix_encoding,
     fold_name,
     get_cached_boxscore_v3,
@@ -137,11 +135,6 @@ async def get_player_stats(
         raise HTTPException(status_code=400, detail="Too many player IDs (max 25)")
 
     league_id = "10" if league == "wnba" else "00"
-    ids_normalized = ",".join(str(x) for x in sorted(players_ids))
-    cache_key = f"player_stats_{league_id}_{ids_normalized}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
 
     def _sync():
         results = []
@@ -185,50 +178,27 @@ async def get_player_stats(
                         and player["status"] == "ACTIVE"
                     ):
                         stats = player["statistics"]
-                        minutes = parse_iso_minutes(stats["minutes"])
-
-                        pts = stats["points"]
-                        fgm = stats["fieldGoalsMade"]
-                        fga = stats["fieldGoalsAttempted"]
-                        tpm = stats["threePointersMade"]
-                        ftm = stats["freeThrowsMade"]
-                        fta = stats["freeThrowsAttempted"]
-                        reb = stats["reboundsTotal"]
-                        ast = stats["assists"]
-                        blk = stats["blocks"]
-                        stl = stats["steals"]
-                        tov = stats["turnovers"]
-
-                        double_digits = count_double_digits(pts, reb, ast, stl, blk)
-
                         results.append(
                             {
                                 "id": player["personId"],
                                 "name": fix_encoding(player["name"]),
                                 "team": team["teamTricode"],
-                                "minutes": minutes,
-                                "points": pts,
-                                "fg": f"{fgm}/{fga}",
-                                "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
-                                "threePointers": f"{tpm}/{stats['threePointersAttempted']}",
-                                "ft": f"{ftm}/{fta}",
-                                "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
-                                "rebounds": reb,
-                                "assists": ast,
-                                "blocks": blk,
-                                "steals": stl,
-                                "turnovers": tov,
+                                "minutes": parse_iso_minutes(stats["minutes"]),
+                                "points": stats["points"],
+                                "fg": f"{stats['fieldGoalsMade']}/{stats['fieldGoalsAttempted']}",
+                                "threePointers": f"{stats['threePointersMade']}/{stats['threePointersAttempted']}",
+                                "ft": f"{stats['freeThrowsMade']}/{stats['freeThrowsAttempted']}",
+                                "rebounds": stats["reboundsTotal"],
+                                "assists": stats["assists"],
+                                "blocks": stats["blocks"],
+                                "steals": stats["steals"],
                                 "fouls": stats["foulsPersonal"],
-                                "isDoubleDouble": double_digits >= 2,
-                                "isTripleDouble": double_digits >= 3,
                             }
                         )
 
         return {"players": results}
 
-    result = await asyncio.to_thread(_sync)
-    cache.set(cache_key, result, CACHE_TTL["player_stats"])
-    return result
+    return await asyncio.to_thread(_sync)
 
 
 @router.get("/api/games/{game_id}/players")
@@ -254,96 +224,48 @@ async def get_game_players(
             return _game_players_from_v3(game_id)
 
     result = await asyncio.to_thread(_sync)
-    ttl = (
-        CACHE_TTL["historical"]
-        if result["status"].startswith("Final")
-        else CACHE_TTL["boxscores"]
-    )
-    cache.set(cache_key, result, ttl)
+    if result["status"].startswith("Final"):
+        cache.set(cache_key, result, CACHE_TTL["historical"])
     return result
 
 
-def _player_box_entry(person_id, name: str, minutes: str, stats: dict, tricode: str):
-    """Build (player_row, perf_entry) from a boxscore player's stats."""
+def _player_box_entry(name: str, minutes: str, stats: dict) -> dict:
+    """Build a game-players row from a boxscore player's stats."""
     fgm = stats["fieldGoalsMade"]
     fga = stats["fieldGoalsAttempted"]
-    tpm = stats["threePointersMade"]
-    ftm = stats["freeThrowsMade"]
-    fta = stats["freeThrowsAttempted"]
-    pts = stats["points"]
-    reb = stats["reboundsTotal"]
-    ast = stats["assists"]
-    stl = stats["steals"]
-    blk = stats["blocks"]
-    player_row = {
-        "id": person_id,
+    return {
         "name": name,
         "minutes": minutes,
-        "points": pts,
-        "rebounds": reb,
+        "points": stats["points"],
+        "rebounds": stats["reboundsTotal"],
         "offRebounds": stats["reboundsOffensive"],
         "defRebounds": stats["reboundsDefensive"],
-        "assists": ast,
-        "steals": stl,
-        "blocks": blk,
+        "assists": stats["assists"],
+        "steals": stats["steals"],
+        "blocks": stats["blocks"],
         "turnovers": stats["turnovers"],
         "fouls": stats["foulsPersonal"],
         "fg": f"{fgm}/{fga}",
         "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
-        "threePt": f"{tpm}/{stats['threePointersAttempted']}",
-        "ft": f"{ftm}/{fta}",
-        "ftPct": round(ftm / fta, 3) if fta > 0 else 0,
+        "threePt": f"{stats['threePointersMade']}/{stats['threePointersAttempted']}",
+        "ft": f"{stats['freeThrowsMade']}/{stats['freeThrowsAttempted']}",
     }
-    perf_entry = {
-        "name": name,
-        "team": tricode,
-        "points": pts,
-        "rebounds": reb,
-        "assists": ast,
-        "steals": stl,
-        "blocks": blk,
-        "threePointers": tpm,
-    }
-    return player_row, perf_entry
 
 
 def _finalize_game_players(
     game_id: str,
     status: str,
     teams: list,
-    all_active: list,
     arena: str = "",
     attendance: int = 0,
     officials: list | None = None,
 ) -> dict:
-    """Assemble the game-players response with computed top performers."""
-    categories = [
-        ("points", "PTS"),
-        ("rebounds", "REB"),
-        ("assists", "AST"),
-        ("steals", "STL"),
-        ("blocks", "BLK"),
-        ("threePointers", "3 PT"),
-    ]
-    top_performers = {}
-    if all_active:
-        max_vals, max_entries = find_category_leaders(all_active, categories)
-        for key, label in categories:
-            top_performers[key] = {
-                "label": label,
-                "value": max_vals[key],
-                "players": [
-                    {"name": p["name"], "team": p["team"]} for p in max_entries[key]
-                ],
-            }
-
     return {
         "gameId": game_id,
         "status": status,
         "arena": arena,
         "attendance": attendance,
         "officials": officials or [],
-        "topPerformers": top_performers,
         "teams": teams,
     }
 
@@ -353,18 +275,13 @@ def _game_players_from_live(game_id: str, league_id: str = "00") -> dict:
     game = bs["game"]
 
     teams = []
-    all_active = []
 
     for team_key in ["homeTeam", "awayTeam"]:
         team = game[team_key]
-        tricode = team["teamTricode"]
-        periods = [
-            {"period": p.get("period"), "score": p.get("score", 0)}
-            for p in team.get("periods", [])
-        ]
+        periods = [{"score": p.get("score", 0)} for p in team.get("periods", [])]
         team_data = {
             "name": f"{team['teamCity']} {team['teamName']}",
-            "tricode": tricode,
+            "tricode": team["teamTricode"],
             "score": team["score"],
             "periods": periods,
             "players": [],
@@ -373,13 +290,13 @@ def _game_players_from_live(game_id: str, league_id: str = "00") -> dict:
         for player in team["players"]:
             if player["status"] == "ACTIVE":
                 stats = player["statistics"]
-                minutes = parse_iso_minutes(stats["minutes"])
-                name = fix_encoding(player["name"])
-                player_row, perf_entry = _player_box_entry(
-                    player["personId"], name, minutes, stats, tricode
+                team_data["players"].append(
+                    _player_box_entry(
+                        fix_encoding(player["name"]),
+                        parse_iso_minutes(stats["minutes"]),
+                        stats,
+                    )
                 )
-                team_data["players"].append(player_row)
-                all_active.append(perf_entry)
 
         team_data["players"].sort(
             key=lambda x: parse_minutes(x["minutes"]),
@@ -410,7 +327,6 @@ def _game_players_from_live(game_id: str, league_id: str = "00") -> dict:
         game_id,
         live_status_text(game),
         teams,
-        all_active,
         arena=arena,
         attendance=game.get("attendance") or 0,
         officials=officials,
@@ -423,7 +339,6 @@ def _game_players_from_v3(game_id: str) -> dict:
     box = get_cached_boxscore_v3(game_id)
 
     teams_by_id: dict = {}
-    all_active = []
 
     for row in box["data"]:
         stats = dict(zip(box["headers"], row))
@@ -444,17 +359,13 @@ def _game_players_from_v3(game_id: str) -> dict:
         name = fix_encoding(
             f"{stats['firstName'] or ''} {stats['familyName'] or ''}".strip()
         )
-        player_row, perf_entry = _player_box_entry(
-            stats["personId"], name, minutes, stats, team["tricode"]
-        )
-        team["players"].append(player_row)
-        all_active.append(perf_entry)
+        team["players"].append(_player_box_entry(name, minutes, stats))
 
     teams = list(teams_by_id.values())
     for team in teams:
         team["players"].sort(key=lambda x: parse_minutes(x["minutes"]), reverse=True)
 
-    return _finalize_game_players(game_id, "Final", teams, all_active)
+    return _finalize_game_players(game_id, "Final", teams)
 
 
 @router.get("/api/players/{player_id}/last-n-games")

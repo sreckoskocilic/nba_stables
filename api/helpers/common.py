@@ -9,10 +9,9 @@ from typing import Any
 
 CACHE_TTL = {
     "scoreboard": 30,
-    "boxscores": 60,
+    "boxscores": 30,
     "leaders": 60,
     "standings": 3600,
-    "player_stats": 30,
     "players": 12 * 3600,
     "historical": 86400,
     "injuries": 7200,

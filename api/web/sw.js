@@ -1,11 +1,8 @@
-const CACHE_NAME = 'nba-stables-v3';
+const CACHE_NAME = 'nba-stables-v4';
 const SHELL_ASSETS = [
   '/',
   '/web/index.html',
   '/web/app.js',
-  '/web/legal.js',
-  '/web/widget.html',
-  '/web/widget.js',
 ];
 
 self.addEventListener('install', (event) => {
@@ -26,9 +23,6 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Leave cross-origin requests (Google Fonts) to the browser. Re-issuing them
-  // from the worker counts as connect-src, which PAGE_CSP denies; loaded
-  // directly they are allowed by style-src/font-src.
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) {
     return;
   }

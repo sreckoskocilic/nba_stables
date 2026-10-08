@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 import yaml
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -116,12 +116,6 @@ async def health_check():
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 if os.path.exists(static_dir):
     app.mount("/web", StaticFiles(directory=static_dir), name="web")
-
-
-@app.get("/t/a.js")
-async def analytics_stub():  # pragma: no cover
-    """Dev stub — in production Caddy proxies /t/a.js to the analytics server."""
-    return Response(content="", media_type="application/javascript")
 
 
 @app.get("/sw.js")

@@ -438,9 +438,7 @@ class TestBoxscores:
     def test_offset_too_large_rejected(self, client):
         assert client.get("/api/boxscores?days_offset=99").status_code == 422
 
-    def test_partial_historical_day_gets_short_ttl(self, client):
-        from helpers.common import CACHE_TTL
-
+    def test_partial_historical_day_not_cached(self, client):
         leaders = {GAME_ID: [], "0022500002": []}
         with (
             patch("routes.scores.get_games_leaders_list", return_value=leaders),
@@ -451,7 +449,7 @@ class TestBoxscores:
             patch("routes.scores.cache.set") as set_mock,
         ):
             client.get("/api/boxscores?days_offset=3")
-        assert set_mock.call_args.args[2] == CACHE_TTL["boxscores"]
+        set_mock.assert_not_called()
 
     def test_cache_key_includes_today(self, client):
         with (
@@ -833,7 +831,6 @@ class TestGamePlayers:
             r = client.get(f"/api/games/{GAME_ID}/players")
         for team in r.json()["teams"]:
             assert len(team["periods"]) == 4
-            assert team["periods"][0]["period"] == 1
             assert sum(p["score"] for p in team["periods"]) == team["score"]
 
     def test_game_info_fields(self, client):
@@ -848,25 +845,6 @@ class TestGamePlayers:
             "Tony Brothers",
             "Scott Foster",
         ]
-
-    def test_top_performers(self, client):
-        with patch(
-            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
-        ):
-            r = client.get(f"/api/games/{GAME_ID}/players")
-        tp = r.json()["topPerformers"]
-        for key in (
-            "points",
-            "rebounds",
-            "assists",
-            "steals",
-            "blocks",
-            "threePointers",
-        ):
-            assert key in tp
-        assert tp["points"]["value"] == 32
-        assert tp["points"]["players"][0]["name"] == "Jayson Tatum"
-        assert tp["points"]["players"][0]["team"] == "BOS"
 
     def test_v3_fallback_when_live_unavailable(self, client):
         gid = "0042500405"
@@ -889,7 +867,6 @@ class TestGamePlayers:
         assert nyl["score"] == 25
         assert nyl["periods"] == []
         assert nyl["players"][0]["name"] == "Sabrina Ionescu"
-        assert body["topPerformers"]["points"]["value"] == 30
 
     def test_v3_fallback_skips_dnp_players(self, client):
         gid = "0042500404"
