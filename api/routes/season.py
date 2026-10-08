@@ -1,5 +1,6 @@
 import asyncio
 import heapq
+import math
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from nba_api.stats.endpoints import leaguedashplayerstats, leaguegamelog, playergamelog
@@ -124,20 +125,14 @@ async def get_season_doubles(
     if cached is not None:
         return cached
 
-    def _sync():
-        stats_regular, stats_playoffs = fetch_regular_and_playoffs(
-            leaguedashplayerstats.LeagueDashPlayerStats,
-            per_mode_detailed="Totals",
-            season=resolved_season,
-            league_id_nullable=league_id,
-        )
-        data_regular = stats_regular.get_dict()
-        data_playoffs = stats_playoffs.get_dict()
-        headers = data_regular["resultSets"][0]["headers"]
-        rows_regular = data_regular["resultSets"][0]["rowSet"]
-        rows_playoffs = data_playoffs["resultSets"][0]["rowSet"]
+    ttl = (
+        CACHE_TTL["historical"]
+        if resolved_season != current_season
+        else CACHE_TTL["season_leaders"]
+    )
 
-        h = {k: i for i, k in enumerate(headers)}
+    def _sync():
+        h, rows_regular, rows_playoffs = _dash_totals(resolved_season, league_id, ttl)
 
         combined = {}
         for row in rows_regular:
@@ -206,12 +201,122 @@ async def get_season_doubles(
         return {"doubleDoubles": dd_list, "tripleDoubles": td_list}
 
     result = await asyncio.to_thread(_sync)
-    ttl = (
-        CACHE_TTL["historical"]
-        if resolved_season != current_season
-        else CACHE_TTL["season_leaders"]
-    )
     cache.set(cache_key, result, ttl)
+    return result
+
+
+def _dash_totals(season: str, league_id: str, ttl: int) -> tuple[dict, list, list]:
+    """LeagueDashPlayerStats season totals, shared by doubles and season leaders:
+    (header index, regular-season rows, playoff rows)."""
+    cache_key = f"raw_dash_totals_{league_id}_{season}"
+    with cache.lock(cache_key):
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        regular, playoffs = fetch_regular_and_playoffs(
+            leaguedashplayerstats.LeagueDashPlayerStats,
+            per_mode_detailed="Totals",
+            season=season,
+            league_id_nullable=league_id,
+        )
+        data_regular = regular.get_dict()["resultSets"][0]
+        result = (
+            {k: i for i, k in enumerate(data_regular["headers"])},
+            data_regular["rowSet"],
+            playoffs.get_dict()["resultSets"][0]["rowSet"],
+        )
+        cache.set(cache_key, result, ttl)
+        return result
+
+
+# Season leaders per-game categories: (API column, output key, label, column header)
+SEASON_LEADER_CATEGORIES = [
+    ("PTS", "points", "Points", "PPG"),
+    ("REB", "rebounds", "Rebounds", "RPG"),
+    ("AST", "assists", "Assists", "APG"),
+    ("STL", "steals", "Steals", "SPG"),
+    ("BLK", "blocks", "Blocks", "BPG"),
+    ("FG3M", "threePointers", "3-Pointers", "3 PT"),
+]
+_LEADERS_TOP_N = 10
+_LEADERS_MIN_GP_SHARE = 0.7
+_LEADERS_MIN_FGM_PER_GAME = 3.5
+_LEADERS_MIN_FTM_PER_GAME = 1.5
+
+
+@router.get("/api/season/leaders")
+@route_error_handler("Failed to fetch season leaders")
+async def get_season_leaders(league: str = Query(default="nba")):
+    """Regular-season per-game leaders among players with at least 70% of games played"""
+    league_id = "10" if league == "wnba" else "00"
+    season = get_wnba_current_season() if league_id == "10" else get_current_season()
+    cache_key = f"{league_id}:season_per_game_leaders_{season}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    def _sync():
+        h, rows, _ = _dash_totals(season, league_id, CACHE_TTL["season_leaders"])
+        cols = ["GP", "FGM", "FGA", "FTM", "FTA"]
+        cols += [c[0] for c in SEASON_LEADER_CATEGORIES]
+        players: dict = {}
+        for row in rows:
+            p = players.setdefault(
+                row[h["PLAYER_ID"]],
+                {
+                    "name": fix_encoding(row[h["PLAYER_NAME"]]),
+                    "team": row[h["TEAM_ABBREVIATION"]],
+                    **dict.fromkeys(cols, 0),
+                },
+            )
+            for col in cols:
+                p[col] += row[h[col]] or 0
+
+        min_gp = math.ceil(
+            max((p["GP"] for p in players.values()), default=0) * _LEADERS_MIN_GP_SHARE
+        )
+        qualified = [p for p in players.values() if p["GP"] and p["GP"] >= min_gp]
+
+        def ranked(pool, value):
+            top = heapq.nlargest(_LEADERS_TOP_N, pool, key=value)
+            return [
+                {"rank": i + 1, "name": p["name"], "team": p["team"], "value": value(p)}
+                for i, p in enumerate(top)
+            ]
+
+        categories = [
+            {
+                "key": key,
+                "label": label,
+                "short": short,
+                "players": ranked(
+                    qualified, lambda p, col=col: round(p[col] / p["GP"], 1)
+                ),
+            }
+            for col, key, label, short in SEASON_LEADER_CATEGORIES
+        ]
+        for made, att, min_made, key, label, short in (
+            ("FGM", "FGA", _LEADERS_MIN_FGM_PER_GAME, "fgPct", "Field Goal %", "FG%"),
+            ("FTM", "FTA", _LEADERS_MIN_FTM_PER_GAME, "ftPct", "Free Throw %", "FT%"),
+        ):
+            shooters = [
+                p for p in qualified if p[att] and p[made] >= min_made * p["GP"]
+            ]
+            categories.append(
+                {
+                    "key": key,
+                    "label": label,
+                    "short": short,
+                    "players": ranked(
+                        shooters,
+                        lambda p, m=made, a=att: round(100 * p[m] / p[a], 1),
+                    ),
+                }
+            )
+        return {"season": season, "minGames": min_gp, "categories": categories}
+
+    result = await asyncio.to_thread(_sync)
+    cache.set(cache_key, result, CACHE_TTL["season_leaders"])
     return result
 
 

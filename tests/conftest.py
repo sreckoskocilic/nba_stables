@@ -425,7 +425,7 @@ def make_scoreboard_v3(games=None):
 
 
 def make_standings_row(rank, city, name, conf, wins, losses, team_id=1610612738):
-    row = [None] * 40
+    row = [None] * 81
     row[2] = team_id
     row[3] = city
     row[4] = name
@@ -439,12 +439,15 @@ def make_standings_row(rank, city, name, conf, wins, losses, team_id=1610612738)
     row[19] = "8-2"
     row[36] = "W3"
     row[37] = 2.5
+    row[56] = 112.4
+    row[57] = 108.1
+    row[58] = 4.3
     return row
 
 
 # WNBA standings use different column indices (_WS_* in scores.py)
 def make_wnba_standings_row(rank, city, name, conf, wins, losses, team_id=1611661313):
-    row = [None] * 40
+    row = [None] * 92
     row[2] = team_id
     row[3] = city
     row[4] = name
@@ -458,6 +461,9 @@ def make_wnba_standings_row(rank, city, name, conf, wins, losses, team_id=161166
     row[20] = "8-2"
     row[37] = "W3"
     row[38] = 2.5
+    row[58] = 84.2
+    row[59] = 80.0
+    row[60] = 4.2
     return row
 
 
@@ -484,6 +490,8 @@ def _make_v3_player_stats(**kw):
         "turnovers": 2,
         "foulsPersonal": 2,
         "points": 28,
+        "position": "",
+        "plusMinusPoints": 0.0,
     }
     stats.update(kw)
     return stats

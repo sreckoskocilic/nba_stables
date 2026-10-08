@@ -97,6 +97,30 @@ const pct = (value, digits) => {
   return Number.isFinite(n) ? `${(n * 100).toFixed(digits)}%` : "-";
 };
 const safeVal = (value) => (value == null ? "-" : esc(value));
+// Lay cards out in as many columns as fit, each column as wide as its widest card.
+function _alignGrid(grid) {
+  const widths = Array.from(grid.children, (c) => c.offsetWidth);
+  if (!widths[0]) return;
+  grid.classList.add("eq");
+  let lastAvail = 0;
+  grid._fit = () => {
+    const avail = grid.clientWidth;
+    if (!avail || avail === lastAvail) return;
+    lastAvail = avail;
+    const gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+    for (let n = widths.length; n >= 1; n--) {
+      const cols = Array.from({ length: n }, (_, k) => Math.max(...widths.filter((_, i) => i % n === k)));
+      if (n === 1 || cols.reduce((a, b) => a + b, 0) + gap * (n - 1) <= avail) {
+        grid.style.gridTemplateColumns = cols.map((w) => `min(100%, ${w}px)`).join(" ");
+        return;
+      }
+    }
+  };
+  grid._fit();
+}
+const _gridObserver = new ResizeObserver((entries) =>
+  entries.forEach((e) => e.target.querySelector(".eq")?._fit?.()),
+);
 function _setSegOn(buttons, active) {
   buttons.forEach((b) => {
     b.classList.toggle("on", b === active);
@@ -161,6 +185,28 @@ function _loadDateLabels() {
     .catch(() => {});
 }
 
+function _poller(view, load) {
+  let timer,
+    armed = false;
+  const run = () => {
+    if (armed && !document.hidden && _activeView() === view) load(true);
+  };
+  document.addEventListener("visibilitychange", run);
+  return {
+    arm() {
+      armed = true;
+      clearTimeout(timer);
+      timer = setTimeout(run, 30e3);
+    },
+    stop() {
+      armed = false;
+      clearTimeout(timer);
+    },
+  };
+}
+const _sbPoll = _poller("scoreboard", loadScoreboard);
+const _trPoll = _poller("tracker", loadTrackedStats);
+
 const _navRows = Array.from(document.querySelectorAll(".row[data-view]"));
 const _views = Array.from(document.querySelectorAll("section.view"));
 function _activeView() {
@@ -200,6 +246,9 @@ function showView(view) {
       break;
     case "seasonDoubles":
       loadSeasonDoubles();
+      break;
+    case "seasonLeaders":
+      loadSeasonLeaders();
       break;
     case "seasonHighs":
       loadSeasonHighs();
@@ -304,10 +353,11 @@ function updateTrackedPlayersUI() {
     .join("");
   document.getElementById("trackBtn").disabled = trackedPlayerIds.length === 0;
 }
-async function loadTrackedStats() {
+async function loadTrackedStats(quiet = false) {
+  _trPoll.stop();
   if (trackedPlayerIds.length === 0) return;
   const el = document.getElementById("trackerContent");
-  el.innerHTML = loadingHtml("Loading player stats...");
+  if (!quiet) el.innerHTML = loadingHtml("Loading player stats...");
   const league = currentLeague;
   try {
     const ids = trackedPlayerIds.map((p) => p.id).join(","),
@@ -315,6 +365,7 @@ async function loadTrackedStats() {
       d = await r.json();
     if (league !== currentLeague) return;
     if (!r.ok) throw new Error(d.detail || "Failed to load stats");
+    _trPoll.arm();
     if (d.players.length === 0) {
       el.innerHTML = emptyHtml("No Active Games", "Selected players don't have games in progress today");
       return;
@@ -338,6 +389,10 @@ async function loadTrackedStats() {
       td.querySelector(".v").classList.toggle("pin");
     });
   } catch (e) {
+    if (quiet) {
+      _trPoll.arm();
+      return;
+    }
     el.innerHTML = emptyHtml("Error Loading Stats", esc(e.message));
   }
 }
@@ -366,23 +421,50 @@ function _renderGameInfoTable(body) {
     rows.push(`<tr><td class="k">Attendance</td><td>${esc(body.attendance.toLocaleString("en-US"))}</td></tr>`);
   if (body.officials && body.officials.length)
     rows.push(`<tr><td class="k">Officials</td><td>${body.officials.map((o) => esc(o.name)).join(", ")}</td></tr>`);
+  if (body.leadChanges != null) rows.push(`<tr><td class="k">Lead changes</td><td>${esc(body.leadChanges)}</td></tr>`);
+  if (body.timesTied != null) rows.push(`<tr><td class="k">Times tied</td><td>${esc(body.timesTied)}</td></tr>`);
   if (!rows.length) return "";
   return `<div class="wrap"><table class="t dt-s info"><tbody>${rows.join("")}</tbody></table></div>`;
 }
+const _FLOW_COLS = [
+  ["paint", "Paint"],
+  ["secondChance", "2nd Chance"],
+  ["fastBreak", "Fast Break"],
+  ["offTurnovers", "Off TO"],
+  ["bench", "Bench"],
+  ["biggestLead", "Big Lead"],
+  ["biggestRun", "Big Run"],
+];
+function _renderFlowTable(teams) {
+  if (!teams.some((t) => t.flow)) return "";
+  const rows = teams
+    .map(
+      (t) =>
+        `<tr><td class="b">${esc(t.tricode)}</td>${_FLOW_COLS.map(([k]) => `<td class="c">${safeVal(t.flow?.[k])}</td>`).join("")}</tr>`,
+    )
+    .join("");
+  return `<div class="wrap"><table class="t dt-s"><thead><tr><th>Team</th>${_FLOW_COLS.map(([, h]) => `<th class="c">${h}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
 function _renderTopRow(body) {
   const quarters = _renderQuarterGrid(body.teams);
+  const flow = _renderFlowTable(body.teams);
   const info = _renderGameInfoTable(body);
-  if (!quarters && !info) return "";
-  return `<div class="bx-strip"><div class="bx-meta">${quarters}${info}</div></div>`;
+  if (!quarters && !flow && !info) return "";
+  return `<div class="bx-strip"><div class="bx-meta">${quarters}${flow}${info}</div></div>`;
 }
+const _signed = (v) => (v > 0 ? `+${v}` : esc(v ?? "-"));
 function _renderTeamPlayers(team) {
   const players = team.players.filter((p) => p.minutes !== "0:00" && p.minutes !== "0" && p.minutes !== 0);
-  return `<div class="pt"><div class="pt-cap">${esc(team.name)} - ${esc(team.score)}</div><div class="wrap"><table class="t dt-p"><colgroup><col style="width:26ch">${"<col>".repeat(12)}</colgroup><thead><tr><th>Player</th><th class="n">MIN</th><th class="n">PTS</th><th class="n reb-h">REB (O/D)</th><th class="n">AST</th><th class="n">FG</th><th class="n">FG%</th><th class="n">3 PT</th><th class="n">FT</th><th class="n">STL</th><th class="n">BLK</th><th class="n">TO</th><th class="n">PF</th></tr></thead><tbody>${players
+  const inactive = team.inactive || [];
+  const out = inactive.length
+    ? `<div class="pt-out"><span class="m">Inactive:</span> ${inactive.map((i) => `${esc(i.name)} <span class="m">(${esc(i.reason)})</span>`).join(", ")}</div>`
+    : "";
+  return `<div class="pt"><div class="pt-cap">${esc(team.name)} - ${esc(team.score)}</div><div class="wrap"><table class="t dt-p"><colgroup><col style="width:26ch">${"<col>".repeat(13)}</colgroup><thead><tr><th>Player</th><th class="n">MIN</th><th class="n">PTS</th><th class="n reb-h">REB (O/D)</th><th class="n">AST</th><th class="n">FG</th><th class="n">FG%</th><th class="n">3 PT</th><th class="n">FT</th><th class="n">STL</th><th class="n">BLK</th><th class="n">TO</th><th class="n">PF</th><th class="n">+/-</th></tr></thead><tbody>${players
     .map(
       (p) =>
-        `<tr><td class="pl" title="${escAttr(p.name)}">${esc(p.name)}</td><td class="n m2">${esc(p.minutes)}</td><td class="n">${statVal("points", p.points)}</td><td class="n">${statVal("rebounds", p.rebounds)} <span class="od">(${esc(p.offRebounds)}/${esc(p.defRebounds)})</span></td><td class="n">${statVal("assists", p.assists)}</td><td class="n">${esc(p.fg)}</td><td class="n">${pct(p.fgPct, 1)}</td><td class="n">${esc(p.threePt)}</td><td class="n">${esc(p.ft)}</td><td class="n">${statVal("steals", p.steals)}</td><td class="n">${statVal("blocks", p.blocks)}</td><td class="n">${esc(p.turnovers)}</td><td class="n">${esc(p.fouls)}</td></tr>`,
+        `<tr><td class="pl${p.starter ? " starter" : ""}" title="${escAttr(p.name)}">${p.onCourt ? '<span class="oc" title="On court"></span>' : ""}${esc(p.name)}</td><td class="n m2">${esc(p.minutes)}</td><td class="n">${statVal("points", p.points)}</td><td class="n">${statVal("rebounds", p.rebounds)} <span class="od">(${esc(p.offRebounds)}/${esc(p.defRebounds)})</span></td><td class="n">${statVal("assists", p.assists)}</td><td class="n">${esc(p.fg)}</td><td class="n">${pct(p.fgPct, 1)}</td><td class="n">${esc(p.threePt)}</td><td class="n">${esc(p.ft)}</td><td class="n">${statVal("steals", p.steals)}</td><td class="n">${statVal("blocks", p.blocks)}</td><td class="n">${esc(p.turnovers)}</td><td class="n">${esc(p.fouls)}</td><td class="n">${_signed(p.plusMinus)}</td></tr>`,
     )
-    .join("")}</tbody></table></div></div>`;
+    .join("")}</tbody></table></div>${out}</div>`;
 }
 async function toggleGameDetails(gameId, card) {
   const det = card.querySelector(".bx-det");
@@ -405,16 +487,18 @@ let _standingsData = null;
 function renderStandings() {
   const el = document.getElementById("standingsContent");
   const card = (rows, title, po = 6, pi = 10, style = "") =>
-    `<section class="card"${style}><h3 class="card-h">${title}</h3><div class="wrap"><table class="t st-t"><thead><tr><th class="rk">#</th><th>Team</th><th class="n">W</th><th class="n">L</th><th class="n">PCT</th><th class="n">GB</th><th class="n">Streak</th><th class="n">L10</th></tr></thead><tbody>${rows
+    `<section class="card"${style}><h3 class="card-h">${title}</h3><div class="wrap"><table class="t st-t"><thead><tr><th class="rk">#</th><th>Team</th><th class="n">W</th><th class="n">L</th><th class="n">PCT</th><th class="n">GB</th><th class="n">Streak</th><th class="n">L10</th><th class="n">Home</th><th class="n">Away</th><th class="n">PPG</th><th class="n">OPP</th><th class="n">DIFF</th></tr></thead><tbody>${rows
       .map(
         (t, i) =>
-          `<tr class="${i < po ? "po" : i < pi ? "pi" : ""}"><td class="rk">${i + 1}</td><td class="b">${esc(t.name)}</td><td class="n hl">${esc(t.wins)}</td><td class="n">${esc(t.losses)}</td><td class="n">${(100 * t.winPct).toFixed(1)}%</td><td class="n">${esc(t.gamesBack)}</td><td class="n">${esc(t.streak)}</td><td class="n">${esc(t.last10)}</td></tr>`,
+          `<tr class="${i < po ? "po" : i < pi ? "pi" : ""}"><td class="rk">${i + 1}</td><td class="b">${esc(t.name)}</td><td class="n hl">${esc(t.wins)}</td><td class="n">${esc(t.losses)}</td><td class="n">${(100 * t.winPct).toFixed(1)}%</td><td class="n">${esc(t.gamesBack)}</td><td class="n">${esc(t.streak)}</td><td class="n">${esc(t.last10)}</td><td class="n">${esc(t.homeRecord)}</td><td class="n">${esc(t.awayRecord)}</td><td class="n">${safeVal(t.ppg)}</td><td class="n">${safeVal(t.oppPpg)}</td><td class="n">${_signed(t.diff)}</td></tr>`,
       )
       .join("")}</tbody></table></div></section>`;
   try {
     el.innerHTML = _standingsData.all
       ? card(_standingsData.all, "Standings", 8, 8, ' style="width:fit-content;max-width:100%"')
       : `<div class="two">${card(_standingsData.east, "Eastern Conference")}${card(_standingsData.west, "Western Conference")}</div>`;
+    const two = el.querySelector(".two");
+    if (two) _alignGrid(two);
   } catch (e) {
     el.innerHTML = emptyHtml("Error Loading Standings", esc(e.message));
   }
@@ -1118,20 +1202,10 @@ async function toggleTdGames(playerId, btn) {
   }
 }
 
-let _sbTimer;
-function _pollScoreboard() {
-  clearTimeout(_sbTimer);
-  _sbTimer = setTimeout(() => {
-    if (!document.hidden && _activeView() === "scoreboard") loadScoreboard(true);
-  }, 30e3);
-}
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && _activeView() === "scoreboard") loadScoreboard(true);
-});
 async function loadScoreboard(quiet = false) {
   const content = document.getElementById("scoreboardContent");
   const dateEl = document.getElementById("sbDate");
-  clearTimeout(_sbTimer);
+  _sbPoll.stop();
   if (!quiet) content.innerHTML = loadingHtml("Loading games...");
   const league = currentLeague;
   try {
@@ -1140,7 +1214,7 @@ async function loadScoreboard(quiet = false) {
     if (league !== currentLeague) return;
     if (!response.ok) throw new Error(data.detail || "Failed to load scoreboard");
     const games = Array.isArray(data.games) ? data.games : [];
-    if (games.some((g) => !String(g.status ?? "").toLowerCase().includes("final"))) _pollScoreboard();
+    if (games.some((g) => !String(g.status ?? "").toLowerCase().includes("final"))) _sbPoll.arm();
     const sbDate = games.length ? new Date(data.date) : null;
     dateEl.textContent =
       sbDate && !isNaN(sbDate)
@@ -1154,6 +1228,8 @@ async function loadScoreboard(quiet = false) {
       leader && leader.name
         ? `<td class="ldn">${esc(leader.name)}</td><td class="n">${safeVal(leader.points)}</td><td class="n">${safeVal(leader.rebounds)}</td><td class="n">${safeVal(leader.assists)}</td>`
         : '<td class="ldn z">-</td><td class="n z">-</td><td class="n z">-</td><td class="n z">-</td>';
+    const showRec = games.some((g) => g.homeTeam?.record || g.awayTeam?.record);
+    const rec = (team) => (showRec ? `<td class="n rec">${esc(team?.record ?? "")}</td>` : "");
     const toNum = (value) => {
       const parsed = parseInt(value, 10);
       return Number.isFinite(parsed) ? parsed : null;
@@ -1182,13 +1258,13 @@ async function loadScoreboard(quiet = false) {
             home >= away ? [homeTri, awayTri, home, away] : [awayTri, homeTri, away, home];
           series = `<span class="ser">${esc(leadTri)}-${esc(trailTri)} ${leadW}-${trailW}</span>`;
         }
-        return `<tbody><tr class="${homeCls} g1"><td class="stc" rowspan="2"><span class="st ${stCls}">${esc(statusRaw)}</span>${series}</td><td class="tm">${esc(game.homeTeam?.name ?? "-")}</td><td class="n sc">${safeVal(game.homeTeam?.score)}</td>${leaderCells(game.homeTeam?.leader)}</tr><tr class="${awayCls}"><td class="tm">${esc(game.awayTeam?.name ?? "-")}</td><td class="n sc">${safeVal(game.awayTeam?.score)}</td>${leaderCells(game.awayTeam?.leader)}</tr></tbody>`;
+        return `<tbody><tr class="${homeCls} g1"><td class="stc" rowspan="2"><span class="st ${stCls}">${esc(statusRaw)}</span>${series}</td><td class="tm">${esc(game.homeTeam?.name ?? "-")}</td>${rec(game.homeTeam)}<td class="n sc">${safeVal(game.homeTeam?.score)}</td>${leaderCells(game.homeTeam?.leader)}</tr><tr class="${awayCls}"><td class="tm">${esc(game.awayTeam?.name ?? "-")}</td>${rec(game.awayTeam)}<td class="n sc">${safeVal(game.awayTeam?.score)}</td>${leaderCells(game.awayTeam?.leader)}</tr></tbody>`;
       })
       .join("");
-    content.innerHTML = `<div class="wrap"><table class="t sb"><thead><tr><th>Status</th><th>Team</th><th class="n">Score</th><th>Leader</th><th class="n">PTS</th><th class="n">REB</th><th class="n">AST</th></tr></thead>${body}</table></div>`;
+    content.innerHTML = `<div class="wrap"><table class="t sb"><thead><tr><th>Status</th><th>Team</th>${showRec ? '<th class="n">W-L</th>' : ""}<th class="n">Score</th><th>Leader</th><th class="n">PTS</th><th class="n">REB</th><th class="n">AST</th></tr></thead>${body}</table></div>`;
   } catch (e) {
     if (quiet) {
-      _pollScoreboard();
+      _sbPoll.arm();
       return;
     }
     content.innerHTML = emptyHtml("Error Loading Games", esc(e.message));
@@ -1229,6 +1305,52 @@ async function loadLeaders() {
   } catch (e) {
     content.innerHTML = emptyHtml("Error Loading Leaders", esc(e.message));
   }
+}
+
+let _seasonLeadersData = null;
+async function loadSeasonLeaders(force = false) {
+  if (_seasonLeadersData && !force) {
+    renderSeasonLeaders();
+    return;
+  }
+  const content = document.getElementById("seasonLeadersContent");
+  document.getElementById("seasonLeadersNote").textContent = "";
+  content.innerHTML = loadingHtml("Loading season leaders...");
+  const league = currentLeague;
+  try {
+    const response = await _fetchWithAbort("seasonLeaders", "/api/season/leaders" + leagueQuery());
+    const data = await response.json();
+    if (league !== currentLeague) return;
+    if (!response.ok) throw new Error(data.detail || "Failed to load season leaders");
+    _seasonLeadersData = data;
+    renderSeasonLeaders();
+  } catch (e) {
+    content.innerHTML = emptyHtml("Error Loading Season Leaders", esc(e.message));
+  }
+}
+function renderSeasonLeaders() {
+  const content = document.getElementById("seasonLeadersContent");
+  const data = _seasonLeadersData;
+  const categories = (data.categories || []).filter((c) => c.players.length);
+  if (!categories.length) {
+    document.getElementById("seasonLeadersNote").textContent = "";
+    content.innerHTML = emptyHtml("No Data Available", "Season leaders not available yet");
+    return;
+  }
+  document.getElementById("seasonLeadersNote").textContent =
+    `Per game, ${data.season} regular season (min. ${data.minGames} games played)`;
+  content.innerHTML = `<div class="sl-grid">${categories
+    .map(
+      (c) =>
+        `<section class="card"><div class="wrap"><table class="t db-t"><thead><tr><th class="rk">#</th><th>${esc(c.label)}</th><th class="c">Team</th><th class="n">${esc(c.short)}</th></tr></thead><tbody>${c.players
+          .map(
+            (p) =>
+              `<tr><td class="rk">${esc(p.rank)}</td><td class="b">${esc(p.name)}</td><td class="c">${esc(p.team)}</td><td class="n hl">${Number(p.value).toFixed(1)}</td></tr>`,
+          )
+          .join("")}</tbody></table></div></section>`,
+    )
+    .join("")}</div>`;
+  _alignGrid(content.querySelector(".sl-grid"));
 }
 
 let _seasonHighsData = null;
@@ -1351,6 +1473,7 @@ const _ACTIONS = {
   loadPlayoffs: () => loadPlayoffs(true),
   loadTrades: () => loadTrades(true),
   loadSeasonDoubles: () => loadSeasonDoubles(true),
+  loadSeasonLeaders: () => loadSeasonLeaders(true),
   loadSeasonHighs: () => loadSeasonHighs(true),
   setInjuriesView: (t) => setInjuriesView(t.dataset.inj),
   showConference: (t) => showConference(t.dataset.conference),
@@ -1367,6 +1490,7 @@ document.addEventListener("click", (e) => {
   if (fn) fn(t, e);
 });
 
+["standingsContent", "seasonLeadersContent"].forEach((id) => _gridObserver.observe(document.getElementById(id)));
 const _NBA_ONLY_TABS = ["injuries", "trades"];
 const _trackerEmpty = document.getElementById("trackerContent").innerHTML;
 const _profileEmpty = document.getElementById("lastNContent").innerHTML;
@@ -1394,6 +1518,7 @@ function setLeague(league) {
   _standingsData = null;
   playoffsData = null;
   _seasonDoublesData = null;
+  _seasonLeadersData = null;
   _seasonHighsData = null;
   _boxscoreDateBtns.forEach((b) => (b.hidden = false));
   _leaderDateBtns.forEach((b) => (b.hidden = false));
@@ -1421,6 +1546,9 @@ function setLeague(league) {
       break;
     case "seasonDoubles":
       loadSeasonDoubles(true);
+      break;
+    case "seasonLeaders":
+      loadSeasonLeaders(true);
       break;
     case "seasonHighs":
       loadSeasonHighs(true);

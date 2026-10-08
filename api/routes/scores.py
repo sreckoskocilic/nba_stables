@@ -17,19 +17,24 @@ from constants import (
     GL_REB,
     GL_TEAM_ID,
     LS_GAME_ID,
+    LS_LOSSES,
     LS_SCORE,
     LS_TEAM_CITY,
     LS_TEAM_ID,
     LS_TEAM_NAME,
     LS_TRICODE,
+    LS_WINS,
     ST_AWAY_RECORD,
     ST_CITY,
     ST_CONF,
+    ST_DIFF_PPG,
     ST_GAMES_BACK,
     ST_HOME_RECORD,
     ST_L10,
     ST_LOSSES,
     ST_NAME,
+    ST_OPP_PPG,
+    ST_PPG,
     ST_RANK,
     ST_STREAK,
     ST_TEAM_ID,
@@ -78,6 +83,8 @@ _PLAYOFF_SERIES_TTL = 300
 
 # Third digit of a game ID is the game type, the same for NBA and WNBA (004…, 104…).
 _PLAYOFF_GAME_TYPE = "4"
+# Game-ID types whose W-L record means something: regular season, play-in
+_RECORD_GAME_TYPES = ("2", "5")
 
 # Per league: NBA and WNBA share tricodes (MIN, IND, PHX, ...). WNBA IDs start 1611661.
 _TRICODE_TO_TEAM_ID = {
@@ -226,6 +233,13 @@ def _live_leader(ld: dict) -> dict:
     }
 
 
+def _record(game_id: str, wins, losses) -> str:
+    """Season W-L; blank for preseason and playoff games."""
+    if game_id[2:3] not in _RECORD_GAME_TYPES or wins is None or losses is None:
+        return ""
+    return f"{wins}-{losses}"
+
+
 def _scoreboard_from_live(raw_games) -> list[dict]:
     """Build scoreboard game list from the live API (in-progress / finished games)."""
     games = []
@@ -246,12 +260,18 @@ def _scoreboard_from_live(raw_games) -> list[dict]:
                 "homeTeam": {
                     "name": f"{home_team['teamCity']} {home_team['teamName']}",
                     "tricode": home_team["teamTricode"],
+                    "record": _record(
+                        game["gameId"], home_team.get("wins"), home_team.get("losses")
+                    ),
                     "score": home_team["score"],
                     "leader": _live_leader(home_leaders),
                 },
                 "awayTeam": {
                     "name": f"{away_team['teamCity']} {away_team['teamName']}",
                     "tricode": away_team["teamTricode"],
+                    "record": _record(
+                        game["gameId"], away_team.get("wins"), away_team.get("losses")
+                    ),
                     "score": away_team["score"],
                     "leader": _live_leader(away_leaders),
                 },
@@ -276,12 +296,14 @@ def _build_team(row, team_id, game_id, leaders_by) -> dict:
         return {
             "name": "",
             "tricode": "",
+            "record": "",
             "score": 0,
             "leader": leader,
         }
     return {
         "name": f"{row[LS_TEAM_CITY]} {row[LS_TEAM_NAME]}",
         "tricode": row[LS_TRICODE],
+        "record": _record(game_id, row[LS_WINS], row[LS_LOSSES]),
         "score": row[LS_SCORE] or 0,
         "leader": leader,
     }
@@ -450,6 +472,9 @@ _WS_HOME = 18
 _WS_AWAY = 19
 _WS_L10 = 20
 _WS_STREAK = 37
+_WS_PPG = 58
+_WS_OPP_PPG = 59
+_WS_DIFF_PPG = 60
 
 
 def _fetch_wnba_standings_teams() -> list:
@@ -490,6 +515,9 @@ def _parse_wnba_team_row(team) -> dict:
         "last10": team[_WS_L10] or "0-0",
         "homeRecord": team[_WS_HOME] or "0-0",
         "awayRecord": team[_WS_AWAY] or "0-0",
+        "ppg": team[_WS_PPG],
+        "oppPpg": team[_WS_OPP_PPG],
+        "diff": team[_WS_DIFF_PPG],
     }
 
 
@@ -530,6 +558,9 @@ async def get_standings(league: str = Query(default="nba")):
             team_data = _parse_team_row(team)
             team_data["homeRecord"] = team[ST_HOME_RECORD] or "0-0"
             team_data["awayRecord"] = team[ST_AWAY_RECORD] or "0-0"
+            team_data["ppg"] = team[ST_PPG]
+            team_data["oppPpg"] = team[ST_OPP_PPG]
+            team_data["diff"] = team[ST_DIFF_PPG]
             if team[ST_CONF] == "East":
                 east.append(team_data)
             else:

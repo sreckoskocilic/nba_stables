@@ -213,12 +213,13 @@ async def get_game_players(
     return result
 
 
-def _player_box_entry(name: str, minutes: str, stats: dict) -> dict:
+def _player_box_entry(name: str, minutes: str, stats: dict, starter: bool) -> dict:
     """Build a game-players row from a boxscore player's stats."""
     fgm = stats["fieldGoalsMade"]
     fga = stats["fieldGoalsAttempted"]
     return {
         "name": name,
+        "starter": starter,
         "minutes": minutes,
         "points": stats["points"],
         "rebounds": stats["reboundsTotal"],
@@ -233,6 +234,7 @@ def _player_box_entry(name: str, minutes: str, stats: dict) -> dict:
         "fgPct": round(fgm / fga, 3) if fga > 0 else 0,
         "threePt": f"{stats['threePointersMade']}/{stats['threePointersAttempted']}",
         "ft": f"{stats['freeThrowsMade']}/{stats['freeThrowsAttempted']}",
+        "plusMinus": round(stats["plusMinusPoints"] or 0),
     }
 
 
@@ -243,6 +245,8 @@ def _finalize_game_players(
     arena: str = "",
     attendance: int = 0,
     officials: list | None = None,
+    lead_changes: int | None = None,
+    times_tied: int | None = None,
 ) -> dict:
     return {
         "gameId": game_id,
@@ -250,7 +254,40 @@ def _finalize_game_players(
         "arena": arena,
         "attendance": attendance,
         "officials": officials or [],
+        "leadChanges": lead_changes,
+        "timesTied": times_tied,
         "teams": teams,
+    }
+
+
+_INACTIVE_REASONS = {
+    "INACTIVE_GLEAGUE_TWOWAY": "G League two-way",
+    "INACTIVE_GLEAGUE_ON_ASSIGNMENT": "G League assignment",
+    "INACTIVE_COACH": "Coach's decision",
+    "INACTIVE_NOT_WITH_TEAM": "Not with team",
+}
+
+
+def _inactive_reason(player: dict) -> str:
+    """'Right Knee' from 'Right Knee; N/A', else a label for notPlayingReason."""
+    desc = (player.get("notPlayingDescription") or "").split(";")[0].strip()
+    if desc:
+        return desc
+    reason = player.get("notPlayingReason") or ""
+    return _INACTIVE_REASONS.get(
+        reason, reason.removeprefix("INACTIVE_").replace("_", " ").capitalize()
+    )
+
+
+def _team_flow(stats: dict) -> dict:
+    return {
+        "paint": stats["pointsInThePaint"],
+        "secondChance": stats["pointsSecondChance"],
+        "fastBreak": stats["pointsFastBreak"],
+        "offTurnovers": stats["pointsFromTurnovers"],
+        "bench": stats["benchPoints"],
+        "biggestLead": stats["biggestLead"],
+        "biggestRun": stats["biggestScoringRun"],
     }
 
 
@@ -259,28 +296,39 @@ def _game_players_from_live(game_id: str, league_id: str = "00") -> dict:
     game = bs["game"]
 
     teams = []
+    live = game.get("gameStatus") == 2
 
     for team_key in ["homeTeam", "awayTeam"]:
         team = game[team_key]
         periods = [{"score": p.get("score", 0)} for p in team.get("periods", [])]
+        team_stats = team.get("statistics")
         team_data = {
             "name": f"{team['teamCity']} {team['teamName']}",
             "tricode": team["teamTricode"],
             "score": team["score"],
             "periods": periods,
+            "flow": _team_flow(team_stats) if team_stats else None,
             "players": [],
+            "inactive": [],
         }
 
         for player in team["players"]:
-            if player["status"] == "ACTIVE":
-                stats = player["statistics"]
-                team_data["players"].append(
-                    _player_box_entry(
-                        fix_encoding(player["name"]),
-                        parse_iso_minutes(stats["minutes"]),
-                        stats,
-                    )
+            name = fix_encoding(player["name"])
+            if player["status"] != "ACTIVE":
+                team_data["inactive"].append(
+                    {"name": name, "reason": _inactive_reason(player)}
                 )
+                continue
+            stats = player["statistics"]
+            row = _player_box_entry(
+                name,
+                parse_iso_minutes(stats["minutes"]),
+                stats,
+                player.get("starter") == "1",
+            )
+            if live:
+                row["onCourt"] = player.get("oncourt") == "1"
+            team_data["players"].append(row)
 
         team_data["players"].sort(
             key=lambda x: parse_minutes(x["minutes"]),
@@ -307,6 +355,7 @@ def _game_players_from_live(game_id: str, league_id: str = "00") -> dict:
         if name:
             officials.append({"name": name})
 
+    home_stats = game["homeTeam"].get("statistics") or {}
     return _finalize_game_players(
         game_id,
         live_status_text(game),
@@ -314,6 +363,8 @@ def _game_players_from_live(game_id: str, league_id: str = "00") -> dict:
         arena=arena,
         attendance=game.get("attendance") or 0,
         officials=officials,
+        lead_changes=home_stats.get("leadChanges"),
+        times_tied=home_stats.get("timesTied"),
     )
 
 
@@ -333,7 +384,9 @@ def _game_players_from_v3(game_id: str) -> dict:
                 "tricode": stats["teamTricode"],
                 "score": 0,
                 "periods": [],
+                "flow": None,
                 "players": [],
+                "inactive": [],
             },
         )
         team["score"] += stats["points"] or 0
@@ -343,7 +396,9 @@ def _game_players_from_v3(game_id: str) -> dict:
         name = fix_encoding(
             f"{stats['firstName'] or ''} {stats['familyName'] or ''}".strip()
         )
-        team["players"].append(_player_box_entry(name, minutes, stats))
+        team["players"].append(
+            _player_box_entry(name, minutes, stats, bool(stats["position"]))
+        )
 
     teams = list(teams_by_id.values())
     for team in teams:

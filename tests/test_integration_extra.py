@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 from fastapi.testclient import TestClient
 
 from conftest import (
@@ -12,10 +13,12 @@ from conftest import (
     PLAYER_ID,
     TEAM_ID_BOS,
     TEAM_ID_LAL,
+    V3_PLAYER_STATS_HEADERS,
     make_game_logs,
     make_live_boxscore,
     make_live_game,
     make_live_player,
+    make_scoreboard_v3,
     make_standings_row,
 )
 from helpers.common import CACHE_TTL
@@ -1349,3 +1352,239 @@ class TestUpstreamEdgeStates:
         t = r.json()["east"][0]
         assert t["winPct"] == 0
         assert t["gamesBack"] == "-"
+
+
+class TestBoxscoreExtras:
+    def _live_box(self):
+        bs = make_live_boxscore(status="Q3 4:10")
+        game = bs["game"]
+        game["gameStatus"] = 2
+        home = game["homeTeam"]
+        home["players"] = [
+            {**make_live_player(), "starter": "1", "oncourt": "1"},
+            make_live_player(person_id=2, name="Hurt Guy", status="INACTIVE", points=0)
+            | {
+                "notPlayingReason": "INACTIVE_INJURY",
+                "notPlayingDescription": "Right Knee; N/A",
+            },
+            make_live_player(person_id=3, name="Two Way", status="INACTIVE", points=0)
+            | {"notPlayingReason": "INACTIVE_GLEAGUE_TWOWAY"},
+        ]
+        home["statistics"] = {
+            "pointsInThePaint": 40,
+            "pointsSecondChance": 12,
+            "pointsFastBreak": 9,
+            "pointsFromTurnovers": 15,
+            "benchPoints": 30,
+            "biggestLead": 14,
+            "biggestScoringRun": 10,
+            "leadChanges": 7,
+            "timesTied": 5,
+        }
+        return bs
+
+    def test_live_extras(self, client):
+        gid = "0022500888"
+        with patch(
+            "routes.players.get_cached_live_boxscore", return_value=self._live_box()
+        ):
+            body = client.get(f"/api/games/{gid}/players").json()
+        assert body["leadChanges"] == 7
+        assert body["timesTied"] == 5
+        home = next(t for t in body["teams"] if t["tricode"] == "LAL")
+        away = next(t for t in body["teams"] if t["tricode"] == "BOS")
+        assert home["flow"]["paint"] == 40
+        assert home["flow"]["biggestRun"] == 10
+        assert away["flow"] is None
+        player = home["players"][0]
+        assert player["starter"] is True
+        assert player["onCourt"] is True
+        assert player["plusMinus"] == 8
+        assert home["inactive"] == [
+            {"name": "Hurt Guy", "reason": "Right Knee"},
+            {"name": "Two Way", "reason": "G League two-way"},
+        ]
+
+    def test_final_game_has_no_on_court_flag(self, client):
+        with patch(
+            "routes.players.get_cached_live_boxscore", return_value=make_live_boxscore()
+        ):
+            body = client.get(f"/api/games/{GAME_ID}/players").json()
+        assert "onCourt" not in body["teams"][0]["players"][0]
+        assert body["leadChanges"] is None
+
+    def test_v3_starter_and_plus_minus(self, client):
+        from conftest import WNBA_LVA, WNBA_NYL, make_v3_player_row
+
+        gid = "1042500405"
+        box = {
+            "headers": V3_PLAYER_STATS_HEADERS,
+            "data": [
+                make_v3_player_row(
+                    gid, WNBA_NYL, 1, "Start", "Er", position="G", plusMinusPoints=7.0
+                ),
+                make_v3_player_row(gid, WNBA_LVA, 2, "Bench", "Er"),
+            ],
+        }
+        with (
+            patch(
+                "routes.players.get_cached_live_boxscore",
+                side_effect=requests.RequestException("404"),
+            ),
+            patch("routes.players.get_cached_boxscore_v3", return_value=box),
+            patch("routes.players.log_exceptions"),
+        ):
+            body = client.get(f"/api/games/{gid}/players").json()
+        nyl = next(t for t in body["teams"] if t["tricode"] == "NYL")
+        lva = next(t for t in body["teams"] if t["tricode"] == "LVA")
+        assert nyl["players"][0]["starter"] is True
+        assert nyl["players"][0]["plusMinus"] == 7
+        assert lva["players"][0]["starter"] is False
+        assert nyl["inactive"] == []
+
+
+class TestRecordsAndStandingsColumns:
+    def test_scoreboard_records(self, client):
+        from datetime import date
+
+        live = [make_live_game(gameStatus=2) | {"gameCode": "20260307/BOSLAL"}]
+        live[0]["homeTeam"] = live[0]["homeTeam"] | {"wins": 3, "losses": 1}
+        with (
+            patch(
+                "routes.scores.get_scoreboard_v3_by_date",
+                return_value=make_scoreboard_v3([make_live_game()]),
+            ),
+            patch("routes.scores.get_cached_scoreboard", return_value=live),
+            patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7)),
+        ):
+            game = client.get("/api/scoreboard").json()["games"][0]
+        assert game["homeTeam"]["record"] == "3-1"
+        assert game["awayTeam"]["record"] == ""
+
+    def test_v3_scoreboard_records(self, client):
+        from datetime import date
+
+        with (
+            patch(
+                "routes.scores.get_scoreboard_v3_by_date",
+                return_value=make_scoreboard_v3([make_live_game()]),
+            ),
+            patch("routes.scores.get_cached_scoreboard", return_value=[]),
+            patch("routes.scores.scoreboard_date", return_value=date(2026, 3, 7)),
+        ):
+            game = client.get("/api/scoreboard").json()["games"][0]
+        assert game["homeTeam"]["record"] == "0-0"
+
+    def test_playoff_games_have_no_record(self, client):
+        from datetime import date
+
+        game = make_live_game(gameId="0042500101")
+        with (
+            patch(
+                "routes.scores.get_scoreboard_v3_by_date",
+                return_value=make_scoreboard_v3([game]),
+            ),
+            patch("routes.scores.get_cached_scoreboard", return_value=[]),
+            patch("routes.scores.scoreboard_date", return_value=date(2026, 5, 1)),
+        ):
+            sb_game = client.get("/api/scoreboard").json()["games"][0]
+        assert sb_game["homeTeam"]["record"] == ""
+
+    def test_standings_points_columns(self, client):
+        rows = [make_standings_row(1, "Boston", "Celtics", "East", 50, 20)]
+        standings = MagicMock()
+        standings.return_value.get_dict.return_value = {
+            "resultSets": [{"rowSet": rows}]
+        }
+        with patch("routes.scores.leaguestandings.LeagueStandings", standings):
+            team = client.get("/api/standings").json()["east"][0]
+        assert (team["ppg"], team["oppPpg"], team["diff"]) == (112.4, 108.1, 4.3)
+
+
+LEADERS_HEADERS = [
+    "PLAYER_ID",
+    "PLAYER_NAME",
+    "TEAM_ABBREVIATION",
+    "GP",
+    "FGM",
+    "FGA",
+    "FTM",
+    "FTA",
+    "PTS",
+    "REB",
+    "AST",
+    "STL",
+    "BLK",
+    "FG3M",
+]
+
+
+def _leaders_row(pid, name, team, gp, fgm, fga, pts, reb=0, ast=0, ftm=0, fta=0):
+    return [pid, name, team, gp, fgm, fga, ftm, fta, pts, reb, ast, 0, 0, 0]
+
+
+class TestSeasonLeaders:
+    def _get(self, client, rows):
+        full = MagicMock()
+        full.get_dict.return_value = {
+            "resultSets": [{"headers": LEADERS_HEADERS, "rowSet": rows}]
+        }
+        empty = MagicMock()
+        empty.get_dict.return_value = {
+            "resultSets": [{"headers": LEADERS_HEADERS, "rowSet": []}]
+        }
+        with patch(
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            side_effect=[full, empty],
+        ):
+            return client.get("/api/season/leaders").json()
+
+    def test_per_game_ranking_and_qualifier(self, client):
+        rows = [
+            _leaders_row(1, "Star", "OKC", 10, 100, 200, 300),
+            # traded: two rows summed -> 10 GP, 250 PTS
+            _leaders_row(2, "Traded", "LAL", 4, 40, 100, 100),
+            _leaders_row(2, "Traded", "BOS", 6, 60, 100, 150),
+            # 6 GP < 70% of 10 -> not qualified despite 40 PPG
+            _leaders_row(3, "Rookie", "SAS", 6, 90, 150, 240),
+        ]
+        body = self._get(client, rows)
+        assert body["minGames"] == 7
+        points = next(c for c in body["categories"] if c["key"] == "points")
+        assert [(p["name"], p["value"]) for p in points["players"]] == [
+            ("Star", 30.0),
+            ("Traded", 25.0),
+        ]
+        assert points["short"] == "PPG"
+
+    def test_fg_pct_needs_enough_makes(self, client):
+        rows = [
+            _leaders_row(1, "Volume", "OKC", 10, 50, 100, 120),
+            _leaders_row(2, "Rare", "LAL", 10, 10, 10, 20),
+        ]
+        body = self._get(client, rows)
+        fg = next(c for c in body["categories"] if c["key"] == "fgPct")
+        assert [(p["name"], p["value"]) for p in fg["players"]] == [("Volume", 50.0)]
+
+    def test_ft_pct_needs_enough_makes(self, client):
+        rows = [
+            _leaders_row(1, "Liner", "OKC", 10, 50, 100, 120, ftm=40, fta=50),
+            _leaders_row(2, "Rare", "LAL", 10, 50, 100, 120, ftm=5, fta=5),
+        ]
+        body = self._get(client, rows)
+        ft = next(c for c in body["categories"] if c["key"] == "ftPct")
+        assert [(p["name"], p["value"]) for p in ft["players"]] == [("Liner", 80.0)]
+
+    def test_shares_totals_with_doubles(self, client):
+        full = MagicMock()
+        full.get_dict.return_value = {
+            "resultSets": [{"headers": LEADERS_HEADERS + ["DD2", "TD3"], "rowSet": []}]
+        }
+        with patch(
+            "routes.season.leaguedashplayerstats.LeagueDashPlayerStats",
+            return_value=full,
+        ) as mock:
+            client.get("/api/season/doubles")
+            client.get("/api/season/leaders")
+            client.get("/api/season/leaders")
+        assert mock.call_count == 2
