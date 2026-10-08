@@ -1202,6 +1202,21 @@ class TestScoreboardSeries:
         assert pair_wins[key] == {str(TEAM_ID_BOS): 1, str(TEAM_ID_LAL): 0}
         assert len(pair_games[key]) == 1
 
+    def test_series_ignores_game_still_in_progress(self):
+        """A live game is listed with running PTS and WL=None: it must not count."""
+        from routes.scores import _fetch_playoff_series_data
+
+        lgf_rows = [
+            ["PG01", TEAM_ID_LAL, None, 62, "2026-06-03", "LAL vs. BOS"],
+            ["PG01", TEAM_ID_BOS, None, 47, "2026-06-03", "BOS @ LAL"],
+        ]
+        with patch("routes.scores.LeagueGameFinder", self._lgf_mock(lgf_rows)):
+            pair_wins, _ = _fetch_playoff_series_data(
+                "2025-26", "00", frozenset({"PG01"})
+            )
+        lo, hi = sorted((TEAM_ID_LAL, TEAM_ID_BOS))
+        assert pair_wins[f"{lo}_{hi}"] == {str(lo): 0, str(hi): 0}
+
     def test_series_no_win_when_pts_tied_and_wl_missing(self):
         """WL=None and equal PTS -> no winner inferred (entry stays 0-0)."""
         from routes.scores import _fetch_playoff_series_data

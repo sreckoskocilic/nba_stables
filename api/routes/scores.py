@@ -71,6 +71,7 @@ from helpers.stats import (
     get_wnba_current_season,
     live_status_text,
     scoreboard_date,
+    unfinished_game_ids,
 )
 
 router = APIRouter()
@@ -588,7 +589,12 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
         return result
 
     try:
-        games = _playin_games(season)
+        unfinished = unfinished_game_ids("00")
+        games = {
+            gid: pts
+            for gid, pts in _playin_games(season).items()
+            if gid not in unfinished
+        }
 
         def decisive_winner_loser(team_pts: dict):
             """Winner/loser ids, or (None, None) when PTS aren't decisive yet.
@@ -694,11 +700,12 @@ def _get_playoff_series_cached(league_id: str = "00") -> tuple[dict, dict]:
         get_wnba_current_season()[:4] if league_id == "10" else get_current_season()
     )
     cache_key = f"playoff_series_{league_id}_{season}"
+    unfinished = unfinished_game_ids(league_id)
     with cache.lock(cache_key):
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
-        result = _fetch_playoff_series_data(season, league_id)
+        result = _fetch_playoff_series_data(season, league_id, unfinished)
         cache.set(cache_key, result, _PLAYOFF_SERIES_TTL)
         return result
 
@@ -739,6 +746,7 @@ def _attach_series_to_games(
 def _fetch_playoff_series_data(
     season: str,
     league_id: str = "00",
+    unfinished: frozenset = frozenset(),
 ) -> tuple[dict, dict]:
     """Return playoff series win counts and per-game details.
 
@@ -789,9 +797,10 @@ def _fetch_playoff_series_data(
             )
 
             # Prefer WL, fall back to higher PTS. LeagueGameFinder lags on
-            # setting WL for a just-finished game while scores are already in.
+            # setting WL for a just-finished game while scores are already in;
+            # a game still in progress also has no WL, so it must not count.
             winner_tid = next((r[tid_idx] for r in rows if r[wl_idx] == "W"), None)
-            if winner_tid is None and len(rows) == 2:
+            if winner_tid is None and len(rows) == 2 and gid not in unfinished:
                 a, b = rows
                 pa, pb = a[pts_idx], b[pts_idx]
                 if (

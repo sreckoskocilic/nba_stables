@@ -374,6 +374,23 @@ def get_cached_scoreboard(league_id: str = "00") -> Any:
         return data
 
 
+def unfinished_game_ids(league_id: str = "00") -> frozenset:
+    """IDs of today's games that have not ended, per the live CDN scoreboard.
+
+    LeagueGameFinder lists an in-progress game with its running PTS and WL=None;
+    callers use this to keep such a game from being scored as a win.
+    """
+    try:
+        return frozenset(
+            g["gameId"]
+            for g in get_cached_scoreboard(league_id)
+            if g["gameStatus"] != 3
+        )
+    except Exception as ex:
+        log_exceptions(ex, "unfinished_game_ids")
+        return frozenset()
+
+
 def get_cached_live_boxscore(
     game_id: str,
     league_id: str = "00",

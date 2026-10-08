@@ -105,6 +105,28 @@ class TestLiveStatusText:
         assert live_status_text(game) == "Final"
 
 
+class TestUnfinishedGameIds:
+    def test_only_games_not_final(self):
+        from helpers.stats import unfinished_game_ids
+
+        games = [
+            {"gameId": "live", "gameStatus": 2},
+            {"gameId": "done", "gameStatus": 3},
+            {"gameId": "later", "gameStatus": 1},
+        ]
+        with patch("helpers.stats.get_cached_scoreboard", return_value=games):
+            assert unfinished_game_ids("10") == {"live", "later"}
+
+    def test_cdn_failure_means_none_known(self):
+        from helpers.stats import unfinished_game_ids
+
+        with (
+            patch("helpers.stats.get_cached_scoreboard", side_effect=Exception("x")),
+            patch("helpers.stats.log_exceptions"),
+        ):
+            assert unfinished_game_ids() == frozenset()
+
+
 class TestWithRetry:
     def test_http_status_error_not_retried(self):
         from curl_cffi.requests.exceptions import HTTPError
