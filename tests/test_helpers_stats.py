@@ -326,6 +326,61 @@ def _scoreboard_mock(games_data, leaders_data=None):
     return sb
 
 
+class TestTodayLiveFallback:
+    """ScoreboardV3 down: today's game list comes from the live CDN scoreboard."""
+
+    def _live(self):
+        from conftest import make_live_game
+
+        return [
+            make_live_game(gameCode="20261008/BOSLAL"),
+            make_live_game(gameId="0012600099", gameCode="20261007/NYKMIA"),
+            make_live_game(
+                gameId="0012600098", gameCode="20261008/PHXDEN", gameStatus=1
+            ),
+        ]
+
+    def _patched(self):
+        from contextlib import ExitStack
+
+        stack = ExitStack()
+        stack.enter_context(
+            patch(
+                "helpers.stats.get_cached_scoreboard_v3", side_effect=Exception("down")
+            )
+        )
+        stack.enter_context(
+            patch("helpers.stats.get_cached_scoreboard", return_value=self._live())
+        )
+        stack.enter_context(
+            patch("helpers.stats._today_et", return_value=date(2026, 10, 8))
+        )
+        stack.enter_context(patch("helpers.stats.log_exceptions"))
+        return stack
+
+    def test_games_list_from_live(self):
+        from conftest import GAME_ID
+
+        with self._patched():
+            assert get_games_list(0) == [GAME_ID]
+
+    def test_leaders_list_from_live(self):
+        from conftest import GAME_ID, TEAM_ID_BOS, TEAM_ID_LAL
+
+        with self._patched():
+            result = get_games_leaders_list(0)
+        assert result == {
+            GAME_ID: [
+                ["LeBron James", 28, 8, 6, TEAM_ID_LAL],
+                ["Jayson Tatum", 32, 9, 4, TEAM_ID_BOS],
+            ]
+        }
+
+    def test_past_days_still_raise(self):
+        with self._patched(), pytest.raises(Exception, match="down"):
+            get_games_list(1)
+
+
 class TestGetGamesList:
     def _call(self, games_data, days_offset=1):
         sb = _scoreboard_mock(games_data)

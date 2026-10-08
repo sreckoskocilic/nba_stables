@@ -268,15 +268,19 @@ def _fetch_players(league_id: str = "00") -> list:
     """Fetch active players as [person_id, name] from the NBA stats API."""
     try:
         is_current = 0 if league_id == "10" else 1
+        season = (
+            get_wnba_current_season() if league_id == "10" else get_current_season()
+        )
         cap = call_stats(
             commonallplayers.CommonAllPlayers,
             is_only_current_season=is_current,
             league_id=league_id,
+            season=season,
         )
         data = cap.common_all_players.get_dict()
         players = []
 
-        current_year = str(get_wnba_current_season()[:4]) if league_id == "10" else None
+        current_year = season[:4] if league_id == "10" else None
 
         for row in data.get("data", []):
             if is_current == 0 and row[3] != 1 and row[5] != current_year:
@@ -460,9 +464,32 @@ def find_category_leaders(
     return max_vals, max_entries
 
 
+def _scoreboard_v3_or_none(days_offset: int, league_id: str) -> dict | None:
+    """ScoreboardV3 rows, or None when stats.nba.com fails for today — the
+    caller then falls back to the live CDN scoreboard, which only covers today."""
+    try:
+        return get_cached_scoreboard_v3(days_offset, league_id=league_id)
+    except Exception as ex:
+        if days_offset != 0:
+            raise
+        log_exceptions(ex, "scoreboard_v3_today")
+        return None
+
+
+def _live_started_games_today(league_id: str) -> list:
+    day = _today_et().strftime("%Y%m%d")
+    return [
+        g
+        for g in get_cached_scoreboard(league_id)
+        if g["gameStatus"] > STATUS_SCHEDULED and g.get("gameCode", "").startswith(day)
+    ]
+
+
 def get_games_list(days_offset: int = 1, league_id: str = "00") -> list:
     """Get list of game IDs for a given date offset"""
-    sb = get_cached_scoreboard_v3(days_offset, league_id=league_id)
+    sb = _scoreboard_v3_or_none(days_offset, league_id)
+    if sb is None:
+        return [g["gameId"] for g in _live_started_games_today(league_id)]
     return list(
         {
             g[GH_GAME_ID]
@@ -474,7 +501,22 @@ def get_games_list(days_offset: int = 1, league_id: str = "00") -> list:
 
 def get_games_leaders_list(days_offset: int = 1, league_id: str = "00") -> dict:
     """Get games with their leaders"""
-    sb = get_cached_scoreboard_v3(days_offset, league_id=league_id)
+    sb = _scoreboard_v3_or_none(days_offset, league_id)
+    if sb is None:
+        return {
+            g["gameId"]: [
+                [
+                    fix_encoding(ld["name"] or ""),
+                    ld["points"],
+                    ld["rebounds"],
+                    ld["assists"],
+                    g[f"{side}Team"]["teamId"],
+                ]
+                for side in ("home", "away")
+                for ld in [g["gameLeaders"][f"{side}Leaders"]]
+            ]
+            for g in _live_started_games_today(league_id)
+        }
     g_dict = {
         g[GH_GAME_ID]: []
         for g in sb["game_header"]

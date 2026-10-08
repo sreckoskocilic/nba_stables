@@ -12,6 +12,7 @@ from conftest import (
     PLAYER_ID,
     TEAM_ID_BOS,
     TEAM_ID_LAL,
+    make_game_logs,
     make_live_boxscore,
     make_live_game,
     make_live_player,
@@ -52,16 +53,14 @@ class TestCacheHits:
         standings_mock.assert_called_once()
 
     def test_last_n_games_served_from_cache(self, client):
-        gamelog = MagicMock()
-        gamelog.player_game_log.get_dict.return_value = {"data": []}
         with (
             patch(
                 "routes.players.load_players_dict",
                 return_value={p[0]: p for p in FAKE_PLAYERS},
             ),
             patch(
-                "routes.players.playergamelog.PlayerGameLog",
-                return_value=gamelog,
+                "routes.players.playergamelogs.PlayerGameLogs",
+                return_value=make_game_logs(),
             ) as mock,
         ):
             client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
@@ -173,48 +172,9 @@ class TestPlayoffs:
             "name",
             "wins",
             "losses",
-            "gamesRemaining",
-            "projectedWins",
-            "projectedLosses",
-            "status",
+            "teamId",
         ):
             assert key in team
-
-    def test_status_in(self, client):
-        rows = [make_standings_row(3, "Boston", "Celtics", "East", 50, 20)]
-        with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
-            r = client.get("/api/playoffs")
-        assert r.json()["east"][0]["status"] == "in"
-
-    def test_status_play_in(self, client):
-        rows = [make_standings_row(8, "Chicago", "Bulls", "East", 32, 38)]
-        with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
-            r = client.get("/api/playoffs")
-        assert r.json()["east"][0]["status"] == "play-in"
-
-    def test_status_out(self, client):
-        rows = [make_standings_row(13, "Detroit", "Pistons", "East", 15, 55)]
-        with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
-            r = client.get("/api/playoffs")
-        assert r.json()["east"][0]["status"] == "out"
-
-    def test_projected_wins_calculated(self, client):
-        # 41-41 with the season complete: nothing left to project
-        rows = [make_standings_row(1, "Boston", "Celtics", "East", 41, 41)]
-        with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
-            r = client.get("/api/playoffs")
-        t = r.json()["east"][0]
-        assert t["projectedWins"] == 41
-        assert t["projectedLosses"] == 41
-
-    def test_projected_wins_extrapolates_mid_season(self, client):
-        # 30-20 (.600) with 32 games left -> 30 + 19.2 -> 49 wins, 33 losses
-        rows = [make_standings_row(1, "Boston", "Celtics", "East", 30, 20)]
-        with patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)):
-            r = client.get("/api/playoffs")
-        t = r.json()["east"][0]
-        assert t["projectedWins"] == 49
-        assert t["projectedLosses"] == 33
 
     def test_sorted_by_rank(self, client):
         rows = [
@@ -564,7 +524,7 @@ class TestPlayerErrorHandlers:
                 return_value={PLAYER_ID: [PLAYER_ID, "LeBron James", TEAM_ID_LAL]},
             ),
             patch(
-                "routes.players.playergamelog.PlayerGameLog",
+                "routes.players.playergamelogs.PlayerGameLogs",
                 side_effect=Exception("player feed down"),
             ),
             patch("routes.players.log_exceptions"),

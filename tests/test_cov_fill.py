@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
 
 import helpers.stats as hs
-from conftest import PLAYER_ID, make_cap_row
+from conftest import PLAYER_ID, make_cap_row, make_game_log_row, make_game_logs
 from helpers.common import (
     SimpleCache,
     cache,
@@ -67,15 +67,6 @@ def test_fetch_players_wnba_filters_inactive(monkeypatch):
     assert players == [[101, "Player Active"], [103, "Player Recent"]]
 
 
-def test_normalize_game_date_shapes():
-    """PlayerGameLog dates normalise to ISO; anything else passes through."""
-    from routes.players import _normalize_game_date
-
-    assert _normalize_game_date("AUG 27, 2026") == "2026-08-27"
-    assert _normalize_game_date("not a date") == "not a date"
-    assert _normalize_game_date(None) is None
-
-
 def test_players_search_invalid_chars(client):
     r = client.get("/api/players/search?q=LeBron!")
     assert r.status_code == 400
@@ -106,45 +97,25 @@ def test_last_n_games_cached_branch(client):
     assert r.json() == cached_val
 
 
-def test_last_n_games_playergamelog_path_with_dates(monkeypatch, client):
-    # Force team_id=None to trigger gamelog fallback and provide a date to hit matchup_display else branch
+def test_last_n_games_iso_date_and_min_sec(monkeypatch, client):
     monkeypatch.setattr(
         "routes.players.load_players_dict",
         lambda league_id="00": {PLAYER_ID: [PLAYER_ID, "Test Player", None]},
     )
-    mock_pgl = MagicMock()
-    mock_pgl.player_game_log.get_dict.return_value = {
-        "data": [["", PLAYER_ID, "0022309999", "MAR 10, 2026", "LAC @ IND"]]
-    }
+    logs = [
+        make_game_logs(),
+        make_game_logs(
+            [make_game_log_row(GAME_DATE="2026-03-10T00:00:00", MATCHUP="LAC @ IND")]
+        ),
+    ]
     monkeypatch.setattr(
-        "routes.players.playergamelog.PlayerGameLog", lambda **_: mock_pgl
+        "routes.players.playergamelogs.PlayerGameLogs", lambda **_: logs.pop(0)
     )
-
-    def player_stats_row(pid):
-        row = [0] * 40
-        row[6] = pid
-        row[14] = "10:00"
-        row[15] = 5
-        row[16] = 10
-        row[18] = 2
-        row[19] = 5
-        row[21] = 4
-        row[22] = 4
-        row[26] = 8
-        row[27] = 6
-        row[28] = 1
-        row[29] = 2
-        row[31] = 3
-        row[32] = 20
-        return row
-
-    bs = {"data": [player_stats_row(PLAYER_ID)]}
-    monkeypatch.setattr("routes.players.get_cached_boxscore_v3", lambda gid: bs)
-
     r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=1")
     assert r.status_code == 200
-    matchup = r.json()["games"][0]["matchup"]
-    assert matchup.startswith("2026-03-10 —")
+    game = r.json()["games"][0]
+    assert game["matchup"] == "2026-03-10 — LAC @ IND"
+    assert game["minutes"] == "34:12"
 
 
 def test_get_player_stats_value_error(client):

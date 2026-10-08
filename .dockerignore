@@ -20,3 +20,13 @@ Caddyfile
 **/tests
 codecov.yml
 .coveragerc
+ruff.toml
+requirements-dev.txt
+requirements-scraper.txt
+.env.example
+.gitattributes
+api/static/update_injuries.py
+**/.pytest_cache
+**/.ruff_cache
+.coverage
+.rtk

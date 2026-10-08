@@ -64,12 +64,9 @@ async def lifespan(app: FastAPI):
         logger.warning("EXECUTOR_WORKERS=%d is above the maximum 100", workers)
     if not os.path.exists(CBS_INJURIES_FILE):
         logger.warning("CBS injuries file not found at startup: %s", CBS_INJURIES_FILE)
-    try:
-        await asyncio.to_thread(_stats.load_players_file)
-        logger.info("Players cache warmed")
-    except Exception as e:  # pragma: no cover
-        logger.warning("Failed to warm players cache: %s", e)
+    warm_players = asyncio.create_task(asyncio.to_thread(_stats.load_players_file))
     yield
+    warm_players.cancel()
     logger.info("Shutting down NBA Stables API...")
     _common.cache.clear()
     logger.info("Shutdown complete")

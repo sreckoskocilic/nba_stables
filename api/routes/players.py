@@ -1,40 +1,20 @@
 import asyncio
 import re
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from nba_api.stats.endpoints import (
     commonplayerinfo,
     playercareerstats,
-    playergamelog,
+    playergamelogs,
 )
 
-from constants import (
-    BS_AST,
-    BS_BLK,
-    BS_FG3A,
-    BS_FG3M,
-    BS_FGA,
-    BS_FGM,
-    BS_FTA,
-    BS_FTM,
-    BS_MINUTES,
-    BS_PF,
-    BS_PLAYER_ID,
-    BS_PTS,
-    BS_REB,
-    BS_STL,
-    PGL_GAME_DATE,
-    PGL_GAME_ID,
-    PGL_MATCHUP,
-)
 from helpers.common import CACHE_TTL, STATS_TIMEOUT, cache, executor
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
     _today_et,
     call_stats,
-    fetch_regular_and_playoffs,
     fix_encoding,
     fold_name,
     get_cached_boxscore_v3,
@@ -52,14 +32,6 @@ from helpers.stats import (
 router = APIRouter()
 
 
-def _normalize_game_date(date_str: str | None) -> str | None:
-    """Normalise a PlayerGameLog date ('AUG 27, 2026') to ISO; pass anything else through."""
-    try:
-        return datetime.strptime(date_str, "%b %d, %Y").date().isoformat()  # noqa: DTZ007
-    except (TypeError, ValueError):
-        return date_str
-
-
 def _avg_pct(row, h, gp):
     """Return (avg, pct) closures for per-game averages and percentage columns
     over a stats `row` indexed by header map `h`."""
@@ -74,10 +46,22 @@ def _avg_pct(row, h, gp):
     return avg, pct
 
 
-def _derive_matchup_display(gg):
-    """'YYYY-MM-DD — MATCHUP' from a [matchup, game_id, date] gamelog row."""
-    game_date = _normalize_game_date(gg[2])
-    return f"{game_date} — {gg[0]}" if game_date else gg[0]
+def _game_log_entry(r: dict) -> dict:
+    """Last-N-games row from a PlayerGameLogs row keyed by header."""
+    game_date = (r["GAME_DATE"] or "")[:10]
+    return {
+        "matchup": f"{game_date} — {r['MATCHUP']}" if game_date else r["MATCHUP"],
+        "minutes": r["MIN_SEC"],
+        "points": r["PTS"],
+        "fg": f"{r['FGM']}/{r['FGA']}",
+        "threePointers": f"{r['FG3M']}/{r['FG3A']}",
+        "ft": f"{r['FTM']}/{r['FTA']}",
+        "rebounds": r["REB"],
+        "assists": r["AST"],
+        "blocks": r["BLK"],
+        "steals": r["STL"],
+        "fouls": r["PF"],
+    }
 
 
 @router.get("/api/players/search")
@@ -395,78 +379,37 @@ async def get_last_n_games_stats(
         player_name = fix_encoding(player[1])
 
         season = season_fn()
-        raw_cache_key = f"player_games_raw_{league_id}_{player_id}_{season}"
+        raw_cache_key = f"player_games_raw_{league_id}_{season}_{player_id}"
         cached = cache.get(raw_cache_key)
         if cached is None:
             try:
-                pgl_regular, pgl_playoffs = fetch_regular_and_playoffs(
-                    playergamelog.PlayerGameLog,
-                    player_id=player_id,
-                    season=season,
-                    league_id_nullable=league_id,
-                )
-                data_regular = pgl_regular.player_game_log.get_dict()["data"]
-                data_playoffs = pgl_playoffs.player_game_log.get_dict()["data"]
-                playoff_count = len(data_playoffs)
-                data = data_playoffs + data_regular
+                logs = [
+                    call_stats(
+                        playergamelogs.PlayerGameLogs,
+                        player_id_nullable=player_id,
+                        season_nullable=season,
+                        season_type_nullable=season_type,
+                        league_id_nullable=league_id,
+                    ).player_game_logs.get_dict()
+                    for season_type in ("Playoffs", "Regular Season")
+                ]
             except Exception as e:
                 log_exceptions(e)
                 return _unavailable
-            game_rows_all = [
-                [row[PGL_MATCHUP], row[PGL_GAME_ID], row[PGL_GAME_DATE]] for row in data
+            rows = [
+                dict(zip(log["headers"], row)) for log in logs for row in log["data"]
             ]
-            cached = (game_rows_all, playoff_count)
+            cached = ([_game_log_entry(r) for r in rows], len(logs[0]["data"]))
             cache.set(raw_cache_key, cached, CACHE_TTL["season_leaders"])
-        else:
-            game_rows_all, playoff_count = cached
+        games_all, playoff_count = cached
 
-        if not game_rows_all:
-            return _unavailable
-
-        game_rows = game_rows_all[:n]
-
-        def fetch_game_stats(gg):
-            try:
-                csp = get_cached_boxscore_v3(gg[1])
-                ss = next(
-                    (x for x in csp["data"] if x[BS_PLAYER_ID] == player_id), None
-                )
-                matchup_display = _derive_matchup_display(gg)
-
-                if ss is not None and ss[BS_MINUTES] != "":
-                    return {
-                        "matchup": matchup_display,
-                        "gameId": gg[1],
-                        "minutes": ss[BS_MINUTES],
-                        "points": ss[BS_PTS],
-                        "fg": f"{ss[BS_FGM]}/{ss[BS_FGA]}",
-                        "threePointers": f"{ss[BS_FG3M]}/{ss[BS_FG3A]}",
-                        "ft": f"{ss[BS_FTM]}/{ss[BS_FTA]}",
-                        "rebounds": ss[BS_REB],
-                        "assists": ss[BS_AST],
-                        "blocks": ss[BS_BLK],
-                        "steals": ss[BS_STL],
-                        "fouls": ss[BS_PF],
-                        "dnp": False,
-                    }
-                else:
-                    return {"matchup": matchup_display, "gameId": gg[1], "dnp": True}
-            except Exception as ex:  # pragma: no cover
-                log_exceptions(ex, f"player_id={player_id} game_id={gg[1]}")
-                return None
-
-        playoff_in_slice = min(playoff_count, len(game_rows))
-        results = [fetch_game_stats(gg) for gg in game_rows]
-
-        games = [r for r in results if r is not None]
-        actual_playoff = sum(1 for r in results[:playoff_in_slice] if r is not None)
-
+        games = games_all[:n]
         return {
             "playerId": player_id,
             "playerName": player_name,
             "games": games,
-            "playoffGames": actual_playoff,
-        }, len(games) == len(results)
+            "playoffGames": min(playoff_count, len(games)),
+        }
 
     result = await asyncio.to_thread(_sync)
     if result is _not_found:
@@ -475,9 +418,7 @@ async def get_last_n_games_stats(
         raise HTTPException(
             status_code=503, detail="Player game data temporarily unavailable"
         )
-    result, complete = result
-    if complete:
-        cache.set(cache_key, result, CACHE_TTL["season_leaders"])
+    cache.set(cache_key, result, CACHE_TTL["season_leaders"])
     return result
 
 

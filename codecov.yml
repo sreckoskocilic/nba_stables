@@ -5,5 +5,4 @@ coverage:
         target: auto
         threshold: 0.5%
 
-comment:
-  layout: "false"
+comment: false

@@ -6,6 +6,12 @@ permissions:
 on:
   pull_request:
     branches: [ main ]
+  push:
+    branches: [ main ]
+    paths:
+      - "ruff.toml"
+      - "requirements-dev.txt"
+      - ".github/workflows/**"
   workflow_call:
     secrets:
       CODECOV_TOKEN:

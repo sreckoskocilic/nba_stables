@@ -21,6 +21,8 @@ from conftest import (
     WNBA_NYL,
     WNBA_TEAM_ID_LVA,
     WNBA_TEAM_ID_NYL,
+    make_game_log_row,
+    make_game_logs,
     make_live_boxscore,
     make_live_game,
     make_scoreboard_v3,
@@ -37,26 +39,6 @@ from main import app
 def client():
     with TestClient(app) as c:
         yield c
-
-
-def make_player_stats_row(person_id=PLAYER_ID, minutes="28:00"):
-    """Build a BoxScoreTraditionalV3 player_stats row."""
-    row = [None] * 33
-    row[6] = person_id
-    row[14] = minutes
-    row[15] = 11  # FGM
-    row[16] = 20  # FGA
-    row[18] = 2  # 3PM
-    row[19] = 5  # 3PA
-    row[21] = 4  # FTM
-    row[22] = 4  # FTA
-    row[26] = 8  # REB
-    row[27] = 6  # AST
-    row[28] = 1  # STL
-    row[29] = 0  # BLK
-    row[31] = 2  # PF
-    row[32] = 28  # PTS
-    return row
 
 
 def make_career_row(gp=60):
@@ -225,8 +207,9 @@ class TestScoreboard:
         assert g["status"] == "Final"
 
     def test_wnba_series_uses_wnba_league(self, client):
+        game = make_live_game(gameId="1042600101", gameStatusText="Final")
         with (
-            self._patch_sb([make_live_game(gameStatusText="Final")]),
+            self._patch_sb([game]),
             patch(
                 "routes.scores._get_playoff_series_cached", return_value=({}, {})
             ) as series_mock,
@@ -234,6 +217,21 @@ class TestScoreboard:
             r = client.get("/api/scoreboard?league=wnba")
         assert r.status_code == 200
         series_mock.assert_called_once_with("10")
+
+    def test_series_not_fetched_without_playoff_games(self, client):
+        with (
+            self._patch_sb([make_live_game(gameStatusText="Final")]),
+            patch("routes.scores._get_playoff_series_cached") as series_mock,
+        ):
+            client.get("/api/scoreboard")
+        series_mock.assert_not_called()
+
+    def test_playin_games_cached(self):
+        from routes.scores import LeagueGameFinder, _playin_games
+
+        _playin_games("2025-26")
+        _playin_games("2025-26")
+        LeagueGameFinder.assert_called_once()
 
     def test_et_time_converted(self, client):
         with self._patch_sb([make_live_game(gameStatusText="7:30 pm ET")]):
@@ -895,37 +893,43 @@ class TestGamePlayers:
 
 
 class TestLastNGames:
-    def _gamelog(self):
-        m = MagicMock()
-        m.player_game_log.get_dict.return_value = {
-            "data": [[None, None, GAME_ID, "FEB 27, 2025", "LAL vs BOS"]]
-        }
-        return m
-
-    def _trad_boxscore(self, person_id=PLAYER_ID):
-        return {"data": [make_player_stats_row(person_id)]}
-
-    def test_returns_game_log(self, client):
+    def _get(self, client, playoffs=(), regular=None, n=5):
+        if regular is None:
+            regular = (make_game_log_row(),)
         with (
             patch(
                 "routes.players.load_players_dict",
                 return_value={p[0]: p for p in FAKE_PLAYERS},
             ),
             patch(
-                "routes.players.playergamelog.PlayerGameLog",
-                return_value=self._gamelog(),
-            ),
-            patch(
-                "routes.players.get_cached_boxscore_v3",
-                return_value=self._trad_boxscore(),
+                "routes.players.playergamelogs.PlayerGameLogs",
+                side_effect=[make_game_logs(playoffs), make_game_logs(regular)],
             ),
         ):
-            r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
+            return client.get(f"/api/players/{PLAYER_ID}/last-n-games?n={n}")
+
+    def test_returns_game_log(self, client):
+        r = self._get(client)
         assert r.status_code == 200
         body = r.json()
         assert body["playerId"] == PLAYER_ID
-        assert body["games"][0]["points"] == 28
-        assert body["games"][0]["dnp"] is False
+        game = body["games"][0]
+        assert game["points"] == 28
+        assert game["minutes"] == "34:12"
+        assert game["fg"] == "11/20"
+        assert game["matchup"] == "2026-02-27 — LAL vs. BOS"
+
+    def test_playoff_games_come_first_and_are_counted(self, client):
+        playoff = make_game_log_row(GAME_ID="0042500101", PTS=40)
+        r = self._get(client, playoffs=(playoff,), n=1)
+        body = r.json()
+        assert [g["points"] for g in body["games"]] == [40]
+        assert body["playoffGames"] == 1
+
+    def test_no_games_yet_returns_empty_list(self, client):
+        r = self._get(client, regular=())
+        assert r.status_code == 200
+        assert r.json()["games"] == []
 
     def test_unknown_player_404(self, client):
         with patch("routes.players.load_players_dict", return_value={}):
@@ -936,25 +940,6 @@ class TestLastNGames:
         assert (
             client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=99").status_code == 422
         )
-
-    def test_dnp_game_flagged(self, client):
-        empty_bs = {"data": []}
-        with (
-            patch(
-                "routes.players.load_players_dict",
-                return_value={p[0]: p for p in FAKE_PLAYERS},
-            ),
-            patch(
-                "routes.players.playergamelog.PlayerGameLog",
-                return_value=self._gamelog(),
-            ),
-            patch(
-                "routes.players.get_cached_boxscore_v3",
-                return_value=empty_bs,
-            ),
-        ):
-            r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=5")
-        assert r.json()["games"][0]["dnp"] is True
 
 
 class TestSeasonAvg:
@@ -1472,28 +1457,6 @@ class TestWnbaPlayoffs:
             r = client.get("/api/playoffs?league=wnba")
         ranks = [t["rank"] for t in r.json()["all"]]
         assert ranks == [1, 2, 3]
-
-    def test_status_in(self, client):
-        rows = [
-            make_wnba_standings_row(5, "New York", "Liberty", "East", 8, 4),
-        ]
-        with (
-            patch("routes.scores.NBAStatsHTTP", self._mock_http(rows)),
-            patch("routes.scores._reset_nba_stats_http_session"),
-        ):
-            r = client.get("/api/playoffs?league=wnba")
-        assert r.json()["all"][0]["status"] == "in"
-
-    def test_status_out(self, client):
-        rows = [
-            make_wnba_standings_row(10, "Atlanta", "Dream", "East", 3, 9),
-        ]
-        with (
-            patch("routes.scores.NBAStatsHTTP", self._mock_http(rows)),
-            patch("routes.scores._reset_nba_stats_http_session"),
-        ):
-            r = client.get("/api/playoffs?league=wnba")
-        assert r.json()["all"][0]["status"] == "out"
 
     def test_series_results_key_present(self, client):
         rows = [

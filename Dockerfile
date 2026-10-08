@@ -4,15 +4,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 FROM python:3.12-slim
-RUN useradd -m -u 1000 deploy
+RUN useradd -m -u 1000 deploy && install -d -o deploy -g deploy /app
 
 WORKDIR /app
 
 COPY --from=builder /install /usr/local
 
-COPY . .
-
-RUN chown -R deploy:deploy /app
+COPY --chown=deploy:deploy . .
 USER deploy
 
 EXPOSE 8000

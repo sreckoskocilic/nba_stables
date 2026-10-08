@@ -7,10 +7,22 @@ function esc(s) {
     .replace(/'/g, "&#39;");
 }
 const escAttr = (value) => esc(value).replace(/`/g, "&#96;");
+function _lsGet(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function _lsSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {}
+}
 let trackedPlayerIds = [],
   currentBoxscoreOffset = 0,
   currentLeadersOffset = 0,
-  currentLeague = localStorage.getItem("league") || "nba";
+  currentLeague = _lsGet("league") || "nba";
 function safeParse(raw, fallback) {
   try {
     return raw ? JSON.parse(raw) : fallback;
@@ -18,7 +30,7 @@ function safeParse(raw, fallback) {
     return fallback;
   }
 }
-const _pinnedStats = safeParse(localStorage.getItem("pinnedStats"), {});
+const _pinnedStats = safeParse(_lsGet("pinnedStats"), {});
 function _isPinned(pid, stat) {
   return !!_pinnedStats[pid + "_" + stat];
 }
@@ -26,7 +38,7 @@ function _togglePin(pid, stat) {
   const k = pid + "_" + stat;
   if (_pinnedStats[k]) delete _pinnedStats[k];
   else _pinnedStats[k] = 1;
-  localStorage.setItem("pinnedStats", JSON.stringify(_pinnedStats));
+  _lsSet("pinnedStats", JSON.stringify(_pinnedStats));
 }
 function leagueParam() {
   return currentLeague === "wnba" ? "&league=wnba" : "";
@@ -126,16 +138,24 @@ function _loadDateLabels() {
         const d = new Date(v);
         return isNaN(d) ? v : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
       };
-      [_boxscoreDateBtns, _leaderDateBtns].forEach((buttons) => {
+      [
+        [_boxscoreDateBtns, "boxscores"],
+        [_leaderDateBtns, "leaders"],
+      ].forEach(([buttons, view]) => {
         buttons.forEach((b) => {
           const i = parseInt(b.dataset.offset);
           if (t.dates[i]) b.textContent = fmt(t.dates[i]);
           if (t.hasGames && !t.hasGames[i]) b.hidden = true;
         });
-        if (t.hasGames) {
-          const first = buttons.find((b) => !b.hidden);
-          if (first && buttons.find((b) => b.classList.contains("on") && b.hidden)) first.click();
+        const first = buttons.find((b) => !b.hidden);
+        if (!first || !buttons.find((b) => b.classList.contains("on") && b.hidden)) return;
+        if (_activeView() === view) {
+          first.click();
+          return;
         }
+        _setSegOn(buttons, first);
+        if (view === "boxscores") currentBoxscoreOffset = parseInt(first.dataset.offset);
+        else currentLeadersOffset = parseInt(first.dataset.offset);
       });
     })
     .catch(() => {});
@@ -608,7 +628,7 @@ async function loadPlayerProfile() {
       );
       return;
     }
-    const played = (a.games || []).filter((g) => !g.dnp);
+    const played = a.games || [];
     const avgNum = (key) => {
       if (!played.length) return "0.0";
       return (played.reduce((sum, g) => sum + (Number(g[key]) || 0), 0) / played.length).toFixed(1);
@@ -645,9 +665,7 @@ async function loadPlayerProfile() {
       ? `<div class="wrap"><table class="t ps"><thead><tr><th>Matchup</th><th class="n">MIN</th><th class="n">PTS</th><th class="n">FG</th><th class="n">3 PT</th><th class="n">FT</th><th class="n">REB</th><th class="n">AST</th><th class="n">BLK</th><th class="n">STL</th><th class="n">PF</th></tr></thead><tbody>${a.games
           .map((g, i) => {
             const po = i < a.playoffGames;
-            return g.dnp
-              ? `<tr class="dnp${po ? " pg" : ""}"><td>${esc(g.matchup)}</td><td colspan="10" class="dnp-c">DNP</td></tr>`
-              : `<tr${po ? ' class="pg"' : ""}><td>${esc(g.matchup)}</td><td class="n">${esc(g.minutes)}</td><td class="n">${statVal("points", g.points)}</td><td class="n">${esc(g.fg)}</td><td class="n">${esc(g.threePointers)}</td><td class="n">${esc(g.ft)}</td><td class="n">${statVal("rebounds", g.rebounds)}</td><td class="n">${statVal("assists", g.assists)}</td><td class="n">${statVal("blocks", g.blocks)}</td><td class="n">${statVal("steals", g.steals)}</td><td class="n">${esc(g.fouls)}</td></tr>`;
+            return `<tr${po ? ' class="pg"' : ""}><td>${esc(g.matchup)}</td><td class="n">${esc(g.minutes)}</td><td class="n">${statVal("points", g.points)}</td><td class="n">${esc(g.fg)}</td><td class="n">${esc(g.threePointers)}</td><td class="n">${esc(g.ft)}</td><td class="n">${statVal("rebounds", g.rebounds)}</td><td class="n">${statVal("assists", g.assists)}</td><td class="n">${statVal("blocks", g.blocks)}</td><td class="n">${statVal("steals", g.steals)}</td><td class="n">${esc(g.fouls)}</td></tr>`;
           })
           .join("")}${
           n
@@ -675,9 +693,13 @@ function clearLastNPlayer() {
 let playoffsData = null,
   activeConference = "east";
 const _poButtons = Array.from(document.querySelectorAll("#poConfs button"));
+function _renderPlayoffs() {
+  if (activeConference === "finals" && !playoffsData.all) showFinals();
+  else showConference(activeConference);
+}
 async function loadPlayoffs(force = false) {
   if (playoffsData && !force) {
-    showConference(activeConference);
+    _renderPlayoffs();
     return;
   }
   const el = document.getElementById("playoffsContent");
@@ -689,7 +711,7 @@ async function loadPlayoffs(force = false) {
     if (league !== currentLeague) return;
     if (!r.ok) throw new Error(d.detail || "Failed to load bracket");
     playoffsData = d;
-    showConference(activeConference);
+    _renderPlayoffs();
   } catch (e) {
     el.innerHTML = emptyHtml("Error Loading Bracket", esc(e.message));
   }
@@ -716,6 +738,7 @@ function showConference(conf) {
 }
 function showFinals() {
   if (!playoffsData) return;
+  activeConference = "finals";
   const el = document.getElementById("playoffsContent");
   _setSegOn(_poButtons, _poButtons.find((b) => b.dataset.action === "showFinals"));
   const f = playoffsData.finals;
@@ -1186,9 +1209,10 @@ async function loadLeaders() {
     if (!response.ok) throw new Error(data.detail || "Failed to load leaders");
     const leaders = Object.values(data.leaders || {});
     if (leaders.length === 0) {
+      const offset = currentLeadersOffset;
       const activeBtn = _leaderDateBtns.find((b) => b.classList.contains("on"));
-      if (activeBtn) activeBtn.hidden = true;
-      const nextBtn = _leaderDateBtns.find((b) => !b.hidden);
+      if (activeBtn && offset > 0) activeBtn.hidden = true;
+      const nextBtn = _leaderDateBtns.find((b) => !b.hidden && parseInt(b.dataset.offset) > offset);
       if (nextBtn) {
         nextBtn.click();
         return;
@@ -1277,9 +1301,10 @@ async function loadBoxscores() {
     if (!response.ok) throw new Error(data.detail || "Failed to load box scores");
     const boxscores = Array.isArray(data.boxscores) ? data.boxscores : [];
     if (boxscores.length === 0) {
+      const offset = currentBoxscoreOffset;
       const activeBtn = _boxscoreDateBtns.find((b) => b.classList.contains("on"));
-      if (activeBtn) activeBtn.hidden = true;
-      const nextBtn = _boxscoreDateBtns.find((b) => !b.hidden);
+      if (activeBtn && offset > 0) activeBtn.hidden = true;
+      const nextBtn = _boxscoreDateBtns.find((b) => !b.hidden && parseInt(b.dataset.offset) > offset);
       if (nextBtn) {
         nextBtn.click();
         return;
@@ -1343,6 +1368,8 @@ document.addEventListener("click", (e) => {
 });
 
 const _NBA_ONLY_TABS = ["injuries", "trades"];
+const _trackerEmpty = document.getElementById("trackerContent").innerHTML;
+const _profileEmpty = document.getElementById("lastNContent").innerHTML;
 const _leagueBtns = Array.from(document.querySelectorAll(".league [data-league]"));
 function _applyLeagueToggle() {
   document.body.classList.toggle("wnba", currentLeague === "wnba");
@@ -1351,7 +1378,7 @@ function _applyLeagueToggle() {
 function setLeague(league) {
   if (league === currentLeague) return;
   currentLeague = league;
-  localStorage.setItem("league", currentLeague);
+  _lsSet("league", currentLeague);
   _applyLeagueToggle();
   ["playerSearch", "lastNSearch"].forEach((id) => (document.getElementById(id).value = ""));
   ["searchResults", "lastNSearchResults"].forEach((id) => {
@@ -1361,12 +1388,9 @@ function setLeague(league) {
   });
   trackedPlayerIds = [];
   updateTrackedPlayersUI();
-  document.getElementById("trackerContent").innerHTML = emptyHtml(
-    "Track Your Favorite Players",
-    "Search and select players above to see their live game stats",
-  );
+  document.getElementById("trackerContent").innerHTML = _trackerEmpty;
   clearLastNPlayer();
-  document.getElementById("lastNContent").innerHTML = emptyHtml("Player Profile", "Search and select a player above");
+  document.getElementById("lastNContent").innerHTML = _profileEmpty;
   _standingsData = null;
   playoffsData = null;
   _seasonDoublesData = null;
@@ -1421,8 +1445,10 @@ _leagueBtns.forEach((b) => b.addEventListener("click", () => setLeague(b.dataset
     )
     .join("");
   const setHelp = (open) => {
+    if (!open && help.contains(document.activeElement)) btn.focus();
     help.hidden = !open;
     btn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) help.focus();
   };
   btn.addEventListener("click", (e) => {
     e.stopPropagation();

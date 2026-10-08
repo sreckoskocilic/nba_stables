@@ -1,30 +1,8 @@
-NBA_REGULAR_SEASON_GAMES = 82
 ET_SUFFIX = "ET"  # Eastern Time marker in NBA game status text (e.g. "7:30 pm ET")
 
 # CommonAllPlayers columns
 CAP_PERSON_ID = 0
 CAP_DISPLAY_LAST_COMMA_FIRST = 1
-
-# BoxScoreTraditionalV3 player_stats columns
-BS_PLAYER_ID = 6
-BS_MINUTES = 14
-BS_FGM = 15
-BS_FGA = 16
-BS_FG3M = 18
-BS_FG3A = 19
-BS_FTM = 21
-BS_FTA = 22
-BS_REB = 26
-BS_AST = 27
-BS_STL = 28
-BS_BLK = 29
-BS_PF = 31
-BS_PTS = 32
-
-# PlayerGameLog columns (SEASON_ID, PLAYER_ID, GAME_ID, GAME_DATE, MATCHUP, ...)
-PGL_GAME_ID = 2
-PGL_GAME_DATE = 3
-PGL_MATCHUP = 4
 
 # ScoreboardV3 game_header columns
 GH_GAME_ID = 0

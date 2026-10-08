@@ -22,7 +22,6 @@ from constants import (
     LS_TEAM_ID,
     LS_TEAM_NAME,
     LS_TRICODE,
-    NBA_REGULAR_SEASON_GAMES,
     ST_AWAY_RECORD,
     ST_CITY,
     ST_CONF,
@@ -73,8 +72,6 @@ router = APIRouter()
 
 _EMPTY_LEADER = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
 
-PLAYOFF_SEED_IN = 6
-PLAYOFF_SEED_PLAYIN = 10
 
 # Series counts only change after a playoff game ends; cache longer than scoreboard.
 _PLAYOFF_SERIES_TTL = 300
@@ -205,11 +202,12 @@ async def get_scoreboard(league: str = Query(default="nba")):
                 live_by_id.get(g["gameId"], g) if g["gameId"] in started_ids else g
                 for g in games
             ]
-        try:
-            series_wins, _ = _get_playoff_series_cached(league_id)
-            _attach_series_to_games(games, series_wins, league_id)
-        except Exception as ex:  # pragma: no cover
-            log_exceptions(ex, "scoreboard_series_attach")
+        if any(g["gameId"][2:3] == _PLAYOFF_GAME_TYPE for g in games):
+            try:
+                series_wins, _ = _get_playoff_series_cached(league_id)
+                _attach_series_to_games(games, series_wins, league_id)
+            except Exception as ex:  # pragma: no cover
+                log_exceptions(ex, "scoreboard_series_attach")
         return {"games": games, "date": display_date}, True
 
     result, complete = await asyncio.to_thread(_sync)
@@ -559,26 +557,7 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
         return result
 
     try:
-        data = LeagueGameFinder(
-            season_nullable=season,
-            season_type_nullable="PlayIn",
-            league_id_nullable="00",
-            proxy=STATS_PROXY,
-            timeout=STATS_TIMEOUT,
-        ).get_dict()["resultSets"][0]
-
-        headers = data["headers"]
-        rows = data["rowSet"]
-        team_id_idx = headers.index("TEAM_ID")
-        pts_idx = headers.index("PTS")
-        game_id_idx = headers.index("GAME_ID")
-
-        games: dict = {}
-        for row in rows:
-            gid = row[game_id_idx]
-            if gid not in games:
-                games[gid] = {}
-            games[gid][row[team_id_idx]] = row[pts_idx]
+        games = _playin_games(season)
 
         def decisive_winner_loser(team_pts: dict):
             """Winner/loser ids, or (None, None) when PTS aren't decisive yet.
@@ -644,10 +623,32 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
         result["west"] = process_conf(west_playin)
     except Exception as ex:
         log_exceptions(ex, "playin_data_fetch")
-    finally:
-        _reset_nba_stats_http_session()
 
     return result
+
+
+def _playin_games(season: str) -> dict:
+    """{game_id: {team_id: pts}} for the season's play-in games."""
+    cache_key = f"playin_games_{season}"
+    with cache.lock(cache_key):
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        data = call_stats(
+            LeagueGameFinder,
+            season_nullable=season,
+            season_type_nullable="PlayIn",
+            league_id_nullable="00",
+        ).get_dict()["resultSets"][0]
+        headers = data["headers"]
+        team_id_idx = headers.index("TEAM_ID")
+        pts_idx = headers.index("PTS")
+        game_id_idx = headers.index("GAME_ID")
+        games: dict = {}
+        for row in data["rowSet"]:
+            games.setdefault(row[game_id_idx], {})[row[team_id_idx]] = row[pts_idx]
+        cache.set(cache_key, games, _PLAYOFF_SERIES_TTL)
+        return games
 
 
 def _get_playoff_series_cached(league_id: str = "00") -> tuple[dict, dict]:
@@ -889,7 +890,7 @@ def _build_finals_data(
 @router.get("/api/playoffs")
 @route_error_handler("Failed to fetch playoff picture")
 async def get_playoff_picture(league: str = Query(default="nba")):
-    """Get current playoff picture with projected final records"""
+    """Get current playoff picture"""
     league_id = "10" if league == "wnba" else "00"
     cache_key = f"{league_id}:playoffs"
     cached = cache.get(cache_key)
@@ -899,8 +900,6 @@ async def get_playoff_picture(league: str = Query(default="nba")):
     def _sync():
         if league_id == "10":
             all_teams = _wnba_sorted_teams()
-            for t in all_teams:
-                t["status"] = "in" if 1 <= t["rank"] <= 8 else "out"
             series_results, _ = _get_playoff_series_cached("10")
             return {"all": all_teams, "seriesResults": series_results}
 
@@ -911,32 +910,6 @@ async def get_playoff_picture(league: str = Query(default="nba")):
 
         for team in teams:
             team_data = _parse_team_row(team)
-            win_pct = team_data["winPct"]
-            wins = team_data["wins"]
-            losses = team_data["losses"]
-            rank = team_data["rank"]
-            games_played = wins + losses
-
-            games_remaining = max(0, NBA_REGULAR_SEASON_GAMES - games_played)
-            projected_wins = round(wins + games_remaining * win_pct)
-            projected_losses = NBA_REGULAR_SEASON_GAMES - projected_wins
-
-            if 1 <= rank <= PLAYOFF_SEED_IN:
-                status = "in"
-            elif rank <= PLAYOFF_SEED_PLAYIN:
-                status = "play-in"
-            else:
-                status = "out"
-
-            team_data.update(
-                {
-                    "gamesRemaining": games_remaining,
-                    "projectedWins": projected_wins,
-                    "projectedLosses": projected_losses,
-                    "status": status,
-                }
-            )
-
             if team[ST_CONF] == "East":
                 east.append(team_data)
             else:

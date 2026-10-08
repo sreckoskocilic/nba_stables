@@ -112,6 +112,60 @@ def _block_player_fetch():
         yield
 
 
+GAME_LOGS_HEADERS = [
+    "GAME_ID",
+    "GAME_DATE",
+    "MATCHUP",
+    "MIN_SEC",
+    "PTS",
+    "FGM",
+    "FGA",
+    "FG3M",
+    "FG3A",
+    "FTM",
+    "FTA",
+    "REB",
+    "AST",
+    "BLK",
+    "STL",
+    "PF",
+]
+
+
+def make_game_log_row(**kw):
+    """PlayerGameLogs row as a header-keyed dict; pass to make_game_logs."""
+    row = {
+        "GAME_ID": GAME_ID,
+        "GAME_DATE": "2026-02-27T00:00:00",
+        "MATCHUP": "LAL vs. BOS",
+        "MIN_SEC": "34:12",
+        "PTS": 28,
+        "FGM": 11,
+        "FGA": 20,
+        "FG3M": 2,
+        "FG3A": 5,
+        "FTM": 4,
+        "FTA": 4,
+        "REB": 8,
+        "AST": 6,
+        "BLK": 0,
+        "STL": 1,
+        "PF": 2,
+    }
+    row.update(kw)
+    return row
+
+
+def make_game_logs(rows=()):
+    """Mock PlayerGameLogs endpoint holding the given make_game_log_row rows."""
+    m = MagicMock()
+    m.player_game_logs.get_dict.return_value = {
+        "headers": GAME_LOGS_HEADERS,
+        "data": [[r[h] for h in GAME_LOGS_HEADERS] for r in rows],
+    }
+    return m
+
+
 CAREER_HEADERS = [
     "PLAYER_ID",
     "SEASON_ID",

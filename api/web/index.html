@@ -303,8 +303,6 @@ body.wnba .nba-only { display: none !important; }
 .ps tr.sa td { border-top: 1px solid #2f5a44; }
 .sa-s { color: var(--label); font-size: .875rem; font-weight: 700; }
 .sa-g { font-size: .825rem; margin-left: 4px; }
-tr.dnp td { color: var(--muted); background: #121714; }
-.dnp-c { text-align: center; font-style: italic; }
 
 .two { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr)); align-items: start; }
 .st-t { font-size: .97rem; width: 100%; }
@@ -399,7 +397,6 @@ tr.dnp td { color: var(--muted); background: #121714; }
 .mk-po { background: rgba(62, 207, 142, .09); box-shadow: inset 3px 0 0 #3a9c70; }
 .mk-pi { background: rgba(217, 183, 124, .09); box-shadow: inset 3px 0 0 #a88b58; }
 .mk-pg { background: rgba(201, 214, 154, .16); }
-.mk-dnp { background: #121714; border: 1px solid var(--line); }
 
 .loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 48px 16px; color: var(--muted); }
 .loading.inl { justify-content: flex-start; padding: 10px 12px; font-size: .875rem; }
@@ -532,7 +529,7 @@ tr.pg > td { background: rgba(201, 214, 154, .16); }
 <button class="btn-p" id="lastNBtn" data-action="loadPlayerProfile" disabled>Load Profile</button>
 <div class="chips" id="lastNPlayerChip"></div>
 </div>
-<div id="lastNContent"><div class="empty"><div class="empty-t">Player Profile</div><p>Search for a player to view their profile, recent form, career stats and career highs</p></div></div>
+<div id="lastNContent"><div class="empty"><div class="empty-t">Player Profile</div><p>Search for a player to view their profile, recent games and career stats</p></div></div>
 </section>
 
 <section class="view" id="v-playoffs">
@@ -558,7 +555,7 @@ tr.pg > td { background: rgba(201, 214, 154, .16); }
 
 </main>
 
-<div class="float" id="help" role="dialog" aria-labelledby="helpTitle" hidden>
+<div class="float" id="help" role="dialog" aria-labelledby="helpTitle" tabindex="-1" hidden>
 <div class="fl-title" id="helpTitle">Help</div>
 <div class="fl-body">
 <div class="fl-h">Scoreboard</div>
@@ -570,8 +567,7 @@ tr.pg > td { background: rgba(201, 214, 154, .16); }
 <div class="fl-h">Row marks</div>
 <p><span class="mk mk-po"></span>Standings: playoff seeds 1–6 <span class="m">(WNBA 1–8)</span><br>
 <span class="mk mk-pi"></span>Standings: play-in seeds 7–10<br>
-<span class="mk mk-pg"></span>Playoff games (Player Profile, Season Highs)<br>
-<span class="mk mk-dnp"></span>DNP: did not play</p>
+<span class="mk mk-pg"></span>Playoff games (Player Profile, Season Highs)</p>
 <div class="fl-h">Injuries</div>
 <p><span class="s-gtd b">GTD</span> Game Time Decision · <span class="s-out b">OUT</span> Season · <span class="s-date b">Feb 1</span> Return date</p>
 <div class="fl-h">Doubles &amp; Triples</div>
