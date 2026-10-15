@@ -3,7 +3,7 @@ import logging
 import os
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import requests
 from bs4 import BeautifulSoup
@@ -95,7 +95,7 @@ def scrape_cbs_injuries():
     result = {
         "injuries": injuries_by_team,
         "source": "CBS Sports",
-        "lastUpdated": datetime.now(timezone.utc).strftime("%B %d, %Y %H:%M UTC"),
+        "lastUpdated": datetime.now(UTC).strftime("%B %d, %Y %H:%M UTC"),
     }
     dir_name = os.path.dirname(CBS_INJURIES_FILE)
     fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".json")
