@@ -143,6 +143,46 @@ class TestPlayerStatsFields:
             assert key in p
 
 
+class TestPlayerTrackerTipOff:
+    def _get(self, client, game, boxscore):
+        with (
+            patch("routes.players.get_cached_scoreboard", return_value=[game]),
+            patch("routes.players.get_cached_live_boxscore", **boxscore) as mock_box,
+            patch("routes.players.log_exceptions"),
+        ):
+            r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
+        assert r.status_code == 200
+        return r.json()["players"], mock_box
+
+    def test_lagging_scoreboard_still_tracks_started_game(self, client):
+        game = make_live_game(gameStatus=1, gameTimeUTC="2020-01-01T00:00:00Z")
+        players, _ = self._get(
+            client, game, {"return_value": make_live_boxscore(status="Q1 8:37")}
+        )
+        assert [p["id"] for p in players] == [PLAYER_ID]
+
+    def test_pregame_boxscore_is_skipped(self, client):
+        game = make_live_game(gameStatus=1, gameTimeUTC="2020-01-01T00:00:00Z")
+        bs = make_live_boxscore(status="Q1 12:00")
+        bs["game"]["gameStatus"] = 1
+        players, _ = self._get(client, game, {"return_value": bs})
+        assert players == []
+
+    def test_future_game_boxscore_not_fetched(self, client):
+        game = make_live_game(gameStatus=1, gameTimeUTC="2999-01-01T00:00:00Z")
+        players, mock_box = self._get(
+            client, game, {"return_value": make_live_boxscore()}
+        )
+        assert players == []
+        mock_box.assert_not_called()
+
+    def test_failed_boxscore_fetch_is_skipped(self, client):
+        players, _ = self._get(
+            client, make_live_game(), {"side_effect": Exception("cdn down")}
+        )
+        assert players == []
+
+
 class TestPlayoffs:
     def _mock(self, rows):
         m = MagicMock()

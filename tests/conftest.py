@@ -281,6 +281,7 @@ def make_live_game(**kw):
 def make_live_boxscore(game_id=GAME_ID, status="Final"):
     return {
         "game": {
+            "gameStatus": 3 if status.startswith("Final") else 2,
             "gameStatusText": status,
             "arena": {"arenaName": "Crypto.com Arena", "arenaCity": "Los Angeles"},
             "attendance": 18997,

@@ -1,6 +1,6 @@
 import asyncio
 import re
-from datetime import date
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from nba_api.stats.endpoints import (
@@ -124,11 +124,13 @@ async def get_player_stats(
         results = []
         # Use all games on the scoreboard to avoid missing players with stale team IDs.
         # Cost is low (max ~15 games) and keeps traded/free-agent players visible.
+        now_utc = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         try:
+            # The CDN scoreboard can lag minutes behind the boxscore at tip-off.
             relevant_game_ids = [
                 game["gameId"]
                 for game in get_cached_scoreboard(league_id)
-                if game["gameStatus"] >= 2
+                if game["gameStatus"] >= 2 or game["gameTimeUTC"] <= now_utc
             ]
         except Exception as ex:
             log_exceptions(ex, "player_tracker_scoreboard")
@@ -152,7 +154,7 @@ async def get_player_stats(
             boxscores = []
 
         for bs in boxscores:
-            if not bs:  # pragma: no cover
+            if not bs or bs["game"]["gameStatus"] == 1:
                 continue
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
