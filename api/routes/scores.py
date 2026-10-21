@@ -86,6 +86,8 @@ _PLAYOFF_SERIES_TTL = 300
 _PLAYOFF_GAME_TYPE = "4"
 # Game-ID types whose W-L record means something: regular season, play-in
 _RECORD_GAME_TYPES = ("2", "5")
+# Below this many games per team the bracket shows last season's playoffs instead.
+_EARLY_SEASON_GAMES = 20
 
 # Per league: NBA and WNBA share tricodes (MIN, IND, PHX, ...). WNBA IDs start 1611661.
 _TRICODE_TO_TEAM_ID = {
@@ -428,9 +430,9 @@ async def get_daily_leaders(
     return result
 
 
-def _fetch_standings_teams() -> list:
+def _fetch_standings_teams(season: str | None = None) -> list:
     """Return raw standings team rows, cached to avoid duplicate LeagueStandings calls."""
-    season = get_current_season()
+    season = season or get_current_season()
     cache_key = f"raw_standings_{season}"
     with cache.lock(cache_key):
         cached = cache.get(cache_key)
@@ -573,7 +575,7 @@ async def get_standings(league: str = Query(default="nba")):
     return result
 
 
-def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
+def _fetch_playin_data(east_playin: list, west_playin: list, season: str) -> dict:
     """Derive play-in results from completed play-in games via LeagueGameFinder.
 
     Returns playinActual dict with east/west keys, each containing:
@@ -582,7 +584,6 @@ def _fetch_playin_data(east_playin: list, west_playin: list) -> dict:
     - gameScores: {"<id1>_<id2>": {"<id1>": pts, "<id2>": pts}, ...}
     Falls back to empty dicts on any error or before play-in starts.
     """
-    season = get_current_season()
     result: dict = {"east": {"gameScores": {}}, "west": {"gameScores": {}}}
 
     if not east_playin or not west_playin:
@@ -688,7 +689,9 @@ def _playin_games(season: str) -> dict:
         return games
 
 
-def _get_playoff_series_cached(league_id: str = "00") -> tuple[dict, dict]:
+def _get_playoff_series_cached(
+    league_id: str = "00", season: str | None = None
+) -> tuple[dict, dict]:
     """Cached wrapper around _fetch_playoff_series_data for the current season.
 
     Returns (pair_wins, pair_games). Series counts only update when a playoff
@@ -696,7 +699,7 @@ def _get_playoff_series_cached(league_id: str = "00") -> tuple[dict, dict]:
     """
     # LeagueGameFinder wants the WNBA season as a bare year ("2026");
     # "2026-27" silently returns zero rows.
-    season = (
+    season = season or (
         get_wnba_current_season()[:4] if league_id == "10" else get_current_season()
     )
     cache_key = f"playoff_series_{league_id}_{season}"
@@ -927,6 +930,11 @@ def _build_finals_data(
     }
 
 
+def _previous_season(season: str) -> str:
+    year = int(season[:4]) - 1
+    return f"{year}-{str(year + 1)[-2:]}"
+
+
 @router.get("/api/playoffs")
 @route_error_handler("Failed to fetch playoff picture")
 async def get_playoff_picture(league: str = Query(default="nba")):
@@ -943,7 +951,12 @@ async def get_playoff_picture(league: str = Query(default="nba")):
             series_results, _ = _get_playoff_series_cached("10")
             return {"all": all_teams, "seriesResults": series_results}
 
-        teams = _fetch_standings_teams()
+        season = get_current_season()
+        teams = _fetch_standings_teams(season)
+        games_played = sum((t[ST_WINS] or 0) + (t[ST_LOSSES] or 0) for t in teams)
+        if teams and games_played / len(teams) < _EARLY_SEASON_GAMES:
+            season = _previous_season(season)
+            teams = _fetch_standings_teams(season)
 
         east = []
         west = []
@@ -957,8 +970,8 @@ async def get_playoff_picture(league: str = Query(default="nba")):
 
         east_sorted = _sort_by_rank(east)
         west_sorted = _sort_by_rank(west)
-        playin_actual = _fetch_playin_data(east_sorted[6:10], west_sorted[6:10])
-        series_results, series_games = _get_playoff_series_cached()
+        playin_actual = _fetch_playin_data(east_sorted[6:10], west_sorted[6:10], season)
+        series_results, series_games = _get_playoff_series_cached(season=season)
 
         finals = _build_finals_data(
             east_sorted,
@@ -968,6 +981,7 @@ async def get_playoff_picture(league: str = Query(default="nba")):
         )
 
         return {
+            "season": season,
             "east": east_sorted,
             "west": west_sorted,
             "playinActual": playin_actual,

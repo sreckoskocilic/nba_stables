@@ -199,6 +199,37 @@ class TestPlayoffs:
             client.get("/api/playoffs")
         m.assert_called_once()
 
+    def test_early_season_shows_previous_season(self, client):
+        current = [make_standings_row(1, "Boston", "Celtics", "East", 1, 0)]
+        previous = [make_standings_row(1, "Boston", "Celtics", "East", 60, 22)]
+        m = MagicMock()
+        m.side_effect = lambda season, **_: MagicMock(
+            get_dict=lambda: {
+                "resultSets": [{"rowSet": current if season == "2026-27" else previous}]
+            }
+        )
+        with (
+            patch("routes.scores.get_current_season", return_value="2026-27"),
+            patch("routes.scores.leaguestandings.LeagueStandings", m),
+            patch(
+                "routes.scores._get_playoff_series_cached", return_value=({}, {})
+            ) as series_mock,
+        ):
+            r = client.get("/api/playoffs")
+        body = r.json()
+        assert body["season"] == "2025-26"
+        assert body["east"][0]["wins"] == 60
+        series_mock.assert_called_once_with(season="2025-26")
+
+    def test_mid_season_keeps_current_season(self, client):
+        rows = [make_standings_row(1, "Boston", "Celtics", "East", 15, 5)]
+        with (
+            patch("routes.scores.get_current_season", return_value="2026-27"),
+            patch("routes.scores.leaguestandings.LeagueStandings", self._mock(rows)),
+        ):
+            r = client.get("/api/playoffs")
+        assert r.json()["season"] == "2026-27"
+
     def _make_conf_rows(self, conf, id_base):
         return [
             make_standings_row(

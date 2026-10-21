@@ -815,7 +815,7 @@ function showConference(conf) {
   const piA = (playoffsData.playinActual && playoffsData.playinActual[conf]) || {};
   el.innerHTML = drawBracket(
     conf === "east" ? playoffsData.east : playoffsData.west,
-    conf === "east" ? "Eastern Conference" : "Western Conference",
+    `${conf === "east" ? "Eastern Conference" : "Western Conference"} ${esc(playoffsData.season || "")}`,
     piA,
     playoffsData.seriesResults || {},
   );
