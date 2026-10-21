@@ -41,6 +41,14 @@ def _patch_lgf_playoffs():
 
 
 @pytest.fixture(autouse=True)
+def _no_career_highs_lookup():
+    m = MagicMock()
+    m.return_value.career_highs.get_dict.return_value = {"headers": [], "data": []}
+    with patch("routes.players.playerprofilev2.PlayerProfileV2", m):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def _no_live_unfinished_lookup():
     """Series/play-in code asks the live CDN which games are still running; keep
     that off the network unless a test overrides it."""

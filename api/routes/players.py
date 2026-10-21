@@ -7,6 +7,7 @@ from nba_api.stats.endpoints import (
     commonplayerinfo,
     playercareerstats,
     playergamelogs,
+    playerprofilev2,
 )
 
 from helpers.common import CACHE_TTL, STATS_TIMEOUT, cache, executor
@@ -568,6 +569,16 @@ def _calc_age(birthdate_str: str | None) -> int | None:
         return None
 
 
+_CAREER_HIGH_STATS = {
+    "PTS": "PTS",
+    "REB": "REB",
+    "AST": "AST",
+    "STL": "STL",
+    "BLK": "BLK",
+    "FG3M": "3PM",
+}
+
+
 @router.get("/api/players/{player_id}/profile")
 @route_error_handler("Failed to fetch player profile")
 async def get_player_profile(
@@ -640,6 +651,32 @@ async def get_player_profile(
             )
         return career_rows
 
+    def _fetch_highs():
+        if league_id != "00":
+            return []
+        prof = call_stats(
+            playerprofilev2.PlayerProfileV2,
+            player_id=player_id,
+            league_id_nullable=league_id,
+        )
+        data = prof.career_highs.get_dict()
+        h = {k: i for i, k in enumerate(data["headers"])}
+        best = {}
+        for row in data["data"]:
+            stat = row[h["STAT"]]
+            if stat not in _CAREER_HIGH_STATS:
+                continue
+            day = (row[h["DATE_EST"]] or "")[:10]
+            if stat in best and best[stat]["date"] >= day:
+                continue
+            best[stat] = {
+                "stat": _CAREER_HIGH_STATS[stat],
+                "value": row[h["STAT_VALUE"]],
+                "opponent": row[h["VS_TEAM_ABBREVIATION"]] or "",
+                "date": day,
+            }
+        return [best[s] for s in _CAREER_HIGH_STATS if s in best]
+
     def _sync():
         complete = True
         try:
@@ -654,6 +691,12 @@ async def get_player_profile(
             log_exceptions(ex, f"profile_career player_id={player_id}")
             career = []
             complete = False
+        try:
+            highs = _fetch_highs()
+        except Exception as ex:
+            log_exceptions(ex, f"profile_highs player_id={player_id}")
+            highs = []
+            complete = False
 
         if bio is None and not career:
             return _not_found
@@ -662,6 +705,7 @@ async def get_player_profile(
             "playerId": player_id,
             "bio": bio or {},
             "career": career,
+            "careerHighs": highs,
         }, complete
 
     result = await asyncio.to_thread(_sync)

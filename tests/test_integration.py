@@ -1094,6 +1094,68 @@ class TestPlayerProfile:
         assert body["bio"] == {}
         assert len(body["career"]) == 1
 
+    def _highs(self, rows):
+        headers = ["STAT", "STAT_VALUE", "VS_TEAM_ABBREVIATION", "DATE_EST"]
+        ppv = MagicMock()
+        ppv.return_value.career_highs.get_dict.return_value = {
+            "headers": headers,
+            "data": rows,
+        }
+        return ppv
+
+    def test_career_highs_pick_latest_tie_and_skip_other_stats(self, client):
+        cpi, pcs = _mock_profile_endpoints()
+        ppv = self._highs(
+            [
+                ["FG3M", 7, "LAC", "2024-10-26T00:00:00"],
+                ["PTS", 61, "MIN", "2025-04-01T00:00:00"],
+                ["FTM", 22, "WAS", "2024-12-07T00:00:00"],
+                ["BLK", 5, "OKC", "2017-04-12T00:00:00"],
+                ["BLK", 5, "DET", "2024-01-07T00:00:00"],
+                ["BLK", 5, "SAC", "2016-01-01T00:00:00"],
+            ]
+        )
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv),
+        ):
+            r = client.get(f"/api/players/{PLAYER_ID}/profile")
+        assert r.json()["careerHighs"] == [
+            {"stat": "PTS", "value": 61, "opponent": "MIN", "date": "2025-04-01"},
+            {"stat": "BLK", "value": 5, "opponent": "DET", "date": "2024-01-07"},
+            {"stat": "3PM", "value": 7, "opponent": "LAC", "date": "2024-10-26"},
+        ]
+
+    def test_career_highs_skipped_for_wnba(self, client):
+        cpi, pcs = _mock_profile_endpoints()
+        ppv = self._highs([["PTS", 38, "IND", "2026-09-27T00:00:00"]])
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv),
+        ):
+            r = client.get(f"/api/players/{PLAYER_ID}/profile?league=wnba")
+        assert r.json()["careerHighs"] == []
+        ppv.assert_not_called()
+
+    def test_career_highs_failure_keeps_profile_uncached(self, client):
+        cpi, pcs = _mock_profile_endpoints()
+        ppv = MagicMock(side_effect=RuntimeError("down"))
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+            patch("routes.players.playerprofilev2.PlayerProfileV2", ppv),
+            patch("routes.players.log_exceptions"),
+        ):
+            r = client.get(f"/api/players/{PLAYER_ID}/profile")
+        body = r.json()
+        assert body["careerHighs"] == []
+        assert body["bio"]["name"] == "LeBron James"
+        from helpers.common import cache
+
+        assert cache.get(f"player_profile_00_{PLAYER_ID}") is None
+
 
 class TestTrades:
     def _resp(self, rows):

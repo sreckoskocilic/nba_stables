@@ -675,6 +675,19 @@ function _renderProfileBio(profile, fallbackName) {
     .join(" · ");
   return `<div class="bio card"><div class="bio-n">${esc(name)}</div>${teamLine ? `<div class="bio-l1">${esc(teamLine)}</div>` : ""}${physical ? `<div class="bio-l2">${esc(physical)}</div>` : ""}${meta ? `<div class="bio-l3">${meta}</div>` : ""}</div>`;
 }
+function _renderCareerHighs(profile) {
+  const highs = (profile && profile.careerHighs) || [];
+  if (!highs.length) return "";
+  const tiles = highs
+    .map((c) => {
+      const d = c.date
+        ? new Date(`${c.date}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+        : "";
+      return `<div class="ch-t card"><div class="ch-v"><span class="ch-s">${esc(c.stat)}</span>${esc(c.value)}</div><div class="ch-m">${c.opponent ? `vs ${esc(c.opponent)}` : ""}</div><div class="ch-m">${esc(d)}</div></div>`;
+    })
+    .join("");
+  return `<div class="ch"><div class="ch-h">Career Highs</div><div class="ch-g">${tiles}</div></div>`;
+}
 function _renderProfileCareer(profile, pct1) {
   const career = (profile && profile.career) || [];
   if (!career.length) return "";
@@ -762,6 +775,7 @@ async function loadPlayerProfile() {
       `<section class="card"><h3 class="card-h">${title}</h3>${html || `<p class="m det-msg">${fallback}</p>`}</section>`;
     el.innerHTML =
       _renderProfileBio(profile, player.name) +
+      _renderCareerHighs(profile) +
       `<div class="prof">${panel("Last 10 Games", recentHtml, "No recent games")}${panel("Career Stats", careerHtml, "No career data")}</div>`;
   } catch {
     if (player !== lastNSelectedPlayer) return;
