@@ -1,5 +1,6 @@
 """Additional integration tests to increase coverage of scores.py and players.py."""
 
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -148,7 +149,7 @@ class TestPlayerTrackerTipOff:
         with (
             patch("routes.players.get_cached_scoreboard", return_value=[game]),
             patch("routes.players.get_cached_live_boxscore", **boxscore) as mock_box,
-            patch("routes.players.log_exceptions"),
+            patch("routes.players.log_exceptions") as self.mock_log,
         ):
             r = client.get(f"/api/players/stats?ids={PLAYER_ID}")
         assert r.status_code == 200
@@ -161,12 +162,13 @@ class TestPlayerTrackerTipOff:
         )
         assert [p["id"] for p in players] == [PLAYER_ID]
 
-    def test_pregame_boxscore_is_skipped(self, client):
-        game = make_live_game(gameStatus=1, gameTimeUTC="2020-01-01T00:00:00Z")
+    def test_pregame_boxscore_is_tracked(self, client):
+        tip = (datetime.now(UTC) + timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        game = make_live_game(gameStatus=1, gameTimeUTC=tip)
         bs = make_live_boxscore(status="Q1 12:00")
         bs["game"]["gameStatus"] = 1
         players, _ = self._get(client, game, {"return_value": bs})
-        assert players == []
+        assert [p["id"] for p in players] == [PLAYER_ID]
 
     def test_future_game_boxscore_not_fetched(self, client):
         game = make_live_game(gameStatus=1, gameTimeUTC="2999-01-01T00:00:00Z")
@@ -181,6 +183,14 @@ class TestPlayerTrackerTipOff:
             client, make_live_game(), {"side_effect": Exception("cdn down")}
         )
         assert players == []
+        self.mock_log.assert_called_once()
+
+    def test_unpublished_pregame_boxscore_is_not_logged(self, client):
+        tip = (datetime.now(UTC) + timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        game = make_live_game(gameStatus=1, gameTimeUTC=tip)
+        players, _ = self._get(client, game, {"side_effect": Exception("403")})
+        assert players == []
+        self.mock_log.assert_not_called()
 
 
 class TestPlayoffs:

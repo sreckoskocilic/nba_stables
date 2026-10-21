@@ -1,6 +1,6 @@
 import asyncio
 import re
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from nba_api.stats.endpoints import (
@@ -125,29 +125,32 @@ async def get_player_stats(
         results = []
         # Use all games on the scoreboard to avoid missing players with stale team IDs.
         # Cost is low (max ~15 games) and keeps traded/free-agent players visible.
-        now_utc = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        soon_utc = (datetime.now(UTC) + timedelta(hours=1)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
         try:
-            # The CDN scoreboard can lag minutes behind the boxscore at tip-off.
-            relevant_game_ids = [
-                game["gameId"]
+            # The CDN publishes pregame boxscores (zero stats) about an hour before tip-off.
+            relevant_games = [
+                game
                 for game in get_cached_scoreboard(league_id)
-                if game["gameStatus"] >= 2 or game["gameTimeUTC"] <= now_utc
+                if game["gameStatus"] >= 2 or game["gameTimeUTC"] <= soon_utc
             ]
         except Exception as ex:
             log_exceptions(ex, "player_tracker_scoreboard")
-            relevant_game_ids = []
+            relevant_games = []
 
-        def fetch_player_boxscore(game_id):  # pragma: no cover
+        def fetch_player_boxscore(game):
             try:
-                return get_cached_live_boxscore(game_id, league_id=league_id)
+                return get_cached_live_boxscore(game["gameId"], league_id=league_id)
             except Exception as ex:
-                log_exceptions(ex, f"game_id={game_id}")
+                if game["gameStatus"] >= 2:
+                    log_exceptions(ex, f"game_id={game['gameId']}")
                 return None
 
         try:
             boxscores = list(
                 executor.map(
-                    fetch_player_boxscore, relevant_game_ids, timeout=STATS_TIMEOUT
+                    fetch_player_boxscore, relevant_games, timeout=STATS_TIMEOUT
                 )
             )
         except TimeoutError as ex:
@@ -155,7 +158,7 @@ async def get_player_stats(
             boxscores = []
 
         for bs in boxscores:
-            if not bs or bs["game"]["gameStatus"] == 1:
+            if not bs:
                 continue
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
