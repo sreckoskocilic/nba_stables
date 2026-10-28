@@ -380,9 +380,11 @@ def _game_players_from_v3(game_id: str) -> dict:
     box = get_cached_boxscore_v3(game_id)
 
     teams_by_id: dict = {}
+    home_id = None
 
     for row in box["data"]:
         stats = dict(zip(box["headers"], row))
+        home_id = stats["homeTeamId"]
         team = teams_by_id.setdefault(
             stats["teamId"],
             {
@@ -406,7 +408,9 @@ def _game_players_from_v3(game_id: str) -> dict:
             _player_box_entry(name, minutes, stats, bool(stats["position"]))
         )
 
-    teams = list(teams_by_id.values())
+    teams = [
+        teams_by_id[tid] for tid in sorted(teams_by_id, key=lambda t: t != home_id)
+    ]
     for team in teams:
         team["players"].sort(key=lambda x: parse_minutes(x["minutes"]), reverse=True)
 

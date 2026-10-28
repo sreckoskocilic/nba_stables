@@ -524,6 +524,8 @@ V3_PLAYER_STATS_HEADERS = (
     "firstName",
     "familyName",
     *_make_v3_player_stats(),
+    "homeTeamId",
+    "awayTeamId",
 )
 
 
@@ -539,6 +541,8 @@ def make_v3_player_row(game_id, team, person_id, first, last, **stats):
         "firstName": first,
         "familyName": last,
         **_make_v3_player_stats(**stats),
+        "homeTeamId": WNBA_TEAM_ID_NYL,
+        "awayTeamId": WNBA_TEAM_ID_LVA,
     }
     return [values[h] for h in V3_PLAYER_STATS_HEADERS]
 
@@ -548,7 +552,7 @@ WNBA_LVA = (WNBA_TEAM_ID_LVA, "Las Vegas", "Aces", "LVA")
 
 
 def make_v3_boxscore(game_id=WNBA_GAME_ID):
-    """Cached BoxScoreTraditionalV3 player stats: home rows first, then away."""
+    """Cached BoxScoreTraditionalV3 player stats: NYL home, LVA away."""
     return {
         "headers": V3_PLAYER_STATS_HEADERS,
         "data": [

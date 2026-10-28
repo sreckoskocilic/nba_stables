@@ -555,10 +555,7 @@ def get_games_leaders_list(days_offset: int = 1, league_id: str = "00") -> dict:
 
 
 def get_cached_boxscore_v3(game_id: str) -> dict:
-    """Return cached BoxScoreTraditionalV3 player stats ({headers, data}) for a game.
-
-    Rows list home-team players first, then away-team players.
-    """
+    """Return cached BoxScoreTraditionalV3 player stats ({headers, data}) for a game."""
     cache_key = f"raw_boxscore_{game_id}"
     with cache.lock(cache_key):
         cached = cache.get(cache_key)

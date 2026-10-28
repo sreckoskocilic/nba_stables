@@ -866,6 +866,20 @@ class TestGamePlayers:
         assert nyl["periods"] == []
         assert nyl["players"][0]["name"] == "Sabrina Ionescu"
 
+    def test_v3_fallback_orders_home_team_first(self, client):
+        gid = "0042500403"
+        box = make_v3_boxscore(gid)
+        box["data"].reverse()
+        with (
+            patch(
+                "routes.players.get_cached_live_boxscore",
+                side_effect=requests.RequestException("404"),
+            ),
+            patch("routes.players.get_cached_boxscore_v3", return_value=box),
+        ):
+            teams = client.get(f"/api/games/{gid}/players").json()["teams"]
+        assert [t["tricode"] for t in teams] == ["NYL", "LVA"]
+
     def test_v3_fallback_skips_dnp_players(self, client):
         gid = "0042500404"
         box = make_v3_boxscore(gid)
