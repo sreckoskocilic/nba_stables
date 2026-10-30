@@ -604,7 +604,7 @@ function renderInjuries() {
       return `<tr><td class="b el">${esc(row.name)}</td><td class="c m">${esc(teamCode)}</td><td class="n ${status.cls}">${status.shortStatus}</td></tr>`;
     };
     const colHtml = (items) =>
-      `<div class="card"><table class="t inj-l"><colgroup><col><col style="width:36px"><col style="width:50px"></colgroup><thead><tr><th>Player</th><th class="c">Team</th><th class="n">Status</th></tr></thead><tbody>${items.map(rowHtml).join("")}</tbody></table></div>`;
+      `<div class="card"><table class="t inj-l"><colgroup><col><col style="width:36px"><col style="width:68px"></colgroup><thead><tr><th>Player</th><th class="c">Team</th><th class="n">Status</th></tr></thead><tbody>${items.map(rowHtml).join("")}</tbody></table></div>`;
     el.innerHTML = `<p class="note">${rows.length} injured</p><div class="inj-cols">${columns.map(colHtml).join("")}</div>`;
     return;
   }
@@ -1414,9 +1414,10 @@ function renderSeasonHighs() {
     .join("")}</tbody></table></div>`;
 }
 
-const _BX_COLS =
-  '<colgroup><col style="width:calc(22ch + 10px)">' +
-  '<col style="width:calc(5ch + 16px)">'.repeat(2) +
+const _bxCols = (teamCh) =>
+  `<colgroup><col style="width:calc(${teamCh + 1}ch + 10px)">` +
+  '<col style="width:calc(5ch + 16px)">' +
+  '<col style="width:calc(7ch + 16px)">' +
   ('<col style="width:calc(6ch + 16px)">' + '<col style="width:calc(5ch + 16px)">').repeat(2) +
   '<col style="width:calc(6ch + 16px)">' +
   '<col style="width:calc(3ch + 16px)">'.repeat(5) +
@@ -1449,6 +1450,8 @@ async function loadBoxscores() {
       return;
     }
     const mobile = window.innerWidth <= 768;
+    const teamCh = Math.max(4, ...boxscores.flatMap((g) => (Array.isArray(g.teams) ? g.teams : []).map((t) => String(t.name ?? "").length)));
+    const bxCols = _bxCols(teamCh);
     const tail = '<button class="bx-more" title="Player details" aria-label="Player details">▼</button><div class="bx-det"></div>';
     content.innerHTML = `<div class="bx-list">${boxscores
       .map((game) => {
@@ -1462,7 +1465,7 @@ async function loadBoxscores() {
             })
             .join("")}${tail}</article>`;
         }
-        return `${open}<div class="bx-top"><div class="wrap grow"><table class="t bxs">${_BX_COLS}<thead><tr><th>Team</th><th class="n">Score</th><th class="n">FG</th><th class="n">FG%</th><th class="n">3 PT</th><th class="n">3 PT%</th><th class="n">FT</th><th class="n">FT%</th><th class="n">REB</th><th class="n">AST</th><th class="n">STL</th><th class="n">BLK</th><th class="n">TO</th><th class="ldh">Leader</th><th class="n">PTS</th><th class="n">REB</th><th class="n">AST</th></tr></thead><tbody>${teams
+        return `${open}<div class="bx-top"><div class="wrap grow"><table class="t bxs">${bxCols}<thead><tr><th>Team</th><th class="n">Score</th><th class="n">FG</th><th class="n">FG%</th><th class="n">3 PT</th><th class="n">3 PT%</th><th class="n">FT</th><th class="n">FT%</th><th class="n">REB</th><th class="n">AST</th><th class="n">STL</th><th class="n">BLK</th><th class="n">TO</th><th class="ldh">Leader</th><th class="n">PTS</th><th class="n">REB</th><th class="n">AST</th></tr></thead><tbody>${teams
           .map((team) => {
             const leader = team.leader || {};
             const st = team.stats || {};
