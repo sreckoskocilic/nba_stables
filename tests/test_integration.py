@@ -929,9 +929,9 @@ class TestLastNGames:
         assert body["playerId"] == PLAYER_ID
         game = body["games"][0]
         assert game["points"] == 28
-        assert game["minutes"] == "34:12"
+        assert game["minutes"] == "34"
         assert game["fg"] == "11/20"
-        assert game["matchup"] == "2026-02-27 — LAL vs. BOS"
+        assert game["matchup"] == "2026/02/27 LAL-BOS"
 
     def test_playoff_games_come_first_and_are_counted(self, client):
         playoff = make_game_log_row(GAME_ID="0042500101", PTS=40)

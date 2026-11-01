@@ -18,6 +18,7 @@ from helpers.stats import (
     call_stats,
     fix_encoding,
     fold_name,
+    game_label,
     get_cached_boxscore_v3,
     get_cached_live_boxscore,
     get_cached_scoreboard,
@@ -49,10 +50,9 @@ def _avg_pct(row, h, gp):
 
 def _game_log_entry(r: dict) -> dict:
     """Last-N-games row from a PlayerGameLogs row keyed by header."""
-    game_date = (r["GAME_DATE"] or "")[:10]
     return {
-        "matchup": f"{game_date} — {r['MATCHUP']}" if game_date else r["MATCHUP"],
-        "minutes": r["MIN_SEC"],
+        "matchup": game_label(r["GAME_DATE"], r["MATCHUP"]),
+        "minutes": (r["MIN_SEC"] or "").split(":")[0],
         "points": r["PTS"],
         "fg": f"{r['FGM']}/{r['FGA']}",
         "threePointers": f"{r['FG3M']}/{r['FG3A']}",

@@ -12,6 +12,7 @@ from helpers.stats import (
     fetch_regular_and_playoffs,
     find_category_leaders,
     fix_encoding,
+    game_label,
     get_current_season,
     get_wnba_current_season,
     load_players_dict,
@@ -34,6 +35,24 @@ SEASON_HIGH_CATEGORIES = [
     ("DREB", "dreb", "Def. Rebounds"),
     ("TOV", "turnovers", "Turnovers"),
 ]
+
+
+def _game_line(row: list, h: dict) -> dict:
+    def v(col):
+        return row[h[col]] or 0
+
+    return {
+        "minutes": v("MIN"),
+        "points": v("PTS"),
+        "fg": f"{v('FGM')}/{v('FGA')}",
+        "threePointers": f"{v('FG3M')}/{v('FG3A')}",
+        "ft": f"{v('FTM')}/{v('FTA')}",
+        "rebounds": v("REB"),
+        "assists": v("AST"),
+        "blocks": v("BLK"),
+        "steals": v("STL"),
+        "fouls": v("PF"),
+    }
 
 
 @router.get("/api/season/highs")
@@ -73,9 +92,9 @@ async def get_season_highs(
             entry = {
                 "name": fix_encoding(row[h["PLAYER_NAME"]]),
                 "team": row[h["TEAM_ABBREVIATION"]],
-                "date": row[h["GAME_DATE"]],
-                "matchup": row[h["MATCHUP"]],
+                "matchup": game_label(row[h["GAME_DATE"]], row[h["MATCHUP"]]),
                 "playoff": idx >= n_regular,
+                "_row": row,
             }
             for col, key, _ in SEASON_HIGH_CATEGORIES:
                 entry[key] = row[h[col]] or 0
@@ -84,7 +103,7 @@ async def get_season_highs(
         cat_keys = [(key, label) for _, key, label in SEASON_HIGH_CATEGORIES]
         max_vals, max_entries = find_category_leaders(players, cat_keys)
 
-        _display_fields = {"name", "team", "date", "matchup", "playoff"}
+        _display_fields = {"name", "team", "matchup", "playoff"}
         highs = {}
         for _, key, label in SEASON_HIGH_CATEGORIES:
             highs[key] = {
@@ -92,6 +111,7 @@ async def get_season_highs(
                 "value": max_vals[key],
                 "players": [
                     {k: v for k, v in e.items() if k in _display_fields}
+                    | {"line": _game_line(e["_row"], h)}
                     for e in max_entries[key]
                 ],
             }
@@ -374,8 +394,7 @@ async def get_triple_double_games(
             if double_digit >= 3:
                 games.append(
                     {
-                        "date": row[h["GAME_DATE"]],
-                        "matchup": row[h["MATCHUP"]],
+                        "matchup": game_label(row[h["GAME_DATE"]], row[h["MATCHUP"]]),
                         "points": pts,
                         "rebounds": reb,
                         "assists": ast,

@@ -346,9 +346,11 @@ def load_players_with_lower(league_id: str = "00") -> list:
 _LIVE_HOSTS = {"00": "https://cdn.nba.com", "10": "https://cdn.wnba.com"}
 
 
-def _fetch_live_json(league_id: str, path: str) -> Any:  # pragma: no cover
+def _fetch_live_json(
+    league_id: str, path: str, kind: str = "liveData"
+) -> Any:  # pragma: no cover
     r = curl_requests.get(
-        f"{_LIVE_HOSTS[league_id]}/static/json/liveData/{path}",
+        f"{_LIVE_HOSTS[league_id]}/static/json/{kind}/{path}",
         impersonate="chrome",
         headers={"Referer": "https://www.nba.com/"},
         timeout=STATS_TIMEOUT,
@@ -623,3 +625,32 @@ def fetch_single_boxscore(
     except Exception as ex:
         log_exceptions(ex)
         return None
+
+
+def _home_away(matchup: str) -> str:
+    if " @ " in matchup:
+        away, home = matchup.split(" @ ")
+    elif " vs. " in matchup:
+        home, away = matchup.split(" vs. ")
+    else:
+        return matchup
+    return f"{home}-{away}"
+
+
+def _parse_game_date(s: str | None) -> date | None:
+    if not s:
+        return None
+    try:
+        return date.fromisoformat(s[:10])
+    except ValueError:
+        pass
+    try:
+        return datetime.strptime(s, "%b %d, %Y").date()
+    except ValueError:
+        return None
+
+
+def game_label(game_date: str | None, matchup: str) -> str:
+    teams = _home_away(matchup)
+    d = _parse_game_date(game_date)
+    return f"{d:%Y/%m/%d} {teams}" if d else teams

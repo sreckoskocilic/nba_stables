@@ -487,10 +487,10 @@ let _standingsData = null;
 function renderStandings() {
   const el = document.getElementById("standingsContent");
   const card = (rows, title, po = 6, pi = 10, style = "") =>
-    `<section class="card"${style}><h3 class="card-h">${title}</h3><div class="wrap"><table class="t st-t"><thead><tr><th class="rk">#</th><th>Team</th><th class="n">W</th><th class="n">L</th><th class="n">PCT</th><th class="n">GB</th><th class="n">Streak</th><th class="n">L10</th><th class="n">Home</th><th class="n">Away</th><th class="n">PPG</th><th class="n">OPP</th><th class="n">DIFF</th></tr></thead><tbody>${rows
+    `<section class="card"${style}><h3 class="card-h">${title}</h3><div class="wrap"><table class="t st-t"><thead><tr><th class="rk">#</th><th>Team</th><th class="n">W</th><th class="n">L</th><th class="n">PCT</th><th class="n">GB</th><th class="n">Streak</th><th class="n">L10</th><th class="n">Home</th><th class="n">Away</th><th class="n">PPG</th><th class="n">OPP</th><th class="n">DIFF</th><th class="c">Games</th></tr></thead><tbody>${rows
       .map(
         (t, i) =>
-          `<tr class="${i < po ? "po" : i < pi ? "pi" : ""}"><td class="rk">${i + 1}</td><td class="b">${esc(t.name)}</td><td class="n hl">${esc(t.wins)}</td><td class="n">${esc(t.losses)}</td><td class="n">${(100 * t.winPct).toFixed(1)}%</td><td class="n">${esc(t.gamesBack)}</td><td class="n">${esc(t.streak)}</td><td class="n">${esc(t.last10)}</td><td class="n">${esc(t.homeRecord)}</td><td class="n">${esc(t.awayRecord)}</td><td class="n">${safeVal(t.ppg)}</td><td class="n">${safeVal(t.oppPpg)}</td><td class="n">${_signed(t.diff)}</td></tr>`,
+          `<tr class="${i < po ? "po" : i < pi ? "pi" : ""}"><td class="rk">${i + 1}</td><td class="b">${esc(t.name)}</td><td class="n hl">${esc(t.wins)}</td><td class="n">${esc(t.losses)}</td><td class="n">${(100 * t.winPct).toFixed(1)}%</td><td class="n">${esc(t.gamesBack)}</td><td class="n">${esc(t.streak)}</td><td class="n">${esc(t.last10)}</td><td class="n">${esc(t.homeRecord)}</td><td class="n">${esc(t.awayRecord)}</td><td class="n">${safeVal(t.ppg)}</td><td class="n">${safeVal(t.oppPpg)}</td><td class="n">${_signed(t.diff)}</td><td class="c"><button class="mini" data-action="toggleTeamGames" data-team-id="${escAttr(t.teamId)}" aria-expanded="false">Details</button></td></tr><tr class="tdd" id="tg-details-${escAttr(t.teamId)}" hidden><td colspan="14"><div class="tg" id="tg-games-${escAttr(t.teamId)}"></div></td></tr>`,
       )
       .join("")}</tbody></table></div></section>`;
   try {
@@ -501,6 +501,42 @@ function renderStandings() {
     if (two) _alignGrid(two);
   } catch (e) {
     el.innerHTML = emptyHtml("Error Loading Standings", esc(e.message));
+  }
+}
+async function toggleTeamGames(teamId, btn) {
+  const detailRow = document.getElementById(`tg-details-${teamId}`);
+  if (!detailRow.hidden) {
+    detailRow.hidden = true;
+    btn.textContent = "Details";
+    btn.setAttribute("aria-expanded", "false");
+    return;
+  }
+  detailRow.hidden = false;
+  btn.textContent = "Hide";
+  btn.setAttribute("aria-expanded", "true");
+  const container = document.getElementById(`tg-games-${teamId}`);
+  container.innerHTML = '<p class="m sm">Loading games...</p>';
+  try {
+    const r = await _fetchWithAbort("teamGames_" + teamId, `/api/standings/${teamId}/games` + leagueQuery()),
+      d = await r.json();
+    if (!r.ok) throw new Error(d.detail);
+    const games = d.games || [];
+    if (games.length === 0) {
+      container.innerHTML = '<p class="m sm">No games played yet</p>';
+      return;
+    }
+    const half = Math.ceil(games.length / 2);
+    const tbl = (list) =>
+      `<table class="t tdg"><thead><tr><th>Matchup</th><th class="n">Result</th></tr></thead><tbody>${list
+        .map((g) => {
+          const hw = g.homeScore > g.awayScore;
+          const w = (v, win) => (win ? `<span class="t-elite">${esc(v)}</span>` : esc(v));
+          return `<tr><td class="nw">${esc(g.date)} ${w(g.home, hw)}-${w(g.away, !hw)}</td><td class="n">${w(g.homeScore, hw)}-${w(g.awayScore, !hw)}</td></tr>`;
+        })
+        .join("")}</tbody></table>`;
+    container.innerHTML = tbl(games.slice(0, half)) + (games.length > half ? tbl(games.slice(half)) : "");
+  } catch {
+    container.innerHTML = '<p class="s-out sm">Error loading games</p>';
   }
 }
 async function loadStandings(force = false) {
@@ -759,7 +795,7 @@ async function loadPlayerProfile() {
       return Number.isFinite(v) ? `${v.toFixed(1)}%` : "-";
     };
     const recentHtml = hasGames
-      ? `<div class="wrap"><table class="t ps"><thead><tr><th>Matchup</th><th class="n">MIN</th><th class="n">PTS</th><th class="n">FG</th><th class="n">3 PT</th><th class="n">FT</th><th class="n">REB</th><th class="n">AST</th><th class="n">BLK</th><th class="n">STL</th><th class="n">PF</th></tr></thead><tbody>${a.games
+      ? `<div class="wrap"><table class="t ps"><thead><tr><th class="fit">Matchup</th><th class="n">MIN</th><th class="n">PTS</th><th class="n">FG</th><th class="n">3 PT</th><th class="n">FT</th><th class="n">REB</th><th class="n">AST</th><th class="n">BLK</th><th class="n">STL</th><th class="n">PF</th></tr></thead><tbody>${a.games
           .map((g, i) => {
             const po = i < a.playoffGames;
             return `<tr${po ? ' class="pg"' : ""}><td>${esc(g.matchup)}</td><td class="n">${esc(g.minutes)}</td><td class="n">${statVal("points", g.points)}</td><td class="n">${esc(g.fg)}</td><td class="n">${esc(g.threePointers)}</td><td class="n">${esc(g.ft)}</td><td class="n">${statVal("rebounds", g.rebounds)}</td><td class="n">${statVal("assists", g.assists)}</td><td class="n">${statVal("blocks", g.blocks)}</td><td class="n">${statVal("steals", g.steals)}</td><td class="n">${esc(g.fouls)}</td></tr>`;
@@ -1205,10 +1241,10 @@ async function toggleTdGames(playerId, btn) {
       container.innerHTML = '<p class="m sm">No triple-double games found</p>';
       return;
     }
-    container.innerHTML = `<table class="t dt-s tdg"><thead><tr><th>Date</th><th>Matchup</th><th class="n">PTS</th><th class="n">REB</th><th class="n">AST</th><th class="n">STL</th><th class="n">BLK</th></tr></thead><tbody>${d.games
+    container.innerHTML = `<table class="t dt-s tdg"><thead><tr><th>Matchup</th><th class="n">PTS</th><th class="n">REB</th><th class="n">AST</th><th class="n">STL</th><th class="n">BLK</th></tr></thead><tbody>${d.games
       .map(
         (g) =>
-          `<tr><td class="nw">${esc(g.date)}</td><td class="nw">${esc(g.matchup)}</td><td class="n">${statVal("points", g.points)}</td><td class="n">${statVal("rebounds", g.rebounds)}</td><td class="n">${statVal("assists", g.assists)}</td><td class="n">${statVal("steals", g.steals)}</td><td class="n">${statVal("blocks", g.blocks)}</td></tr>`,
+          `<tr><td class="nw">${esc(g.matchup)}</td><td class="n">${statVal("points", g.points)}</td><td class="n">${statVal("rebounds", g.rebounds)}</td><td class="n">${statVal("assists", g.assists)}</td><td class="n">${statVal("steals", g.steals)}</td><td class="n">${statVal("blocks", g.blocks)}</td></tr>`,
       )
       .join("")}</tbody></table>`;
   } catch {
@@ -1400,18 +1436,30 @@ function renderSeasonHighs() {
     return;
   }
   note.textContent = `Best single-game performances this season (${data.season || ""})`;
-  const fmtDate = (p) => {
-    if (!p.date) return "-";
-    const d = new Date(p.date + "T12:00:00");
-    return isNaN(d) ? esc(p.date) : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  };
-  content.innerHTML = `<div class="wrap"><table class="t lt-t"><thead><tr><th>Category</th><th class="n">High</th><th>Player</th><th>Team</th><th>Date</th><th>Matchup</th></tr></thead><tbody>${highs
-    .map((high) => {
+  content.innerHTML = `<div class="wrap"><table class="t lt-t"><thead><tr><th>Category</th><th class="n">High</th><th>Player</th><th>Team</th><th class="c">Details</th></tr></thead><tbody>${highs
+    .map((high, i) => {
       const players = Array.isArray(high.players) ? high.players : [];
       const isPlayoff = players.some((p) => p.playoff);
-      return `<tr${isPlayoff ? ' class="pg"' : ""}><td>${esc(high.label)}</td><td class="n hl">${esc(high.value)}</td><td>${_playerLines(players, (p) => esc(p.name))}</td><td>${_playerLines(players, (p) => esc(p.team))}</td><td class="m sm nw">${_playerLines(players, fmtDate)}</td><td class="m sm nw">${_playerLines(players, (p) => esc(p.matchup || "-"))}</td></tr>`;
+      const details = players.length
+        ? `<td class="c"><button class="mini" data-action="toggleHighDetails" data-idx="${i}" aria-expanded="false">Details</button></td></tr><tr class="tdd" id="sh-details-${i}" hidden><td colspan="5"><div class="wrap">${_highGamesTable(players)}</div></td>`
+        : "<td></td>";
+      return `<tr${isPlayoff ? ' class="pg"' : ""}><td>${esc(high.label)}</td><td class="n hl">${esc(high.value)}</td><td>${_playerLines(players, (p) => esc(p.name))}</td><td>${_playerLines(players, (p) => esc(p.team))}</td>${details}</tr>`;
     })
     .join("")}</tbody></table></div>`;
+}
+function _highGamesTable(players) {
+  return `<table class="t ps"><thead><tr><th class="fit">Matchup</th><th class="n">MIN</th><th class="n">PTS</th><th class="n">FG</th><th class="n">3 PT</th><th class="n">FT</th><th class="n">REB</th><th class="n">AST</th><th class="n">BLK</th><th class="n">STL</th><th class="n">PF</th></tr></thead><tbody>${players
+    .map((p) => {
+      const g = p.line || {};
+      return `<tr${p.playoff ? ' class="pg"' : ""}><td>${esc(p.matchup || "-")}</td><td class="n">${esc(g.minutes)}</td><td class="n">${statVal("points", g.points)}</td><td class="n">${esc(g.fg)}</td><td class="n">${esc(g.threePointers)}</td><td class="n">${esc(g.ft)}</td><td class="n">${statVal("rebounds", g.rebounds)}</td><td class="n">${statVal("assists", g.assists)}</td><td class="n">${statVal("blocks", g.blocks)}</td><td class="n">${statVal("steals", g.steals)}</td><td class="n">${esc(g.fouls)}</td></tr>`;
+    })
+    .join("")}</tbody></table>`;
+}
+function toggleHighDetails(idx, btn) {
+  const row = document.getElementById(`sh-details-${idx}`);
+  row.hidden = !row.hidden;
+  btn.textContent = row.hidden ? "Details" : "Hide";
+  btn.setAttribute("aria-expanded", String(!row.hidden));
 }
 
 const _bxCols = (teamCh) =>
@@ -1497,6 +1545,8 @@ const _ACTIONS = {
   showFinals: () => showFinals(),
   removeTracked: (t) => removeTrackedPlayer(parseInt(t.dataset.playerId, 10)),
   toggleTdGames: (t) => toggleTdGames(parseInt(t.dataset.playerId, 10), t),
+  toggleHighDetails: (t) => toggleHighDetails(t.dataset.idx, t),
+  toggleTeamGames: (t) => toggleTeamGames(parseInt(t.dataset.teamId, 10), t),
   toggleGameDetails: (t, e) => !e.target.closest(".bx-det") && toggleGameDetails(t.dataset.gameId, t),
   clearLastNPlayer: () => clearLastNPlayer(),
 };

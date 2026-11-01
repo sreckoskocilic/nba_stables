@@ -777,7 +777,6 @@ class TestTripleDoubleGames:
             r = client.get(f"/api/season/triple-double-games/{PLAYER_ID}")
         game = r.json()["games"][0]
         for key in (
-            "date",
             "matchup",
             "points",
             "rebounds",
@@ -1684,3 +1683,86 @@ class TestSeasonLeaders:
             client.get("/api/season/leaders")
             client.get("/api/season/leaders")
         assert mock.call_count == 2
+
+
+def _sched_game(game_id, date, home, away, status=3):
+    return {
+        "gameId": game_id,
+        "gameDateEst": f"{date}T00:00:00Z",
+        "gameStatus": status,
+        "homeTeam": {"teamId": home[0], "teamTricode": home[1], "score": home[2]},
+        "awayTeam": {"teamId": away[0], "teamTricode": away[1], "score": away[2]},
+    }
+
+
+class TestTeamGames:
+    def test_games_home_away_result_and_cache(self, client):
+        schedule = {
+            "leagueSchedule": {
+                "gameDates": [
+                    {
+                        "games": [
+                            _sched_game(
+                                "0012600001",
+                                "2026-10-05",
+                                (1, "LAL", 90),
+                                (3, "GSW", 80),
+                            ),
+                            _sched_game(
+                                "0022600010",
+                                "2026-10-28",
+                                (3, "GSW", 105),
+                                (1, "LAL", 100),
+                            ),
+                        ]
+                    },
+                    {
+                        "games": [
+                            _sched_game(
+                                "0022600020",
+                                "2026-10-30",
+                                (1, "LAL", 110),
+                                (2, "BOS", 99),
+                            ),
+                            _sched_game(
+                                "0022600030",
+                                "2026-11-01",
+                                (1, "LAL", 0),
+                                (2, "BOS", 0),
+                                1,
+                            ),
+                        ]
+                    },
+                ]
+            }
+        }
+        mock = MagicMock(return_value=schedule)
+        with patch("routes.scores._fetch_live_json", mock):
+            r = client.get("/api/standings/1/games")
+            client.get("/api/standings/2/games")
+        assert r.status_code == 200
+        assert r.json()["games"] == [
+            {
+                "date": "2026/10/28",
+                "home": "GSW",
+                "away": "LAL",
+                "homeScore": 105,
+                "awayScore": 100,
+            },
+            {
+                "date": "2026/10/30",
+                "home": "LAL",
+                "away": "BOS",
+                "homeScore": 110,
+                "awayScore": 99,
+            },
+        ]
+        mock.assert_called_once_with("00", "scheduleLeagueV2.json", kind="staticData")
+
+    def test_wnba_unknown_team_empty(self, client):
+        with patch(
+            "routes.scores._fetch_live_json",
+            return_value={"leagueSchedule": {"gameDates": []}},
+        ):
+            r = client.get("/api/standings/5/games?league=wnba")
+        assert r.json() == {"teamId": 5, "games": []}

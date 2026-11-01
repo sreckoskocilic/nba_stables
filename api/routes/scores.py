@@ -1,6 +1,7 @@
 import asyncio
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Path, Query
 from nba_api.stats.endpoints import LeagueGameFinder, leaguestandings
 from nba_api.stats.library.http import NBAStatsHTTP
 
@@ -54,6 +55,8 @@ from helpers.common import (
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
 from helpers.stats import (
+    _TZ_CET,
+    _fetch_live_json,
     _reset_nba_stats_http_session,
     _today_et,
     call_stats,
@@ -72,6 +75,7 @@ from helpers.stats import (
     live_status_text,
     scoreboard_date,
     unfinished_game_ids,
+    with_retry,
 )
 
 router = APIRouter()
@@ -573,6 +577,51 @@ async def get_standings(league: str = Query(default="nba")):
     result = await asyncio.to_thread(_sync)
     cache.set(cache_key, result, CACHE_TTL["standings"])
     return result
+
+
+# Regular season, playoffs, play-in; skips preseason (1), All-Star (3), Cup final (6).
+_SEASON_GAME_TYPES = ("2", "4", "5")
+
+
+def _team_games_by_team(league_id: str) -> dict:
+    day = (datetime.now(_TZ_CET) - timedelta(hours=10)).date()
+    cache_key = f"raw_team_games_{league_id}_{day.isoformat()}"
+    with cache.lock(cache_key):
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        schedule = with_retry(
+            lambda: _fetch_live_json(
+                league_id, "scheduleLeagueV2.json", kind="staticData"
+            )
+        )["leagueSchedule"]
+        by_team: dict = {}
+        for game_date in schedule["gameDates"]:
+            for g in game_date["games"]:
+                if g["gameStatus"] != 3 or g["gameId"][2] not in _SEASON_GAME_TYPES:
+                    continue
+                home, away = g["homeTeam"], g["awayTeam"]
+                entry = {
+                    "date": g["gameDateEst"][:10].replace("-", "/"),
+                    "home": home["teamTricode"],
+                    "away": away["teamTricode"],
+                    "homeScore": home["score"],
+                    "awayScore": away["score"],
+                }
+                for team in (home, away):
+                    by_team.setdefault(str(team["teamId"]), []).append(entry)
+        cache.set(cache_key, by_team, CACHE_TTL["historical"])
+        return by_team
+
+
+@router.get("/api/standings/{team_id}/games")
+@route_error_handler("Failed to fetch team games")
+async def get_team_games(
+    team_id: int = Path(..., gt=0), league: str = Query(default="nba")
+):
+    league_id = "10" if league == "wnba" else "00"
+    by_team = await asyncio.to_thread(_team_games_by_team, league_id)
+    return {"teamId": team_id, "games": by_team.get(str(team_id), [])}
 
 
 def _fetch_playin_data(east_playin: list, west_playin: list, season: str) -> dict:

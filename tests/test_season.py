@@ -33,6 +33,10 @@ HIGHS_HEADERS = [
     "OREB",
     "DREB",
     "TOV",
+    "MIN",
+    "FGA",
+    "FG3A",
+    "PF",
 ]
 
 
@@ -180,8 +184,10 @@ class TestGetSeasonHighs:
         player = resp.json()["highs"]["points"]["players"][0]
         assert player["name"] == "Player A"
         assert player["team"] == "LAL"
-        assert player["date"] == "2024-01-15"
-        assert player["matchup"] == "LAL vs. BOS"
+        assert player["matchup"] == "2024/01/15 LAL-BOS"
+        assert player["line"]["points"] == 30
+        assert player["line"]["fg"] == "0/0"
+        assert "_row" not in player
 
     def test_zero_value_stays_zero_with_no_players(self, client):
         rows = [_highs_row(pts=30, ast=0)]
@@ -496,8 +502,7 @@ class TestGetTripleDoubleGames:
         )
         resp = self._call(client, [row])
         game = resp.json()["games"][0]
-        assert game["date"] == "2024-02-01"
-        assert game["matchup"] == "LAL @ BOS"
+        assert game["matchup"] == "2024/02/01 BOS-LAL"
         assert game["points"] == 12
         assert game["rebounds"] == 10
         assert game["assists"] == 10

@@ -114,8 +114,24 @@ def test_last_n_games_iso_date_and_min_sec(monkeypatch, client):
     r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=1")
     assert r.status_code == 200
     game = r.json()["games"][0]
-    assert game["matchup"] == "2026-03-10 — LAC @ IND"
-    assert game["minutes"] == "34:12"
+    assert game["matchup"] == "2026/03/10 IND-LAC"
+    assert game["minutes"] == "34"
+
+
+def test_last_n_games_no_date_unknown_matchup(monkeypatch, client):
+    monkeypatch.setattr(
+        "routes.players.load_players_dict",
+        lambda league_id="00": {PLAYER_ID: [PLAYER_ID, "Test Player", None]},
+    )
+    logs = [
+        make_game_logs(),
+        make_game_logs([make_game_log_row(GAME_DATE=None, MATCHUP="LAC")]),
+    ]
+    monkeypatch.setattr(
+        "routes.players.playergamelogs.PlayerGameLogs", lambda **_: logs.pop(0)
+    )
+    r = client.get(f"/api/players/{PLAYER_ID}/last-n-games?n=1")
+    assert r.json()["games"][0]["matchup"] == "LAC"
 
 
 def test_get_player_stats_value_error(client):

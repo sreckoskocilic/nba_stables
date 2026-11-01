@@ -14,6 +14,7 @@ from helpers.stats import (
     find_category_leaders,
     fix_encoding,
     fold_name,
+    game_label,
     get_display_date,
     get_games_leaders_list,
     get_games_list,
@@ -914,3 +915,11 @@ class TestGetCachedLiveBoxscore:
             pytest.raises(RuntimeError),
         ):
             hs.get_cached_live_boxscore("0022300001")
+
+
+class TestGameLabel:
+    def test_player_game_log_date_format(self):
+        assert game_label("OCT 28, 2025", "LAL @ GSW") == "2025/10/28 GSW-LAL"
+
+    def test_unparsable_date_keeps_teams(self):
+        assert game_label("someday", "LAL vs. GSW") == "LAL-GSW"
