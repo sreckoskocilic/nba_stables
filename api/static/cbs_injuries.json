@@ -5,15 +5,21 @@
       "players": [
         {
           "name": "Jalen Johnson",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Ankle",
           "status": "Game Time Decision"
         },
         {
           "name": "Jock Landale",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Hip",
-          "status": "Expected to be out until at least Nov 6"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Asa Newell",
+          "updated": "Wed, Nov 4",
+          "injury": "Toe",
+          "status": "Game Time Decision"
         },
         {
           "name": "Mouhamed Gueye",
@@ -33,21 +39,15 @@
       "team": "Boston",
       "players": [
         {
-          "name": "RJ Luis Jr.",
-          "updated": "Wed, Nov 4",
-          "injury": "Not Injury Related",
-          "status": "—"
-        },
-        {
           "name": "Jayson Tatum",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Rest",
           "status": "Game Time Decision"
         },
         {
           "name": "Payton Pritchard",
-          "updated": "Tue, Nov 3",
-          "injury": "Shoulder",
+          "updated": "Wed, Nov 4",
+          "injury": "Eye",
           "status": "Game Time Decision"
         },
         {
@@ -63,15 +63,21 @@
       "players": [
         {
           "name": "Tyler Bilodeau",
-          "updated": "Sat, Oct 31",
+          "updated": "Thu, Nov 5",
           "injury": "Shoulder",
-          "status": "Expected to be out until at least Nov 6"
+          "status": "Game Time Decision"
         },
         {
           "name": "Egor Demin",
-          "updated": "Thu, Oct 29",
+          "updated": "Thu, Nov 5",
           "injury": "Leg",
-          "status": "Expected to be out until at least Nov 7"
+          "status": "Expected to be out until at least Nov 11"
+        },
+        {
+          "name": "Noah Clowney",
+          "updated": "Wed, Nov 4",
+          "injury": "Knee",
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -79,15 +85,9 @@
       "team": "Charlotte",
       "players": [
         {
-          "name": "Coby White",
-          "updated": "Tue, Nov 3",
-          "injury": "Calf",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Kon Knueppel",
-          "updated": "Tue, Nov 3",
-          "injury": "Hamstring",
+          "updated": "Wed, Nov 4",
+          "injury": "Leg",
           "status": "Game Time Decision"
         },
         {
@@ -102,15 +102,21 @@
       "team": "Chicago",
       "players": [
         {
-          "name": "Jalen Smith",
-          "updated": "Tue, Nov 3",
-          "injury": "Finger",
+          "name": "Nicolas Claxton",
+          "updated": "Thu, Nov 5",
+          "injury": "Hamstring",
           "status": "Game Time Decision"
         },
         {
-          "name": "Nicolas Claxton",
-          "updated": "Tue, Nov 3",
-          "injury": "Hamstring",
+          "name": "Jalen Smith",
+          "updated": "Wed, Nov 4",
+          "injury": "Hand",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Zach Collins",
+          "updated": "Wed, Nov 4",
+          "injury": "Undisclosed",
           "status": "Game Time Decision"
         }
       ]
@@ -120,15 +126,27 @@
       "players": [
         {
           "name": "Jaylon Tyson",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Ankle",
-          "status": "Expected to be out until at least Nov 6"
+          "status": "Game Time Decision"
         },
         {
           "name": "Peyton Watson",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Hamstring",
-          "status": "Expected to be out until at least Nov 6"
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Jarrett Allen",
+          "updated": "Wed, Nov 4",
+          "injury": "Knee",
+          "status": "Game Time Decision"
+        },
+        {
+          "name": "Tyrese Proctor",
+          "updated": "Wed, Nov 4",
+          "injury": "Ankle",
+          "status": "Game Time Decision"
         },
         {
           "name": "Nae'Qwan Tomlin",
@@ -142,22 +160,22 @@
       "team": "Dallas",
       "players": [
         {
+          "name": "Sergio de Larrea",
+          "updated": "Thu, Nov 5",
+          "injury": "Knee",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Santi Aldama",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Knee",
           "status": "Game Time Decision"
         },
         {
           "name": "Max Christie",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Hip",
-          "status": "Expected to be out until at least Nov 6"
-        },
-        {
-          "name": "Sergio de Larrea",
-          "updated": "Tue, Nov 3",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Nov 6"
+          "status": "Game Time Decision"
         },
         {
           "name": "Dereck Lively II",
@@ -177,22 +195,16 @@
       "team": "Denver",
       "players": [
         {
+          "name": "DeMar DeRozan",
+          "updated": "Thu, Nov 5",
+          "injury": "Back",
+          "status": "Game Time Decision"
+        },
+        {
           "name": "Spencer Jones",
           "updated": "Tue, Nov 3",
           "injury": "Hamstring",
           "status": "Expected to be out until at least Nov 11"
-        },
-        {
-          "name": "Cameron Johnson",
-          "updated": "Tue, Nov 3",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Alpha Diallo",
-          "updated": "Tue, Nov 3",
-          "injury": "Wrist",
-          "status": "Game Time Decision"
         },
         {
           "name": "Julian Strawther",
@@ -207,9 +219,9 @@
       "players": [
         {
           "name": "Isaiah Joe",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Hip",
-          "status": "Expected to be out until at least Nov 8"
+          "status": "Game Time Decision"
         },
         {
           "name": "Jalen Duren",
@@ -223,22 +235,10 @@
       "team": "Golden St.",
       "players": [
         {
-          "name": "Al Horford",
-          "updated": "Tue, Nov 3",
-          "injury": "Rest",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Brandon Williams",
-          "updated": "Tue, Nov 3",
-          "injury": "Quadriceps",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Gui Santos",
-          "updated": "Tue, Nov 3",
+          "updated": "Wed, Nov 4",
           "injury": "Knee",
-          "status": "Game Time Decision"
+          "status": "Expected to be out until at least Nov 7"
         },
         {
           "name": "Kristaps Porzingis",
@@ -265,7 +265,7 @@
       "players": [
         {
           "name": "Clint Capela",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Ankle",
           "status": "Game Time Decision"
         },
@@ -281,21 +281,9 @@
       "team": "Indiana",
       "players": [
         {
-          "name": "Ivica Zubac",
-          "updated": "Tue, Nov 3",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Kelly Oubre Jr.",
-          "updated": "Tue, Nov 3",
-          "injury": "Knee",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Obi Toppin",
-          "updated": "Tue, Nov 3",
-          "injury": "Back",
+          "updated": "Thu, Nov 5",
+          "injury": "Calf",
           "status": "Game Time Decision"
         },
         {
@@ -305,16 +293,16 @@
           "status": "Expected to be out until at least Nov 9"
         },
         {
-          "name": "Tyrese Haliburton",
-          "updated": "Wed, Oct 28",
-          "injury": "Hamstring",
-          "status": "Expected to be out until at least Nov 13"
-        },
-        {
           "name": "Ben Sheppard",
           "updated": "Wed, Oct 28",
           "injury": "Knee",
           "status": "Expected to be out until at least Jan 2"
+        },
+        {
+          "name": "Tyrese Haliburton",
+          "updated": "Wed, Oct 28",
+          "injury": "Hamstring",
+          "status": "Expected to be out until at least Nov 13"
         },
         {
           "name": "Johnny Furphy",
@@ -329,21 +317,21 @@
       "players": [
         {
           "name": "Yanic Konan Niederhauser",
-          "updated": "Sun, Nov 1",
+          "updated": "Thu, Nov 5",
           "injury": "Foot",
-          "status": "Expected to be out until at least Nov 8"
-        },
-        {
-          "name": "Brandon Ingram",
-          "updated": "Sun, Nov 1",
-          "injury": "Achilles",
-          "status": "Expected to be out until at least Nov 8"
+          "status": "Game Time Decision"
         },
         {
           "name": "Bradley Beal",
-          "updated": "Thu, Oct 22",
+          "updated": "Thu, Nov 5",
           "injury": "Knee",
-          "status": "Expected to be out until at least Nov 8"
+          "status": "Expected to be out until at least Nov 29"
+        },
+        {
+          "name": "Brandon Ingram",
+          "updated": "Thu, Nov 5",
+          "injury": "Achilles",
+          "status": "Game Time Decision"
         },
         {
           "name": "Jordan Miller",
@@ -358,9 +346,9 @@
       "players": [
         {
           "name": "Adou Thiero",
-          "updated": "Mon, Nov 2",
+          "updated": "Thu, Nov 5",
           "injury": "Knee",
-          "status": "Expected to be out until at least Nov 6"
+          "status": "Game Time Decision"
         }
       ]
     },
@@ -369,31 +357,25 @@
       "players": [
         {
           "name": "Scotty Pippen Jr.",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Back",
-          "status": "Expected to be out until at least Nov 6"
+          "status": "Game Time Decision"
         },
         {
-          "name": "Quinten Post",
-          "updated": "Tue, Nov 3",
-          "injury": "Ankle",
+          "name": "Isaiah Stewart",
+          "updated": "Wed, Nov 4",
+          "injury": "Knee",
           "status": "Game Time Decision"
         }
       ]
     },
     {
-      "team": "Miami",
+      "team": "Milwaukee",
       "players": [
         {
-          "name": "Myron Gardner",
-          "updated": "Tue, Nov 3",
-          "injury": "Quadriceps",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Giannis Antetokounmpo",
-          "updated": "Tue, Nov 3",
-          "injury": "Wrist",
+          "name": "Kam Jones",
+          "updated": "Thu, Nov 5",
+          "injury": "Ankle",
           "status": "Game Time Decision"
         }
       ]
@@ -403,7 +385,7 @@
       "players": [
         {
           "name": "Terrence Shannon Jr.",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Hip",
           "status": "Game Time Decision"
         },
@@ -426,14 +408,8 @@
       "players": [
         {
           "name": "Trey Murphy III",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Knee",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Jordan Poole",
-          "updated": "Tue, Nov 3",
-          "injury": "Ankle",
           "status": "Game Time Decision"
         },
         {
@@ -449,7 +425,7 @@
       "players": [
         {
           "name": "Josh Hart",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Ankle",
           "status": "Game Time Decision"
         }
@@ -460,7 +436,7 @@
       "players": [
         {
           "name": "Jaylin Williams",
-          "updated": "Tue, Nov 3",
+          "updated": "Thu, Nov 5",
           "injury": "Back",
           "status": "Game Time Decision"
         },
@@ -500,12 +476,6 @@
       "team": "Orlando",
       "players": [
         {
-          "name": "Anthony Black",
-          "updated": "Tue, Nov 3",
-          "injury": "Rest",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Jonathan Isaac",
           "updated": "Thu, Oct 29",
           "injury": "Knee",
@@ -542,9 +512,15 @@
       "players": [
         {
           "name": "Dom Barlow",
-          "updated": "Tue, Nov 3",
+          "updated": "Wed, Nov 4",
           "injury": "Back",
-          "status": "Expected to be out until at least Nov 12"
+          "status": "Expected to be out until at least Nov 18"
+        },
+        {
+          "name": "Adem Bona",
+          "updated": "Wed, Nov 4",
+          "injury": "Head",
+          "status": "Game Time Decision"
         },
         {
           "name": "Ariel Hukporti",
@@ -558,15 +534,15 @@
       "team": "Phoenix",
       "players": [
         {
-          "name": "Rasheer Fleming",
-          "updated": "Tue, Nov 3",
-          "injury": "Ankle",
+          "name": "Jordan Goodwin",
+          "updated": "Thu, Nov 5",
+          "injury": "Calf",
           "status": "Game Time Decision"
         },
         {
-          "name": "Jordan Goodwin",
-          "updated": "Mon, Nov 2",
-          "injury": "Calf",
+          "name": "Rasheer Fleming",
+          "updated": "Thu, Nov 5",
+          "injury": "Ankle",
           "status": "Game Time Decision"
         },
         {
@@ -580,6 +556,12 @@
     {
       "team": "Portland",
       "players": [
+        {
+          "name": "Vit Krejci",
+          "updated": "Thu, Nov 5",
+          "injury": "Ankle",
+          "status": "Expected to be out until at least Jan 2"
+        },
         {
           "name": "Ja Morant",
           "updated": "Fri, Oct 30",
@@ -598,9 +580,9 @@
       "team": "Sacramento",
       "players": [
         {
-          "name": "Precious Achiuwa",
-          "updated": "Tue, Nov 3",
-          "injury": "Ankle",
+          "name": "Daeqwon Plowden",
+          "updated": "Thu, Nov 5",
+          "injury": "Illness",
           "status": "Game Time Decision"
         },
         {
@@ -644,12 +626,6 @@
       "team": "Toronto",
       "players": [
         {
-          "name": "Jakob Poeltl",
-          "updated": "Tue, Nov 3",
-          "injury": "Shoulder",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Nate Bittle",
           "updated": "Mon, Nov 2",
           "injury": "Foot",
@@ -667,46 +643,28 @@
       "team": "Utah",
       "players": [
         {
-          "name": "Mo Bamba",
-          "updated": "Tue, Nov 3",
-          "injury": "Ankle",
-          "status": "Game Time Decision"
-        },
-        {
           "name": "Jusuf Nurkic",
           "updated": "Tue, Nov 3",
           "injury": "Foot",
           "status": "Expected to be out until at least Nov 13"
         },
         {
-          "name": "Jaren Jackson Jr.",
-          "updated": "Tue, Oct 27",
-          "injury": "Knee",
-          "status": "Expected to be out until at least Dec 14"
-        },
-        {
           "name": "Trey Alexander",
           "updated": "Tue, Oct 27",
           "injury": "Knee",
           "status": "Expected to be out until at least Nov 6"
+        },
+        {
+          "name": "Jaren Jackson Jr.",
+          "updated": "Tue, Oct 27",
+          "injury": "Knee",
+          "status": "Expected to be out until at least Dec 14"
         }
       ]
     },
     {
       "team": "Washington",
       "players": [
-        {
-          "name": "Alex Sarr",
-          "updated": "Tue, Nov 3",
-          "injury": "Knee",
-          "status": "Game Time Decision"
-        },
-        {
-          "name": "Anthony Gill",
-          "updated": "Tue, Nov 3",
-          "injury": "Back",
-          "status": "Game Time Decision"
-        },
         {
           "name": "Reece Beekman",
           "updated": "Mon, Nov 2",
@@ -735,5 +693,5 @@
     }
   ],
   "source": "CBS Sports",
-  "lastUpdated": "November 04, 2026 17:48 UTC"
+  "lastUpdated": "November 05, 2026 17:53 UTC"
 }
