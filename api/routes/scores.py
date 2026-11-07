@@ -51,6 +51,7 @@ from helpers.common import (
     STATS_TIMEOUT,
     TEAMS,
     cache,
+    executor,
 )
 from helpers.decorators import route_error_handler
 from helpers.logger import log_exceptions
@@ -72,6 +73,7 @@ from helpers.stats import (
     get_games_list,
     get_scoreboard_v3_by_date,
     get_wnba_current_season,
+    live_clock_seconds,
     live_status_text,
     scoreboard_date,
     unfinished_game_ids,
@@ -85,6 +87,7 @@ _EMPTY_LEADER = {"name": "", "points": 0, "rebounds": 0, "assists": 0}
 
 # Series counts only change after a playoff game ends; cache longer than scoreboard.
 _PLAYOFF_SERIES_TTL = 300
+_BOX_REFRESH_TIMEOUT = 5
 
 # Third digit of a game ID is the game type, the same for NBA and WNBA (004…, 104…).
 _PLAYOFF_GAME_TYPE = "4"
@@ -170,13 +173,6 @@ async def get_boxscores(
 @router.get("/api/scoreboard")
 @route_error_handler("Failed to fetch scoreboard")
 async def get_scoreboard(league: str = Query(default="nba")):
-    """Get live scoreboard with game results and leading scorers.
-
-    Uses ScoreboardV3 to show today's scheduled games. Once any game has
-    started (gameStatus >= 2), switches to the live scoreboard API for
-    real-time scores and leaders. If ScoreboardV3 fails, serves the live
-    scoreboard alone.
-    """
     league_id = "10" if league == "wnba" else "00"
     sb_date = scoreboard_date()
     display_date = sb_date.strftime("%B %d, %Y")
@@ -197,7 +193,9 @@ async def get_scoreboard(league: str = Query(default="nba")):
                 if g.get("gameCode", "").startswith(day)
             ]
             return {
-                "games": _scoreboard_from_live(live_raw),
+                "games": _scoreboard_from_live(
+                    _refresh_live_games(live_raw, league_id)
+                ),
                 "date": display_date,
             }, False
         games = _scoreboard_from_v3(sb)
@@ -208,7 +206,12 @@ async def get_scoreboard(league: str = Query(default="nba")):
             started_ids = set()
         if started_ids:
             try:
-                live_by_id = {g["gameId"]: g for g in _scoreboard_from_live(live_raw)}
+                live_by_id = {
+                    g["gameId"]: g
+                    for g in _scoreboard_from_live(
+                        _refresh_live_games(live_raw, league_id)
+                    )
+                }
             except Exception as ex:  # pragma: no cover
                 log_exceptions(ex, "scoreboard_live_merge")
                 live_by_id = {}
@@ -247,8 +250,74 @@ def _record(game_id: str, wins, losses) -> str:
     return f"{wins}-{losses}"
 
 
+def _live_progress(game: dict) -> tuple:
+    return (
+        game["gameStatus"],
+        game.get("period") or 0,
+        -live_clock_seconds(game.get("gameClock")),
+        game["homeTeam"]["score"] + game["awayTeam"]["score"],
+    )
+
+
+def _box_leader(team: dict, current: dict) -> dict:
+    players = team.get("players")
+    if not players:
+        return current
+    top = max(players, key=lambda p: p["statistics"]["points"])
+    stats = top["statistics"]
+    return {
+        "name": top["name"],
+        "points": stats["points"],
+        "rebounds": stats["reboundsTotal"],
+        "assists": stats["assists"],
+    }
+
+
+def _with_box_progress(game: dict, box: dict) -> dict:
+    home, away = box["homeTeam"], box["awayTeam"]
+    leaders = game["gameLeaders"]
+    return {
+        **game,
+        "gameStatus": box["gameStatus"],
+        "gameStatusText": box["gameStatusText"],
+        "period": box.get("period"),
+        "gameClock": box.get("gameClock"),
+        "homeTeam": {**game["homeTeam"], "score": home["score"]},
+        "awayTeam": {**game["awayTeam"], "score": away["score"]},
+        "gameLeaders": {
+            "homeLeaders": _box_leader(home, leaders["homeLeaders"]),
+            "awayLeaders": _box_leader(away, leaders["awayLeaders"]),
+        },
+    }
+
+
+def _fresher_live_game(game: dict, league_id: str) -> dict:
+    if game["gameStatus"] != 2:
+        return game
+    try:
+        box = get_cached_live_boxscore(game["gameId"], league_id=league_id)["game"]
+        if _live_progress(box) > _live_progress(game):
+            return _with_box_progress(game, box)
+    except Exception as ex:
+        log_exceptions(ex, f"scoreboard_box_refresh game_id={game['gameId']}")
+    return game
+
+
+def _refresh_live_games(games: list[dict], league_id: str) -> list[dict]:
+    try:
+        return list(
+            executor.map(
+                lambda game: _fresher_live_game(game, league_id),
+                games,
+                timeout=_BOX_REFRESH_TIMEOUT,
+            )
+        )
+    except TimeoutError as ex:
+        log_exceptions(ex, "scoreboard_box_refresh_timeout")
+        return games
+
+
 def _scoreboard_from_live(raw_games) -> list[dict]:
-    """Build scoreboard game list from the live API (in-progress / finished games)."""
     games = []
     for game in raw_games:
         home_team = game["homeTeam"]

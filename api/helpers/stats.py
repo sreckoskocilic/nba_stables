@@ -156,6 +156,11 @@ def parse_iso_minutes(iso_str: str) -> str:
         return "0:00"
 
 
+def live_clock_seconds(iso_str: str | None) -> float:
+    m = _ISO_MIN_RE.fullmatch(iso_str or "")
+    return int(m.group(1) or 0) * 60 + float(m.group(2) or 0) if m else 0.0
+
+
 def live_status_text(game: dict) -> str:
     """Status line for a live-API game; while the clock runs, period + clock
     (e.g. 'Q2 5:30', 'OT1 2:15') — the CDN's own text has no clock."""

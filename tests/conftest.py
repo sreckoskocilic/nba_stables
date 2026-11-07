@@ -57,6 +57,15 @@ def _no_live_unfinished_lookup():
 
 
 @pytest.fixture(autouse=True)
+def _no_scoreboard_box_refresh():
+    with patch(
+        "routes.scores._refresh_live_games",
+        side_effect=lambda games, league_id: games,
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def _clear_cache():
     """Guarantee cache isolation between tests.
 
