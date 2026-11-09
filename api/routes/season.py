@@ -262,6 +262,7 @@ _LEADERS_TOP_N = 10
 _LEADERS_MIN_GP_SHARE = 0.7
 _LEADERS_MIN_FGM_PER_GAME = 3.5
 _LEADERS_MIN_FTM_PER_GAME = 1.5
+_LEADERS_MIN_FG3M_PER_GAME = 1.0
 
 
 @router.get("/api/season/leaders")
@@ -277,7 +278,7 @@ async def get_season_leaders(league: str = Query(default="nba")):
 
     def _sync():
         h, rows, _ = _dash_totals(season, league_id, CACHE_TTL["season_leaders"])
-        cols = ["GP", "FGM", "FGA", "FTM", "FTA"]
+        cols = ["GP", "FGM", "FGA", "FTM", "FTA", "FG3A"]
         cols += [c[0] for c in SEASON_LEADER_CATEGORIES]
         players: dict = {}
         for row in rows:
@@ -317,6 +318,7 @@ async def get_season_leaders(league: str = Query(default="nba")):
         ]
         for made, att, min_made, key, label, short in (
             ("FGM", "FGA", _LEADERS_MIN_FGM_PER_GAME, "fgPct", "Field Goal %", "FG%"),
+            ("FG3M", "FG3A", _LEADERS_MIN_FG3M_PER_GAME, "fg3Pct", "3-Point %", "3P%"),
             ("FTM", "FTA", _LEADERS_MIN_FTM_PER_GAME, "ftPct", "Free Throw %", "FT%"),
         ):
             shooters = [

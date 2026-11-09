@@ -1611,11 +1611,14 @@ LEADERS_HEADERS = [
     "STL",
     "BLK",
     "FG3M",
+    "FG3A",
 ]
 
 
-def _leaders_row(pid, name, team, gp, fgm, fga, pts, reb=0, ast=0, ftm=0, fta=0):
-    return [pid, name, team, gp, fgm, fga, ftm, fta, pts, reb, ast, 0, 0, 0]
+def _leaders_row(
+    pid, name, team, gp, fgm, fga, pts, reb=0, ast=0, ftm=0, fta=0, fg3m=0, fg3a=0
+):
+    return [pid, name, team, gp, fgm, fga, ftm, fta, pts, reb, ast, 0, 0, fg3m, fg3a]
 
 
 class TestSeasonLeaders:
@@ -1669,6 +1672,16 @@ class TestSeasonLeaders:
         body = self._get(client, rows)
         ft = next(c for c in body["categories"] if c["key"] == "ftPct")
         assert [(p["name"], p["value"]) for p in ft["players"]] == [("Liner", 80.0)]
+
+    def test_fg3_pct_needs_enough_makes(self, client):
+        rows = [
+            _leaders_row(1, "Shooter", "OKC", 10, 50, 100, 120, fg3m=20, fg3a=50),
+            _leaders_row(2, "Rare", "LAL", 10, 50, 100, 120, fg3m=5, fg3a=5),
+        ]
+        body = self._get(client, rows)
+        fg3 = next(c for c in body["categories"] if c["key"] == "fg3Pct")
+        assert [(p["name"], p["value"]) for p in fg3["players"]] == [("Shooter", 40.0)]
+        assert fg3["short"] == "3P%"
 
     def test_shares_totals_with_doubles(self, client):
         full = MagicMock()
