@@ -1092,6 +1092,21 @@ class TestPlayerProfile:
         assert len(body["career"]) == 1
         assert body["career"][0]["points"] == 28.0
 
+    def test_career_skips_multi_team_total_row(self, client):
+        h = {k: i for i, k in enumerate(CAREER_HEADERS)}
+        rows = []
+        for team in ("MEM", "ATL", "TOT"):
+            row = make_career_row()
+            row[h["TEAM_ABBREVIATION"]] = team
+            rows.append(row)
+        cpi, pcs = _mock_profile_endpoints(career_rows=rows)
+        with (
+            patch("routes.players.commonplayerinfo.CommonPlayerInfo", cpi),
+            patch("routes.players.playercareerstats.PlayerCareerStats", pcs),
+        ):
+            r = client.get(f"/api/players/{PLAYER_ID}/profile")
+        assert [c["team"] for c in r.json()["career"]] == ["MEM", "ATL"]
+
     def test_handles_missing_bio(self, client):
         cpi, pcs = _mock_profile_endpoints()
         cpi.return_value.common_player_info.get_dict.return_value = {

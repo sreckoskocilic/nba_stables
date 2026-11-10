@@ -637,6 +637,8 @@ async def get_player_profile(
         sh = {k: i for i, k in enumerate(season_dict["headers"])}
         career_rows = []
         for row in season_dict["data"]:
+            if row[sh["TEAM_ABBREVIATION"]] == "TOT":
+                continue
             gp = row[sh["GP"]] or 1
             avg, pct = _avg_pct(row, sh, gp)
 
