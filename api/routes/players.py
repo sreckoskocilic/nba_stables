@@ -160,6 +160,7 @@ async def get_player_stats(
         for bs in boxscores:
             if not bs:
                 continue
+            live = bs["game"].get("gameStatus") == 2
             for team_key in ["homeTeam", "awayTeam"]:
                 team = bs["game"][team_key]
                 for player in team["players"]:
@@ -183,6 +184,7 @@ async def get_player_stats(
                                 "blocks": stats["blocks"],
                                 "steals": stats["steals"],
                                 "fouls": stats["foulsPersonal"],
+                                "onCourt": live and player.get("oncourt") == "1",
                             }
                         )
 

@@ -105,7 +105,7 @@ async function loadStats() {
                 <th>AST</th><th>BLK</th><th>STL</th><th>PF</th>
             </tr></thead>
             <tbody>${data.players.map(p => `<tr>
-                <td><strong>${esc(p.name)}</strong></td>
+                <td>${p.onCourt ? '<span class="oc" title="On court"></span>' : ""}<strong>${esc(p.name)}</strong></td>
                 <td>${esc(p.team)}</td>
                 <td data-pid="${p.id}" data-stat="min" class="${_pinCls(p.id,"min")}">${p.minutes}</td>
                 <td data-pid="${p.id}" data-stat="pts" class="${sc("points",p.points)}${_pinCls(p.id,"pts")}">${p.points}</td>

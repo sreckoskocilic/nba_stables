@@ -140,8 +140,28 @@ class TestPlayerStatsFields:
             "blocks",
             "steals",
             "fouls",
+            "onCourt",
         ):
             assert key in p
+
+    def test_on_court_only_while_live(self, client):
+        def get(status, oncourt):
+            box = make_live_boxscore(status=status)
+            box["game"]["homeTeam"]["players"][0]["oncourt"] = oncourt
+            with (
+                patch(
+                    "routes.players.get_cached_scoreboard",
+                    return_value=[make_live_game()],
+                ),
+                patch("routes.players.get_cached_live_boxscore", return_value=box),
+            ):
+                return client.get(f"/api/players/stats?ids={PLAYER_ID}").json()[
+                    "players"
+                ][0]["onCourt"]
+
+        assert get("Q3 5:00", "1") is True
+        assert get("Q3 5:00", "0") is False
+        assert get("Final", "1") is False
 
 
 class TestPlayerTrackerTipOff:
