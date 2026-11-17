@@ -6,6 +6,7 @@ function safeParse(raw, fallback) { try { return raw ? JSON.parse(raw) : fallbac
 let _league = localStorage.getItem("widget_league") || "nba";
 let tracked = safeParse(localStorage.getItem("widget_tracked_" + _league), []);
 let refreshTimer = null;
+let _prevVals = {};
 const _pins = safeParse(localStorage.getItem("pinnedStats"), {});
 function _pinCls(pid, stat) { return _pins[pid + "_" + stat] ? " stat-pinned" : ""; }
 function _togglePin(pid, stat) {
@@ -118,6 +119,13 @@ async function loadStats() {
                 <td data-pid="${p.id}" data-stat="stl" class="${sc("steals",p.steals)}${_pinCls(p.id,"stl")}">${p.steals}</td>
                 <td data-pid="${p.id}" data-stat="pf" class="${_pinCls(p.id,"pf")}">${p.fouls}</td>
             </tr>`).join("")}</tbody></table>`;
+        const vals = {};
+        $content.querySelectorAll("td[data-stat]").forEach(td => {
+            const k = td.dataset.pid + "_" + td.dataset.stat;
+            vals[k] = td.textContent;
+            if (k in _prevVals && _prevVals[k] !== vals[k]) td.classList.add("stat-changed");
+        });
+        _prevVals = vals;
         $content.querySelector("table").addEventListener("click", e => {
             const td = e.target.closest("td[data-stat]");
             if (!td) return;
