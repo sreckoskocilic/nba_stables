@@ -122,7 +122,7 @@ async function loadStats() {
         const vals = {};
         $content.querySelectorAll("td[data-stat]").forEach(td => {
             const k = td.dataset.pid + "_" + td.dataset.stat;
-            vals[k] = td.textContent;
+            vals[k] = td.textContent.split("/")[0];
             if (k in _prevVals && _prevVals[k] !== vals[k]) td.classList.add("stat-changed");
         });
         _prevVals = vals;
