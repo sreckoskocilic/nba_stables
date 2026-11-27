@@ -52,8 +52,15 @@ jobs:
             docker compose --profile prod build --pull
             docker compose --profile prod up -d --wait
             docker image prune -f
-            if ! diff -q /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile >/dev/null 2>&1; then
-              caddy validate --config /opt/nba_stables/Caddyfile
-              cp /opt/nba_stables/Caddyfile /etc/caddy/Caddyfile
-              sudo systemctl reload caddy
+            SITE=/etc/caddy/sites/nba_stables.caddy
+            if ! diff -q /opt/nba_stables/Caddyfile "$SITE" >/dev/null 2>&1; then
+              PREV=$(mktemp)
+              cp "$SITE" "$PREV" 2>/dev/null || rm -f "$PREV"
+              cp /opt/nba_stables/Caddyfile "$SITE"
+              if ! caddy validate --config /etc/caddy/Caddyfile; then
+                if [ -f "$PREV" ]; then mv "$PREV" "$SITE"; else rm -f "$SITE"; fi
+                exit 1
+              fi
+              rm -f "$PREV"
+              sudo systemctl restart caddy
             fi
